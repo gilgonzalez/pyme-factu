@@ -15,6 +15,7 @@
     "@base-ui/react": "^1.9.0",
     "@facturalibre/auth": "workspace:*",
     "@facturalibre/database": "workspace:*",
+    "@facturalibre/fiscal-core": "workspace:*",
     "@facturalibre/security": "workspace:*",
     "@facturalibre/tenancy": "workspace:*",
     "better-auth": "1.7.27",

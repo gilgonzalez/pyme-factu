@@ -1,10 +1,10 @@
-import { getTaxpayer, listTaxpayerAccess } from "@facturalibre/tenancy";
+import { listTaxpayerAccess } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { streamedPage } from "@/components/form";
-import { TenantFrame } from "@/components/tenant-frame";
+import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { getDatabase } from "@/lib/server/db";
-import { requireTenant } from "@/lib/server/session";
+import { requireTaxpayer } from "@/lib/server/session";
 import { setTaxpayerAccessAction, updateTaxpayerAction } from "../actions";
 import { AccessManager, TaxpayerForm } from "../taxpayer-forms";
 
@@ -18,15 +18,14 @@ async function Taxpayer({ params }: { readonly params: Params }) {
   const { organizacion, contribuyente } = await params;
   const path = `/${organizacion}/contribuyentes/${contribuyente}`;
   // El contribuyente se verifica al resolver el contexto: si no existe o no hay acceso → 404.
-  const { user, context } = await requireTenant(organizacion, path, contribuyente);
+  const { user, context, taxpayer } = await requireTaxpayer(organizacion, contribuyente, path);
   const db = getDatabase();
-  const taxpayer = await getTaxpayer(db, context);
   const canManageAccess = context.permissions.has("taxpayers.manage_access");
   const access = canManageAccess ? await listTaxpayerAccess(db, context, taxpayer.id) : [];
   const slug = context.tenant.slug;
 
   return (
-    <TenantFrame user={user} context={context} current="contribuyentes" activeTaxpayer={taxpayer}>
+    <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="datos">
       <div className="grid gap-1">
         <Link href={`/${slug}/contribuyentes`} className="text-sm text-muted-foreground underline underline-offset-4">
           Volver a contribuyentes
@@ -75,6 +74,6 @@ async function Taxpayer({ params }: { readonly params: Params }) {
           />
         </section>
       ) : null}
-    </TenantFrame>
+    </TaxpayerFrame>
   );
 }

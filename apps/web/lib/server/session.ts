@@ -1,5 +1,5 @@
 import "server-only";
-import { resolveTenantContext, type TenantContext } from "@facturalibre/tenancy";
+import { getTaxpayer, resolveTenantContext, type TaxpayerRecord, type TenantContext } from "@facturalibre/tenancy";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getAuth } from "./auth";
@@ -52,4 +52,14 @@ export async function requireTenant(
   const result = await resolveTenantContext(getDatabase(), { userId: user.id, tenantSlug: slug, taxpayerId, requestId });
   if (!result.ok) notFound();
   return { user, context: result.context };
+}
+
+/** Contexto con el contribuyente activo verificado y su ficha (para el marco «Contribuyente activo»). */
+export async function requireTaxpayer(
+  slug: string,
+  taxpayerId: string,
+  returnPath: string,
+): Promise<{ user: SessionUser; context: TenantContext; taxpayer: TaxpayerRecord }> {
+  const { user, context } = await requireTenant(slug, returnPath, taxpayerId);
+  return { user, context, taxpayer: await getTaxpayer(getDatabase(), context) };
 }
