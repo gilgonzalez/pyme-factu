@@ -23,7 +23,7 @@ Estado a **24/11/2026** (fin de Fase 3: contribuyentes con NIF validado y acceso
 | Cumplimiento | [legal-references](compliance/legal-references.md) · [regulatory-requirements](compliance/regulatory-requirements.md) · [data-protection](compliance/data-protection.md) · [producer-declaration](compliance/producer-declaration.md) |
 | Despliegue | [local-development](deployment/local-development.md) · [docker](deployment/docker.md) |
 | API | [authorization-matrix](api/authorization-matrix.md) |
-| Decisiones | [ADR-001](decisions/ADR-001-architecture.md) · [ADR-002](decisions/ADR-002-multi-tenancy.md) · [ADR-003](decisions/ADR-003-database.md) · [ADR-004](decisions/ADR-004-verifactu.md) · [ADR-005](decisions/ADR-005-aeat-integration.md) · [ADR-006](decisions/ADR-006-authentication.md) |
+| Decisiones | [ADR-001](decisions/ADR-001-architecture.md) · [ADR-002](decisions/ADR-002-multi-tenancy.md) · [ADR-003](decisions/ADR-003-database.md) · [ADR-004](decisions/ADR-004-verifactu.md) · [ADR-005](decisions/ADR-005-aeat-integration.md) · [ADR-006](decisions/ADR-006-authentication.md) · [ADR-007](decisions/ADR-007-invoice-calculation.md) |
 
 ## Adaptaciones respecto a la estructura propuesta
 

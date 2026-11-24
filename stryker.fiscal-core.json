@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": [
+    "@stryker-mutator/vitest-runner",
+    "@stryker-mutator/typescript-checker"
+  ],
+  "checkers": [
+    "typescript"
+  ],
+  "tsconfigFile": "packages/fiscal-core/tsconfig.json",
+  "vitest": {
+    "configFile": "packages/fiscal-core/vitest.config.ts",
+    "dir": "packages/fiscal-core"
+  },
+  "mutate": [
+    "packages/fiscal-core/src/**/*.ts"
+  ],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html"
+  ],
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 80
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/fiscal-core.html"
+  }
+}

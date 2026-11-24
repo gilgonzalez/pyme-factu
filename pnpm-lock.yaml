@@ -197,6 +197,8 @@ importers:
 
   packages/domain: {}
 
+  packages/fiscal-core: {}
+
   packages/security: {}
 
   packages/tenancy:
