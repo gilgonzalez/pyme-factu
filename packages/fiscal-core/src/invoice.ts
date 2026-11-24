@@ -123,45 +123,59 @@ export type ParsedLineResult =
 
 const DESCRIPTION_MAX = 500;
 
-function descriptionError(description: string | null): string | undefined {
-  if (description === null || description === "") return "Describe el producto o servicio.";
-  return description.length > DESCRIPTION_MAX ? `La descripción no puede superar los ${DESCRIPTION_MAX} caracteres.` : undefined;
+/** Resultado de leer UN campo de formulario: su valor o el mensaje de error que se muestra junto a él. */
+export type Field<T> = { readonly value: T } | { readonly error: string };
+
+/** Reúne campos ya leídos: o todos los valores, o los errores de los que fallaron (por nombre de campo). */
+export function collectFields<T extends object>(
+  fields: { readonly [K in keyof T]: Field<T[K]> },
+): { readonly ok: true; readonly value: T } | { readonly ok: false; readonly errors: Partial<Record<keyof T, string>> } {
+  const errors: Partial<Record<keyof T, string>> = {};
+  const value: Partial<T> = {};
+  for (const key of Object.keys(fields) as (keyof T)[]) {
+    const field = fields[key];
+    if ("error" in field) errors[key] = field.error;
+    else value[key] = field.value;
+  }
+  // Sin errores, `value` tiene todas las claves de `fields` (una por campo): es un T completo.
+  return Object.keys(errors).length > 0 ? { ok: false, errors } : { ok: true, value: value as T };
 }
 
-function quantityOf(raw: unknown): bigint | string {
+function descriptionOf(raw: unknown): Field<string> {
+  const description = typeof raw === "string" ? raw.trim() : "";
+  if (description === "") return { error: "Describe el producto o servicio." };
+  return description.length > DESCRIPTION_MAX ? { error: `La descripción no puede superar los ${DESCRIPTION_MAX} caracteres.` } : { value: description };
+}
+
+function quantityOf(raw: unknown): Field<bigint> {
   const parsed = parseDecimal(raw, SCALE.quantity, { allowNegative: true });
-  if (!parsed.ok) return "Escribe una cantidad con hasta 3 decimales.";
-  return parsed.value === 0n ? "La cantidad no puede ser cero." : parsed.value;
+  if (!parsed.ok) return { error: "Escribe una cantidad con hasta 3 decimales." };
+  return parsed.value === 0n ? { error: "La cantidad no puede ser cero." } : { value: parsed.value };
 }
 
-function unitPriceOf(raw: unknown): bigint | string {
+function unitPriceOf(raw: unknown): Field<bigint> {
   const parsed = parseDecimal(raw, SCALE.unitPrice);
-  return parsed.ok ? parsed.value : "Escribe un precio de 0 o más, con hasta 4 decimales.";
+  return parsed.ok ? { value: parsed.value } : { error: "Escribe un precio de 0 o más, con hasta 4 decimales." };
 }
 
-function discountOf(raw: unknown): bigint | string {
-  if (raw === undefined || (typeof raw === "string" && raw.trim() === "")) return 0n;
+function discountOf(raw: unknown): Field<bigint> {
+  if (raw === undefined || (typeof raw === "string" && raw.trim() === "")) return { value: 0n };
   const parsed = parseDecimal(raw, SCALE.percent);
-  return parsed.ok && parsed.value <= HUNDRED_PERCENT ? parsed.value : "El descuento debe estar entre 0 y 100 %.";
+  return parsed.ok && parsed.value <= HUNDRED_PERCENT ? { value: parsed.value } : { error: "El descuento debe estar entre 0 y 100 %." };
+}
+
+function taxOf(raw: unknown): Field<TaxCategory> {
+  const tax = parseTaxCategory(raw);
+  return tax === null ? { error: "Elige un tipo de IVA." } : { value: tax };
 }
 
 /** Convierte los textos de una línea del formulario en una línea exacta, o explica cada error. */
 export function parseInvoiceLine(raw: { readonly [K in LineField]?: unknown }): ParsedLineResult {
-  const description = typeof raw.description === "string" ? raw.description.trim() : null;
-  const quantity = quantityOf(raw.quantity);
-  const unitPrice = unitPriceOf(raw.unitPrice);
-  const discountPercent = discountOf(raw.discountPercent);
-  const tax = parseTaxCategory(raw.tax);
-  const candidates: [LineField, string | undefined][] = [
-    ["description", descriptionError(description)],
-    ["quantity", typeof quantity === "string" ? quantity : undefined],
-    ["unitPrice", typeof unitPrice === "string" ? unitPrice : undefined],
-    ["discountPercent", typeof discountPercent === "string" ? discountPercent : undefined],
-    ["tax", tax === null ? "Elige un tipo de IVA." : undefined],
-  ];
-  const errors = candidates.filter((entry): entry is [LineField, string] => entry[1] !== undefined);
-  if (errors.length > 0 || description === null || typeof quantity === "string" || typeof unitPrice === "string" || typeof discountPercent === "string" || tax === null) {
-    return { ok: false, errors: Object.fromEntries(errors) };
-  }
-  return { ok: true, value: { description, quantity, unitPrice, discountPercent, tax } };
+  return collectFields<ParsedLine>({
+    description: descriptionOf(raw.description),
+    quantity: quantityOf(raw.quantity),
+    unitPrice: unitPriceOf(raw.unitPrice),
+    discountPercent: discountOf(raw.discountPercent),
+    tax: taxOf(raw.tax),
+  });
 }

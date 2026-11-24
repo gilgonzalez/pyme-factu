@@ -15,6 +15,7 @@
   "dependencies": {
     "@facturalibre/database": "workspace:*",
     "@facturalibre/domain": "workspace:*",
+    "@facturalibre/fiscal-core": "workspace:*",
     "@facturalibre/security": "workspace:*"
   }
 }

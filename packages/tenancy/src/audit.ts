@@ -10,7 +10,10 @@ export type AuditAction =
   | "tenant.ownership_transferred"
   | "taxpayer.created"
   | "taxpayer.updated"
-  | "taxpayer.access_changed";
+  | "taxpayer.access_changed"
+  | "invoice.issued"
+  | "invoice.draft_deleted"
+  | "invoice.rectification_created";
 
 /**
  * Registra un evento de auditoría en la MISMA transacción que el cambio (o ambos o ninguno).
