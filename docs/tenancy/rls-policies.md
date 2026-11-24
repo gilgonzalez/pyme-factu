@@ -62,3 +62,17 @@ Migración `20261124000300_onboarding_invitations`. Son las ÚNICAS vías por la
 | `app.accept_invitation(token_hash)` | Crea la membresía con el rol y alcance invitados, marca la invitación y registra `invitation.accepted`. Idempotente | Email del usuario = email invitado (`EMAIL_MISMATCH`), email verificado, invitación vigente y no anulada; si ya era miembro no duplica ni cambia su rol; bloqueo `FOR UPDATE` | ídem |
 
 La tabla `rate_limits` tiene RLS activado y solo la usa `facturalibre_auth`; el rol de aplicación no tiene permisos sobre ella (probado).
+
+## Facturación (Fase 4)
+
+Migración `20261124000400_invoicing`. Tablas `customers`, `products`, `invoice_series`, `invoices` e `invoice_lines`, todas con `tenant_id` y `taxpayer_id`:
+
+| Operación | Política (rol `facturalibre_app`) |
+|---|---|
+| SELECT | tenant autorizado **y** `app.can_access_taxpayer(taxpayer_id)` (acceso de lectura o completo) |
+| INSERT / UPDATE / DELETE | tenant autorizado **y** `app.can_write_taxpayer(taxpayer_id)` (acceso completo) |
+
+- Las series no tienen `DELETE` concedido (sus números pueden estar en facturas emitidas).
+- Qué **rol** puede preparar, emitir o rectificar lo decide la aplicación (`runInTenant` con `invoices.draft` / `invoices.issue` / `invoices.rectify`); la base de datos garantiza el aislamiento por contribuyente.
+- Las facturas emitidas y sus líneas son inalterables para **todos** los roles, incluido el propietario de las tablas (triggers `invoices_immutable_when_issued` e `invoice_lines_immutable_when_issued`).
+- Pruebas: `packages/database/test/invoicing.test.ts`.

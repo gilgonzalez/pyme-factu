@@ -46,7 +46,7 @@ flowchart LR
 | `packages/auth` | Identidad con Better Auth (rol `facturalibre_auth`), correos transaccionales, mailer SMTP | ✅ |
 | `apps/web` | UI, Server Actions, health check | ✅ acceso, organizaciones, equipo, invitaciones y contribuyentes |
 | `apps/worker` | Procesos asíncronos (outbox, envíos AEAT, reintentos) | 🧩 (health check y ciclo de vida; sin procesamiento) |
-| `fiscal-core` | Cálculos decimales, numeración, rectificativas | ⏳ Fase 4 |
+| `packages/fiscal-core` | Aritmética decimal exacta, cálculo de facturas (IVA, recargo, IRPF, redondeo), lectura de líneas | ✅ (mutación 100%: `pnpm mutate:fiscal-core`; [ADR-007](../decisions/ADR-007-invoice-calculation.md)) |
 | `verifactu` | Registros, huella, encadenamiento, QR, XML | 📄 diseño inicial · ⛔ especificaciones técnicas por leer íntegras |
 | `aeat-client` | SOAP, certificados, envíos, respuestas | 📄 diseño inicial |
 | `pdf`, `email`, consulta de auditoría | Documentos, notificaciones | ⏳ |

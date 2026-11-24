@@ -11,8 +11,8 @@ Fecha de consulta de todas las entradas: **24/11/2026**. «Leído» = contenido 
 | Orden HAC/1177/2024, de 17 de octubre (especificaciones técnicas) | BOE 28/10/2024, BOE-A-2024-22138 | Listado (artículos citados vía FAQ: 2.d, 7.i, 15, 17) |
 | Real Decreto-ley 15/2025, de 2 de diciembre (amplía plazos a 2027) | BOE 03/12/2025 — https://www.boe.es/boe/dias/2025/12/03/pdfs/BOE-A-2025-24446.pdf | Listado; efectos leídos vía nota AEAT |
 | Ley 58/2003, General Tributaria (art. 29.2.j) | BOE | Pendiente |
-| Real Decreto 1619/2012 (Reglamento de facturación) | BOE | Pendiente (Fase 4) |
-| Ley 37/1992 del IVA | BOE | Pendiente (Fase 4) |
+| Real Decreto 1619/2012 (Reglamento de facturación) | BOE | Consultado en lo aplicado en la Fase 4 (art. 6: contenido y serie específica de rectificativas; art. 15: rectificación) a través del manual práctico de IVA 2026 de la AEAT — ver [ADR-007](../decisions/ADR-007-invoice-calculation.md). ⛔ Lectura íntegra pendiente |
+| Ley 37/1992 del IVA | BOE | Art. 90 (cuota = tipo × base) y art. 80 (modificación de la base) aplicados en la Fase 4. ⛔ Lectura íntegra pendiente |
 | RGPD (UE) 2016/679 y LOPDGDD (LO 3/2018) | DOUE / BOE | Pendiente (ver [data-protection](data-protection.md)) |
 
 ## Publicaciones de la AEAT y de Hacienda

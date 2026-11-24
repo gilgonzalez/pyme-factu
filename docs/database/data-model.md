@@ -37,6 +37,11 @@ erDiagram
 | `taxpayer_memberships` | Contribuyente | Acceso de un miembro a un contribuyente concreto (`READ_ONLY`/`FULL`). |
 | `audit_events` | Organización (o global si `tenant_id` NULL) | Registro append-only. |
 | `outbox_events` | Organización | Transactional outbox: `idempotency_key` única, `attempts ≤ max_attempts` (CHECK). |
+| `customers` | Contribuyente | Destinatarios. NIF opcional (validado en el dominio), único por contribuyente si existe; marca de recargo de equivalencia. |
+| `products` | Contribuyente | Productos y servicios guardados: precio sin IVA (diezmilésimas) y tipo de IVA (CHECK de tipos admitidos). |
+| `invoice_series` | Contribuyente | Series por año y tipo (`F{año}` ordinarias, `R{año}` rectificativas); `next_number` solo avanza al emitir. Sin DELETE. |
+| `invoices` | Contribuyente | Borrador (sin número) o emitida (número, fecha, instantáneas de emisor y destinatario). Importes en céntimos calculados por fiscal-core. Inalterable una vez emitida (trigger). FKs compuestas por contribuyente a cliente, serie (y tipo de serie) y factura rectificada. |
+| `invoice_lines` | Contribuyente | Líneas con cantidad (3 dec.), precio (4 dec.), descuento y tipo de IVA; base calculada por fiscal-core. Inalterables si la factura está emitida. |
 
 Identificadores: `uuid` generados por `uuidv7()` de PostgreSQL 18. Fechas: `timestamptz(6)`.
 

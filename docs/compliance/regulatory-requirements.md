@@ -13,8 +13,8 @@ Estados: ✅ implementado y probado · 📄 diseñado · ⏳ pendiente · ⛔ pe
 | R-07 | Comprobar encadenamiento del último registro y desfase ≤ 1 min antes de generar | OM art. 7.i (vía FAQ apdo. 15) | — | verifactu | — | — | 📄 ⛔ leer OM |
 | R-08 | Huella SHA-256 encadenada | FAQ sede (huella); especificación de huella | — | verifactu | — | — | ⛔ leer especificación |
 | R-09 | QR + mención «VERI*FACTU» en la factura | FAQ sede; especificación QR | — | pdf / verifactu | — | — | ⛔ leer especificación |
-| R-10 | Prohibida la numeración duplicada (también facturas «de prueba»); borradores lícitos | FAQ apdo. 6 | v1.3 | fiscal-core | Numeración transaccional; borradores sin número | — | 📄 Fase 4 |
-| R-11 | Registros inalterables; corrección mediante anulación/subsanación | FAQ sede (alta/anulación); RRSIF | 21/10/2026 | verifactu | Sin UPDATE/DELETE en tablas fiscales | — | 📄 |
+| R-10 | Prohibida la numeración duplicada (también facturas «de prueba»); borradores lícitos | FAQ apdo. 6 | v1.3 | tenancy / database | Número asignado solo al emitir, bloqueando la serie del año (`FOR UPDATE`) en la misma transacción: sin duplicados ni huecos; borradores sin número (CHECK); número único por serie | `invoices.test.ts` (emisión concurrente), `invoicing.test.ts`, E2E | ✅ Fase 4 |
+| R-11 | Registros inalterables; corrección mediante anulación/subsanación | FAQ sede (alta/anulación); RRSIF | 21/10/2026 | database / verifactu | Facturas emitidas y sus líneas inalterables para TODOS los roles (trigger `INVOICE_IMMUTABLE`); corrección con rectificativa en serie propia | `invoicing.test.ts` › inmutabilidad, E2E | ✅ facturas · 📄 registros VERI*FACTU (Fase 5) |
 | R-12 | Mismo obligado tributario en cada envío (lote) | FAQ sede | 21/10/2026 | aeat-client | Lote por facturación | — | 📄 |
 | R-13 | Reenvío hasta obtener respuesta; la facturación no se interrumpe por caídas | FAQ sede | 21/10/2026 | worker | Outbox + reintentos acotados por intento, persistentes | — | 📄 |
 | R-14 | Declaración responsable visible dentro del SIF, por versión | RRSIF art. 13; OM art. 15 (vía FAQ) | — | web / compliance | Ver [producer-declaration](producer-declaration.md) | — | 📄 ⛔ |

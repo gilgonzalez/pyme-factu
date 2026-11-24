@@ -22,5 +22,11 @@ Toda operación sobre datos de un tenant se ejecuta con `runInTenant(db, ctx, <p
 | `/[organizacion]/contribuyentes/[id]` — ficha | Server Component | Sesión + acceso al contribuyente (si no: 404) | `taxpayers.read` | ✅ E2E |
 | Editar contribuyente (NIF inmutable) | Server Action | Sesión + acceso FULL | `taxpayers.update` | ✅ `taxpayers.test.ts` |
 | Asignar / cambiar / retirar acceso a contribuyente | Server Action | Sesión + acceso FULL propio; nunca a uno mismo | `taxpayers.manage_access` | ✅ `taxpayers.test.ts`, E2E |
+| Clientes del contribuyente: listar / dar de alta | Server Component / Server Action | Sesión + acceso al contribuyente (alta: FULL) | `customers.read` / `customers.write` | ✅ `invoices.test.ts`, E2E |
+| Productos del contribuyente: listar / dar de alta | Server Component / Server Action | Sesión + acceso al contribuyente (alta: FULL) | `products.read` / `products.write` | ✅ `invoices.test.ts`, E2E |
+| Facturas: listar y ver | Server Component | Sesión + acceso al contribuyente | `invoices.read` | ✅ `invoices.test.ts`, E2E |
+| Crear / editar / borrar borrador | Server Action | Sesión + acceso FULL | `invoices.draft` (EMPLOYEE incluido) | ✅ `invoices.test.ts`, E2E |
+| Emitir factura (número correlativo; inalterable después) | Server Action | Sesión + acceso FULL + confirmación explícita | `invoices.issue` (no EMPLOYEE) | ✅ `invoices.test.ts`, E2E |
+| Preparar rectificativa (borrador por diferencias, serie propia) | Server Action | Sesión + acceso FULL + motivo | `invoices.rectify` | ✅ `invoices.test.ts`, E2E |
 
 Matriz rol → permiso: [roles-and-permissions](../tenancy/roles-and-permissions.md).
