@@ -5,7 +5,8 @@ import { linkFromEmail, uniqueEmail } from "./support/mailpit";
 
 const PASSWORD = "una-frase-de-prueba-larga";
 
-test.skip(!process.env["E2E_BASE_URL"], "Requiere el stack completo: E2E_BASE_URL=http://localhost:3000 (docker compose)");
+// Requiere PostgreSQL migrado, Mailpit y la web con APP_BASE_URL = baseURL de Playwright (ver docs/deployment/docker.md).
+test.skip(process.env["E2E_FULL_STACK"] !== "1", "Recorridos completos desactivados: define E2E_FULL_STACK=1");
 
 async function signUpAndVerify(page: Page, name: string, email: string, startAt = "/registro"): Promise<void> {
   await page.goto(startAt);
@@ -86,7 +87,7 @@ test("una organización ajena responde 404 aunque se conozca su dirección", asy
   await expect(stranger.getByText("Gestoría Ficticia")).toHaveCount(0);
 });
 
-test("recuperar la contraseña y entrar con la nueva", async ({ page }) => {
+test("recuperar la contraseña y entrar con la nueva", async ({ page, baseURL }) => {
   const email = uniqueEmail("olvidadiza");
   await signUpAndVerify(page, "Olga Ficticia", email);
   await page.getByRole("button", { name: "Cerrar sesión" }).click();
@@ -107,7 +108,7 @@ test("recuperar la contraseña y entrar con la nueva", async ({ page }) => {
   await page.getByLabel("Contraseña").fill("otra-frase-de-prueba-larga");
   await page.getByRole("button", { name: "Entrar" }).click();
   // El destino externo se descarta: se vuelve a una ruta interna.
-  await expect(page).toHaveURL(/localhost:3000\/organizaciones$/);
+  await expect(page).toHaveURL(new URL("/organizaciones", baseURL).toString());
 });
 
 test("sin sesión, las páginas privadas llevan a iniciar sesión y vuelven después", async ({ page }) => {
