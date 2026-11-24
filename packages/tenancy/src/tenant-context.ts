@@ -1,4 +1,5 @@
 import { withSecurityContext, type Database } from "@facturalibre/database";
+import { effectiveTaxpayerAccess } from "./taxpayers";
 import { effectivePermissions, type Permission, type Role, type TaxpayerAccess } from "@facturalibre/security";
 
 declare const tenantContextBrand: unique symbol;
@@ -66,8 +67,7 @@ async function findTaxpayerAccess(
     }),
   );
   if (taxpayer === null) return null;
-  if (membership.taxpayerScope === "ALL_TAXPAYERS") return "FULL";
-  return taxpayer.memberships[0]?.accessLevel ?? null;
+  return effectiveTaxpayerAccess(membership.taxpayerScope, taxpayer.memberships[0]?.accessLevel);
 }
 
 /**

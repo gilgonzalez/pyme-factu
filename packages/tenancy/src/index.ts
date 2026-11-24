@@ -16,6 +16,20 @@ export { changeMemberRole, listMembers, removeMember, transferOwnership, type Ch
 export { createOrganization, listMyOrganizations, type CreateOrganizationResult, type MyOrganization } from "./organizations";
 export { AuthorizationError, runInTenant } from "./run-in-tenant";
 export {
+  createTaxpayer,
+  effectiveTaxpayerAccess,
+  listTaxpayerAccess,
+  listTaxpayers,
+  setTaxpayerAccess,
+  updateTaxpayer,
+  type CreateTaxpayerResult,
+  type SetTaxpayerAccessInput,
+  type SetTaxpayerAccessResult,
+  type TaxpayerAccessEntry,
+  type TaxpayerAccessLevel,
+  type TaxpayerSummary,
+} from "./taxpayers";
+export {
   resolveTenantContext,
   type ResolveTenantContextInput,
   type ResolveTenantContextResult,
@@ -24,10 +38,13 @@ export {
 export {
   parseInvitationInput,
   parseOrganizationInput,
+  parseTaxpayerDetails,
   suggestSlug,
   type InvitableRole,
   type InvitationInput,
   type OrganizationInput,
   type Parsed,
+  type TaxpayerDetails,
+  type TaxpayerField,
   type TaxpayerScope,
 } from "./validation";

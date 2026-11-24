@@ -7,7 +7,10 @@ export type AuditAction =
   | "invitation.revoked"
   | "member.role_changed"
   | "member.removed"
-  | "tenant.ownership_transferred";
+  | "tenant.ownership_transferred"
+  | "taxpayer.created"
+  | "taxpayer.updated"
+  | "taxpayer.access_changed";
 
 /**
  * Registra un evento de auditoría en la MISMA transacción que el cambio (o ambos o ninguno).
