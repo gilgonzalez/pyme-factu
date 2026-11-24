@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node ../../scripts/with-root-env.mjs node_modules/next/dist/bin/next dev",
     "build": "next build && node scripts/copy-standalone-assets.mjs",
     "start": "node .next/standalone/apps/web/server.js",
     "lint": "eslint .",
