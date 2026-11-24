@@ -1,0 +1,65 @@
+# FacturaLibre — entorno local completo. Requiere un .env en la raíz (pnpm env:init).
+#   docker compose up -d --build
+# Servicios: postgres → migrate (una vez) → web (http://localhost:3000) + worker
+# Este entorno NUNCA se conecta con la AEAT real.
+
+x-db-urls: &db-urls
+  APP_DATABASE_URL: postgresql://facturalibre_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  WORKER_DATABASE_URL: postgresql://facturalibre_worker:${WORKER_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  AUTH_DATABASE_URL: postgresql://facturalibre_auth:${AUTH_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18: el volumen se monta en /var/lib/postgresql (el directorio de datos cuelga de él).
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build: { context: ., target: migrate }
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      WORKER_DB_PASSWORD: ${WORKER_DB_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  web:
+    build: { context: ., target: web }
+    restart: unless-stopped
+    environment:
+      <<: *db-urls
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      FACTURALIBRE_ENV: ${FACTURALIBRE_ENV:-development}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    build: { context: ., target: worker }
+    restart: unless-stopped
+    environment:
+      <<: *db-urls
+      FACTURALIBRE_ENV: ${FACTURALIBRE_ENV:-development}
+      WORKER_HEALTH_PORT: "8081"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:

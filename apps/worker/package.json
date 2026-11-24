@@ -1,0 +1,17 @@
+{
+  "name": "@facturalibre/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@facturalibre/database": "workspace:*",
+    "tsx": "^4.23.15"
+  }
+}

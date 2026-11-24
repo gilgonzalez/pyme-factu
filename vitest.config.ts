@@ -4,8 +4,13 @@ import { withCrapTypescriptVitest } from "@barney-media/crap-typescript-vitest";
 export default withCrapTypescriptVitest(
   {
     test: {
-      include: ["test/**/*.test.ts"],
-      coverage: { provider: "v8", include: ["src/**/*.ts"] },
+      // Cada paquete define su proyecto (y su globalSetup de PostgreSQL si lo necesita).
+      projects: ["packages/*", "apps/worker"],
+      coverage: {
+        provider: "v8",
+        include: ["packages/*/src/**/*.ts", "apps/worker/src/**/*.ts"],
+        exclude: ["**/generated/**", "**/testing/**", "**/scripts/**"],
+      },
     },
   },
   { threshold: 10, agent: true },

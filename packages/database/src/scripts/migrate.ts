@@ -1,6 +1,6 @@
 // pnpm db:migrate — crea/actualiza los roles de ejecución y aplica las migraciones pendientes.
 // Usa DATABASE_URL (rol administrador/propietario). Las contraseñas de los roles vienen del entorno.
-import "dotenv/config";
+import "../load-env";
 import { ensureDatabaseRoles } from "../bootstrap";
 import { requireEnv } from "../env";
 import { deployMigrations } from "../migrations";

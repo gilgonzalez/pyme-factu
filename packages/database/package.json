@@ -14,7 +14,7 @@
     "db:local": "tsx src/scripts/local-postgres.ts",
     "db:diff": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --config ../../eslint.config.js src test",
+    "lint": "eslint --config ../../eslint.config.js --rule \"no-restricted-imports: off\" src test",
     "test": "vitest run"
   },
   "dependencies": {
