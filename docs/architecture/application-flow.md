@@ -1,13 +1,13 @@
 # Flujo de una petición autenticada
 
-Estado: ✅ pasos 3–7 implementados y probados (`packages/tenancy`, `packages/database`). 📄 pasos 1–2 (autenticación) en Fase 2.
+Estado: ✅ pasos 3–7 implementados y probados (`packages/tenancy`, `packages/database`). ✅ pasos 1–2 (autenticación con Better Auth, Fase 2).
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant B as Navegador
   participant N as Next.js (Server Action / RSC)
-  participant A as Auth (Fase 2)
+  participant A as Auth (Better Auth)
   participant T as tenancy.resolveTenantContext
   participant S as security
   participant P as PostgreSQL (RLS)
@@ -32,4 +32,4 @@ sequenceDiagram
 3. **Identificadores del navegador**: `tenantSlug` y `taxpayerId` se validan por formato y se comprueban contra BD; nunca se aceptan `tenant_id` ni roles del cliente.
 4. **Doble barrera**: `runInTenant` comprueba el permiso antes de abrir la transacción; aunque un fallo de aplicación fijara otro tenant, `app.authorized_tenant_id()` exige membresía activa del `app.user_id` y PostgreSQL devuelve cero filas (probado).
 5. **Contexto efímero**: `set_config(..., true)` ≡ `SET LOCAL`; desaparece al terminar la transacción. Probado con un pool de **una** conexión.
-6. **Cambio de organización**: es solo navegar a otro slug; el contexto se resuelve de nuevo en cada petición. No hay estado de "tenant activo" en sesión que pueda quedar desincronizado. (El último tenant usado podrá recordarse en una cookie solo como preferencia de navegación — Fase 2.)
+6. **Cambio de organización**: es solo navegar a otro slug; el contexto se resuelve de nuevo en cada petición. No hay estado de "tenant activo" en sesión que pueda quedar desincronizado. (Recordar el último tenant usado como preferencia de navegación: ⏳ pendiente; hoy el selector es `/organizaciones`.)

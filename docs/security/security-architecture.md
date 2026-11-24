@@ -7,12 +7,17 @@
 | Aislamiento entre tenants (RLS + FKs compuestas + TenantContext) | ✅ probado |
 | Autorización centralizada por permisos, anti-escalada | ✅ probado |
 | Mínimo privilegio en BD (roles app/auth/worker sin BYPASSRLS) | ✅ probado |
-| Auditoría append-only | ✅ probado (registro de eventos de negocio: Fase 2) |
+| Auditoría append-only | ✅ probado; eventos de negocio en la misma transacción que el cambio (`tenant.created`, `invitation.*`, `member.*`, `tenant.ownership_transferred`) |
 | Cabeceras de seguridad (nosniff, DENY frames, Referrer-Policy, Permissions-Policy, sin X-Powered-By) | ✅ probado (E2E) |
 | Cliente de BD marcado `server-only` | ✅ (el build falla si se importa desde código de cliente) |
 | Validación de entradas no confiables (slug, UUID) en el borde | ✅ |
-| Autenticación, sesiones, CSRF, rate limiting | 📄 Fase 2 ([ADR-006](../decisions/ADR-006-authentication.md)) |
-| CSP con nonces | ⏳ Fase 2 |
+| Autenticación (email + contraseña 12–128, hash scrypt), verificación de email obligatoria, recuperación con token de 1 h que cierra todas las sesiones | ✅ probado (`packages/auth`, E2E) — [ADR-006](../decisions/ADR-006-authentication.md) |
+| Sesiones: cookie `HttpOnly`, `SameSite=Lax` (`Secure` con HTTPS), 7 días, renovación diaria; operaciones sensibles exigen sesión iniciada hace ≤ 10 min | ✅ probado |
+| CSRF: comprobación de `Origin` en `/api/auth/*` (forzada también en pruebas) y en Server Actions (Next.js) | ✅ probado (403 con Origin ajeno) |
+| Rate limiting persistente en PostgreSQL (`rate_limits`, rol auth): login 5/15 min, registro 10/h, recuperación 3/15 min por IP. Desactivado solo con `FACTURALIBRE_ENV=development` | ✅ probado (429) |
+| Redirecciones abiertas (`?volver=`): solo rutas internas (`safeReturnPath`) | ✅ probado (unitario + E2E) |
+| Tokens de invitación: 32 bytes aleatorios, solo su SHA-256 en BD, 7 días, un solo uso, ligados al email; página con `Referrer-Policy: no-referrer` | ✅ probado |
+| CSP con nonces | ⏳ Pendiente: los nonces obligan a renderizar dinámicamente todas las páginas y anulan el prerender parcial (`cacheComponents`). Evaluar CSP con hashes en la fase de endurecimiento (Fase 7) |
 | Cifrado de certificados | 📄 Fase 6 |
 
 ## Modelo de amenazas (resumen)
@@ -24,9 +29,9 @@
 | Error de aplicación que fija otro tenant | Bug en un Server Action | RLS exige membresía del `app.user_id` (probado) |
 | Fuga de contexto por pool | Conexión reutilizada | `SET LOCAL` (probado con pool de 1) |
 | Inyección SQL | Parámetros | Prisma/pg parametrizados; identificadores dinámicos con `escapeIdentifier` |
-| XSS | Datos de clientes en la UI | Escapado de React; CSP (Fase 2); sin `dangerouslySetInnerHTML` |
-| CSRF | Server Actions | Comprobación de Origin de Next.js + cookies `SameSite=Lax` (Fase 2) |
-| Fuerza bruta | Login | Rate limiting persistente en PostgreSQL (Fase 2) |
+| XSS | Datos de clientes en la UI | Escapado de React; HTML de correos escapado (`escapeHtml`, probado); sin `dangerouslySetInnerHTML`; CSP pendiente (Fase 7) |
+| CSRF | Server Actions | Comprobación de Origin (Better Auth en `/api/auth/*`, Next.js en Server Actions) + cookies `SameSite=Lax` ✅ |
+| Fuerza bruta | Login | Rate limiting persistente en PostgreSQL ✅; contraseñas ≥ 12 caracteres |
 | Robo de certificados | Volcado de BD | Cifrado por sobre con KEK fuera de la BD (Fase 6) |
 | Manipulación de auditoría | UPDATE/DELETE | Sin GRANT + trigger (incluso para el propietario) |
 | Acceso del personal de plataforma | Soporte | Sin bypass; acceso temporal autorizado y auditado |

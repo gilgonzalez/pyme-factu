@@ -1,6 +1,6 @@
 # Arquitectura multi-tenant
 
-Estado: ✅ modelo, RLS, TenantContext y autorización implementados y probados. 📄 Alta de tenant, invitaciones y cambio de organización en la UI: Fase 2.
+Estado: ✅ modelo, RLS, TenantContext y autorización implementados y probados. ✅ alta de tenant (`app.create_tenant`), invitaciones, gestión de miembros y selector de organización en la UI (Fase 2).
 
 ## Conceptos
 
@@ -26,7 +26,7 @@ Base de datos y esquema compartidos con discriminador `tenant_id` (+ `taxpayer_i
 
 | Campo | Origen |
 |---|---|
-| `user.id` | Sesión del servidor (Fase 2). Nunca del cliente. |
+| `user.id` | Sesión del servidor (Better Auth, `lib/server/session.ts`). Nunca del cliente. |
 | `tenant {id, slug, name}` | Membresía ACTIVA del usuario en el slug solicitado |
 | `membership {id, role, taxpayerScope}` | Ídem |
 | `taxpayer {id, access}` \| `null` | Solo si el usuario puede ver ese contribuyente (RLS) |

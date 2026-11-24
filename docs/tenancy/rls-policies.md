@@ -35,7 +35,7 @@ Al acabar la transacción las variables vuelven a `''` (no a NULL); por eso las 
 | `users` | uno mismo, o miembros del tenant autorizado | UPDATE solo de sí mismo y solo columnas `name`, `image` |
 | `user_profiles` | propio | propio |
 | `sessions`, `accounts`, `verifications` | **sin permiso** (`permission denied`) | — |
-| `tenants` | el autorizado + aquellos con membresía activa propia (selector de organización) | UPDATE del autorizado; sin INSERT directo (Fase 2: función `SECURITY DEFINER` de alta) |
+| `tenants` | el autorizado + aquellos con membresía activa propia (selector de organización) | UPDATE del autorizado; sin INSERT directo: alta solo con `app.create_tenant` (ver «Funciones de alta e invitación») |
 | `tenant_settings` | tenant autorizado | tenant autorizado |
 | `tenant_memberships` | propias + las del tenant autorizado | tenant autorizado |
 | `tenant_invitations` | tenant autorizado | tenant autorizado |
@@ -50,3 +50,15 @@ Rol `facturalibre_worker`: `outbox_events` SELECT/UPDATE en todos los tenants (r
 ## Uso desde Prisma
 
 Siempre dentro de `runInTenant(db, ctx, permiso, tx => …)`; `tx` es el cliente transaccional con el contexto fijado. Consultas con el cliente raíz fuera de `runInTenant` no ven datos de tenants (probado con pool de una conexión).
+
+## Funciones de alta e invitación (Fase 2)
+
+Migración `20261124000300_onboarding_invitations`. Son las ÚNICAS vías por las que el rol de aplicación crea filas fuera de su tenant autorizado. Todas son `SECURITY DEFINER` con `search_path` fijo y solo `facturalibre_app` puede ejecutarlas.
+
+| Función | Qué hace | Comprobaciones | Pruebas |
+|---|---|---|---|
+| `app.create_tenant(name, slug)` | Crea el tenant, su configuración, la membresía OWNER (`ALL_TAXPAYERS`) del usuario del contexto y el evento `tenant.created` | Usuario en el contexto (`AUTH_REQUIRED`), email verificado (`EMAIL_NOT_VERIFIED`), slug único (23505) y con formato válido (CHECK) | `database/test/onboarding.test.ts` |
+| `app.invitation_preview(token_hash)` | Nombre de la organización, email, rol y estado (`PENDING`/`EXPIRED`/`ACCEPTED`/`REVOKED`) | Usuario autenticado; sin filas si el token no existe | ídem |
+| `app.accept_invitation(token_hash)` | Crea la membresía con el rol y alcance invitados, marca la invitación y registra `invitation.accepted`. Idempotente | Email del usuario = email invitado (`EMAIL_MISMATCH`), email verificado, invitación vigente y no anulada; si ya era miembro no duplica ni cambia su rol; bloqueo `FOR UPDATE` | ídem |
+
+La tabla `rate_limits` tiene RLS activado y solo la usa `facturalibre_auth`; el rol de aplicación no tiene permisos sobre ella (probado).

@@ -12,6 +12,12 @@ curl http://localhost:3000/api/health
 docker compose logs migrate      # "Migraciones aplicadas."
 ```
 
+**Correo (Mailpit).** El servicio `mailpit` captura todos los correos (no salen a Internet): bandeja en http://localhost:8025. Los recorridos E2E completos se ejecutan contra este stack:
+
+```bash
+E2E_BASE_URL=http://localhost:3000 E2E_EXPECT_DATABASE=1 E2E_FULL_STACK=1 pnpm e2e   # 14/14 el 24/11/2026
+```
+
 ## Imagen (`Dockerfile`, multi-objetivo)
 
 | Objetivo | Contenido | Health check |

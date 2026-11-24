@@ -37,6 +37,6 @@ Estado: ✅ implementado en `packages/security` (16 pruebas, mutación 92,7 %).
 | invoices.issue / invoices.rectify | ✔ | ✔ | ✔ | | |
 | certificates.manage | ✔ | ✔ | | | |
 
-## Transferencia de propiedad (📄 diseño, Fase 2)
+## Transferencia de propiedad (✅ `transferOwnership`, `team.test.ts`)
 
 Solo el OWNER; el destinatario debe ser miembro ACTIVO; reautenticación reciente; en una transacción: el OWNER actual pasa a ADMIN y el destinatario a OWNER (el índice único parcial garantiza un único OWNER); evento de auditoría `tenant.ownership_transferred`; notificación a ambos.

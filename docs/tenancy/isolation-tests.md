@@ -17,7 +17,7 @@ Resultado a 24/11/2026: **todas en verde** (database 42, tenancy 14).
 | Worker con contexto incorrecto | «solo audita dentro del tenant fijado en su contexto»; «no tiene acceso a datos de dominio» | ✅ (parcial: aún no procesa trabajos fiscales) |
 | Integridad sin RLS | FKs compuestas: «una asignación no puede unir un contribuyente de B con A»; «exige que el usuario sea miembro del mismo tenant»; «solo un OWNER» | ✅ |
 | Higiene de roles | sin superusuario ni BYPASSRLS; ninguno propietario; todas las tablas con RLS | ✅ |
-| Escalada de privilegios | `authorization.test.ts` › cambios de rol (anti-escalada) | ✅ (lógica; el flujo HTTP en Fase 2) |
+| Escalada de privilegios | `authorization.test.ts` › cambios de rol (anti-escalada) | ✅ lógica + `tenancy/test/team.test.ts` (ADMIN no invita ADMIN, nadie cambia su rol ni el de rango ≥) |
 | Membresía suspendida | «un miembro SUSPENDIDO no ve nada del tenant»; TENANT_NOT_FOUND | ✅ |
 | PDFs y certificados de otros tenants | — | ⏳ Fases 4 y 6 (aún no existen esas tablas) |
-| Recorridos HTTP completos con sesión | — | ⏳ Fase 2 (E2E con autenticación) |
+| Recorridos HTTP completos con sesión | `apps/web/e2e/team.spec.ts` (organización ajena → 404 idéntico; invitación solo para su email) | ✅ |
