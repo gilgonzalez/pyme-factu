@@ -26,7 +26,8 @@
     "mutate": "stryker run",
     "check": "pnpm typecheck && pnpm lint && pnpm crap && pnpm dry",
     "mutate:domain": "stryker run stryker.domain.json",
-    "mutate:fiscal-core": "stryker run stryker.fiscal-core.json"
+    "mutate:fiscal-core": "stryker run stryker.fiscal-core.json",
+    "mutate:verifactu": "stryker run stryker.verifactu.json"
   },
   "devDependencies": {
     "@barney-media/crap-typescript": "^2.0.2",

@@ -1,12 +1,12 @@
 // Importes en céntimos (bigint); cantidades con 3 decimales, precios con 4 y porcentajes con 2.
 import { describe, expect, it } from "vitest";
-import { calculateInvoice, lineBase, parseInvoiceLine, type InvoiceLine, type TaxCategory } from "../src";
+import { calculateInvoice, lineBase, parseInvoiceLine, parseTaxCategory, taxCategoryKey, type InvoiceLine, type TaxCategory } from "../src";
 
 const VAT21: TaxCategory = { kind: "VAT", ratePercent: 2100n };
 const VAT10: TaxCategory = { kind: "VAT", ratePercent: 1000n };
 const VAT4: TaxCategory = { kind: "VAT", ratePercent: 400n };
 const VAT0: TaxCategory = { kind: "VAT", ratePercent: 0n };
-const EXEMPT: TaxCategory = { kind: "EXEMPT" };
+const EXEMPT: TaxCategory = { kind: "EXEMPT", cause: "E1" };
 
 /** Precio en euros escrito con punto ("12.3456") → diezmilésimas de euro. */
 function priceUnits(price: string): bigint {
@@ -53,7 +53,7 @@ describe("calculateInvoice", () => {
     expect(totals.breakdown).toEqual([
       { key: "VAT:2100", tax: VAT21, base: 15000n, quota: 3150n, surchargePercent: 0n, surchargeQuota: 0n },
       { key: "VAT:1000", tax: VAT10, base: 3000n, quota: 300n, surchargePercent: 0n, surchargeQuota: 0n },
-      { key: "EXEMPT", tax: EXEMPT, base: 2000n, quota: 0n, surchargePercent: 0n, surchargeQuota: 0n },
+      { key: "EXEMPT:E1", tax: EXEMPT, base: 2000n, quota: 0n, surchargePercent: 0n, surchargeQuota: 0n },
     ]);
     expect(totals).toMatchObject({ taxableBase: 20000n, vatTotal: 3450n, surchargeTotal: 0n, withholdingAmount: 0n, total: 23450n });
   });
@@ -75,7 +75,7 @@ describe("calculateInvoice", () => {
       ["VAT:1000", 140n, 140n],
       ["VAT:400", 50n, 50n],
       ["VAT:0", 0n, 0n],
-      ["EXEMPT", 0n, 0n],
+      ["EXEMPT:E1", 0n, 0n],
     ]);
     expect(totals.surchargeTotal).toBe(710n);
     expect(totals.total).toBe(50000n + 2100n + 1000n + 400n + 710n);
@@ -97,7 +97,19 @@ describe("calculateInvoice", () => {
       equivalenceSurcharge: false,
       withholdingPercent: 0n,
     });
-    expect(totals.breakdown.map((entry) => entry.key)).toEqual(["VAT:2100", "VAT:1000", "VAT:400", "EXEMPT"]);
+    expect(totals.breakdown.map((entry) => entry.key)).toEqual(["VAT:2100", "VAT:1000", "VAT:400", "EXEMPT:E1"]);
+  });
+
+  it("cada causa de exención es un grupo propio del desglose (un DetalleDesglose por OperacionExenta)", () => {
+    const totals = calculateInvoice({
+      lines: [line(1, "10", EXEMPT), line(1, "20", { kind: "EXEMPT", cause: "E6" }), line(1, "5", EXEMPT)],
+      equivalenceSurcharge: false,
+      withholdingPercent: 0n,
+    });
+    expect(totals.breakdown.map((entry) => [entry.key, entry.base])).toEqual([
+      ["EXEMPT:E1", 1500n],
+      ["EXEMPT:E6", 2000n],
+    ]);
   });
 
   it("sin líneas, todo es cero", () => {
@@ -113,13 +125,31 @@ describe("calculateInvoice", () => {
   });
 });
 
+describe("claves de categoría (lo que se guarda en la base de datos)", () => {
+  it("ida y vuelta de cada tipo admitido", () => {
+    for (const key of ["VAT:2100", "VAT:1000", "VAT:400", "VAT:0", "EXEMPT:E1", "EXEMPT:E4", "EXEMPT:E6"]) {
+      const tax = parseTaxCategory(key);
+      expect(tax === null ? null : taxCategoryKey(tax)).toBe(key);
+    }
+  });
+
+  it("una exención antigua sin causa se puede leer (cause null) pero no es una causa", () => {
+    expect(parseTaxCategory("EXEMPT")).toEqual({ kind: "EXEMPT", cause: null });
+    expect(taxCategoryKey({ kind: "EXEMPT", cause: null })).toBe("EXEMPT");
+  });
+
+  it("lo demás no es una categoría", () => {
+    for (const key of ["VAT:1600", "EXEMPT:E2", "EXEMPT:E5", "EXEMPT:", "exempt", 2100, null]) expect(parseTaxCategory(key)).toBeNull();
+  });
+});
+
 describe("parseInvoiceLine (formulario)", () => {
   it("convierte los textos del formulario en una línea exacta", () => {
     expect(parseInvoiceLine({ description: " Reparación de caldera ", quantity: "1,5", unitPrice: "40", discountPercent: "", tax: "VAT:2100" })).toEqual({
       ok: true,
       value: { description: "Reparación de caldera", quantity: 1500n, unitPrice: 400000n, discountPercent: 0n, tax: VAT21 },
     });
-    expect(parseInvoiceLine({ description: "Servicio exento", quantity: "-2", unitPrice: "10", discountPercent: "5", tax: "EXEMPT" })).toMatchObject({
+    expect(parseInvoiceLine({ description: "Servicio exento", quantity: "-2", unitPrice: "10", discountPercent: "5", tax: "EXEMPT:E1" })).toMatchObject({
       ok: true,
       value: { quantity: -2000n, discountPercent: 500n, tax: EXEMPT },
     });
@@ -136,9 +166,17 @@ describe("parseInvoiceLine (formulario)", () => {
     });
   });
 
+  it("una exención necesita su causa: E1 (art. 20), E4 (arts. 23 y 24) o E6 (otras)", () => {
+    expect(parseInvoiceLine({ description: "a", quantity: "1", unitPrice: "1", tax: "EXEMPT:E4" })).toMatchObject({ ok: true, value: { tax: { kind: "EXEMPT", cause: "E4" } } });
+    expect(parseInvoiceLine({ description: "a", quantity: "1", unitPrice: "1", tax: "EXEMPT:E6" })).toMatchObject({ ok: true, value: { tax: { kind: "EXEMPT", cause: "E6" } } });
+    expect(parseInvoiceLine({ description: "a", quantity: "1", unitPrice: "1", tax: "EXEMPT" })).toEqual({ ok: false, errors: { tax: "Indica la causa de la exención." } });
+    // E2, E3 (exportaciones) y E5 (entregas intracomunitarias) exigen clave de régimen o destinatarios que aún no se admiten.
+    expect(parseInvoiceLine({ description: "a", quantity: "1", unitPrice: "1", tax: "EXEMPT:E2" })).toEqual({ ok: false, errors: { tax: "Elige un tipo de IVA." } });
+  });
+
   it("una descripción ausente o demasiado larga basta para rechazar la línea", () => {
-    expect(parseInvoiceLine({ quantity: "1", unitPrice: "1", tax: "EXEMPT" })).toEqual({ ok: false, errors: { description: "Describe el producto o servicio." } });
-    expect(parseInvoiceLine({ description: "x".repeat(501), quantity: "1", unitPrice: "1", tax: "EXEMPT" })).toEqual({
+    expect(parseInvoiceLine({ quantity: "1", unitPrice: "1", tax: "EXEMPT:E1" })).toEqual({ ok: false, errors: { description: "Describe el producto o servicio." } });
+    expect(parseInvoiceLine({ description: "x".repeat(501), quantity: "1", unitPrice: "1", tax: "EXEMPT:E1" })).toEqual({
       ok: false,
       errors: { description: "La descripción no puede superar los 500 caracteres." },
     });

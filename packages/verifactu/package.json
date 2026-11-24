@@ -1,0 +1,22 @@
+{
+  "name": "@facturalibre/verifactu",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@facturalibre/fiscal-core": "workspace:*",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "xmllint-wasm": "^5.3.0"
+  }
+}

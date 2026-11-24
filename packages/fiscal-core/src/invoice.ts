@@ -23,13 +23,27 @@ const SURCHARGE_BY_RATE: ReadonlyMap<bigint, bigint> = new Map([
   [0n, 0n],
 ]);
 
-export type TaxCategory = { readonly kind: "VAT"; readonly ratePercent: bigint } | { readonly kind: "EXEMPT" };
+/**
+ * Causas de exención admitidas (lista L10 del diseño de registro VERI*FACTU): E1 (art. 20 LIVA), E4 (arts. 23
+ * y 24) y E6 (otras). E2 y E3 (exportaciones) exigen la clave de régimen 02 y E5 (entregas intracomunitarias)
+ * un destinatario con NIF-IVA (IDOtro): no se admiten hasta que existan esas opciones. Ver ADR-008.
+ */
+export const EXEMPTION_CAUSES = ["E1", "E4", "E6"] as const;
+export type ExemptionCause = (typeof EXEMPTION_CAUSES)[number];
 
-export const taxCategoryKey = (tax: TaxCategory): string => (tax.kind === "EXEMPT" ? "EXEMPT" : `VAT:${tax.ratePercent.toString()}`);
+/** `cause: null` = exención guardada antes de la Fase 5, sin causa: se puede leer, pero no expedir. */
+export type TaxCategory = { readonly kind: "VAT"; readonly ratePercent: bigint } | { readonly kind: "EXEMPT"; readonly cause: ExemptionCause | null };
 
-/** "VAT:2100" | "EXEMPT" → categoría, o null si no es un tipo admitido. */
+export const taxCategoryKey = (tax: TaxCategory): string => {
+  if (tax.kind === "VAT") return `VAT:${tax.ratePercent.toString()}`;
+  return tax.cause === null ? "EXEMPT" : `EXEMPT:${tax.cause}`;
+};
+
+/** "VAT:2100" | "EXEMPT:E1" | "EXEMPT" (heredada) → categoría, o null si no es un tipo admitido. */
 export function parseTaxCategory(key: unknown): TaxCategory | null {
-  if (key === "EXEMPT") return { kind: "EXEMPT" };
+  if (key === "EXEMPT") return { kind: "EXEMPT", cause: null };
+  const cause = EXEMPTION_CAUSES.find((candidate) => key === `EXEMPT:${candidate}`);
+  if (cause !== undefined) return { kind: "EXEMPT", cause };
   const rate = VAT_RATES.find((candidate) => key === `VAT:${candidate.toString()}`);
   return rate === undefined ? null : { kind: "VAT", ratePercent: rate };
 }
@@ -166,7 +180,8 @@ function discountOf(raw: unknown): Field<bigint> {
 
 function taxOf(raw: unknown): Field<TaxCategory> {
   const tax = parseTaxCategory(raw);
-  return tax === null ? { error: "Elige un tipo de IVA." } : { value: tax };
+  if (tax === null) return { error: "Elige un tipo de IVA." };
+  return tax.kind === "EXEMPT" && tax.cause === null ? { error: "Indica la causa de la exención." } : { value: tax };
 }
 
 /** Convierte los textos de una línea del formulario en una línea exacta, o explica cada error. */
