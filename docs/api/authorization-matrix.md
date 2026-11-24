@@ -17,7 +17,10 @@ Toda operación sobre datos de un tenant se ejecuta con `runInTenant(db, ctx, <p
 | Quitar miembro | Server Action | Sesión | `members.remove` + `decideMemberRemoval` | ✅ `team.test.ts` |
 | Transferir propiedad | Server Action | Sesión iniciada hace ≤ 10 min + escribir el slug | `tenant.transfer_ownership` | ✅ `team.test.ts` |
 | `/invitacion/[token]` — ver y aceptar invitación | Server Component + Server Action | Sesión + email verificado y coincidente | — (`app.invitation_preview` / `app.accept_invitation`) | ✅ `onboarding.test.ts`, E2E |
-| Crear contribuyente | Server Action | Sesión | `taxpayers.create` | 📄 Fase 3 (necesita la validación de NIF del dominio) |
-| Asignar acceso a contribuyente | Server Action | Sesión | `taxpayers.manage_access` | 📄 Fase 3 |
+| `/[organizacion]/contribuyentes` — listar contribuyentes accesibles | Server Component | Sesión | `taxpayers.read` (RLS: solo los accesibles) | ✅ `taxpayers.test.ts`, E2E |
+| Crear contribuyente (NIF validado; tipo de persona deducido) | Server Action | Sesión | `taxpayers.create` | ✅ `taxpayers.test.ts`, E2E |
+| `/[organizacion]/contribuyentes/[id]` — ficha | Server Component | Sesión + acceso al contribuyente (si no: 404) | `taxpayers.read` | ✅ E2E |
+| Editar contribuyente (NIF inmutable) | Server Action | Sesión + acceso FULL | `taxpayers.update` | ✅ `taxpayers.test.ts` |
+| Asignar / cambiar / retirar acceso a contribuyente | Server Action | Sesión + acceso FULL propio; nunca a uno mismo | `taxpayers.manage_access` | ✅ `taxpayers.test.ts`, E2E |
 
 Matriz rol → permiso: [roles-and-permissions](../tenancy/roles-and-permissions.md).

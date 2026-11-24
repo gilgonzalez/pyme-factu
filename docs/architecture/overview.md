@@ -42,9 +42,10 @@ flowchart LR
 | `packages/database` | Esquema Prisma, migraciones, roles de BD, contexto transaccional (`withSecurityContext`), arnés de pruebas con PostgreSQL real | ✅ |
 | `packages/security` | Catálogo único de permisos, matriz rol→permisos, recorte por acceso al contribuyente, reglas anti-escalada | ✅ |
 | `packages/tenancy` | `resolveTenantContext` (verificación en servidor) y `runInTenant` (único acceso a datos de tenant) | ✅ |
-| `apps/web` | UI, Server Actions, health check | 🧩 (solo página pública y `/api/health`) |
+| `packages/domain` | Reglas de dominio puras (validación del NIF: DNI, NIE, K/L/M y personas jurídicas) | ✅ (mutación 100%: `pnpm mutate:domain`) |
+| `packages/auth` | Identidad con Better Auth (rol `facturalibre_auth`), correos transaccionales, mailer SMTP | ✅ |
+| `apps/web` | UI, Server Actions, health check | ✅ acceso, organizaciones, equipo, invitaciones y contribuyentes |
 | `apps/worker` | Procesos asíncronos (outbox, envíos AEAT, reintentos) | 🧩 (health check y ciclo de vida; sin procesamiento) |
-| Autenticación | Registro, sesión, verificación, recuperación | 📄 [ADR-006](../decisions/ADR-006-authentication.md); tablas preparadas |
 | `fiscal-core` | Cálculos decimales, numeración, rectificativas | ⏳ Fase 4 |
 | `verifactu` | Registros, huella, encadenamiento, QR, XML | 📄 diseño inicial · ⛔ especificaciones técnicas por leer íntegras |
 | `aeat-client` | SOAP, certificados, envíos, respuestas | 📄 diseño inicial |
@@ -53,8 +54,9 @@ flowchart LR
 ## Regla de dependencias
 
 ```
-apps/web, apps/worker ──► tenancy ──► security
-                     └──────────────► database
+apps/web, apps/worker ──► tenancy ──► security, domain (puros)
+        │            └──────────────► database
+        └──► auth ──────────────────► database
 futuros: verifactu ──► fiscal-core (puro);  aeat-client ──► verifactu
 ```
 

@@ -32,7 +32,7 @@ erDiagram
 | `tenant_settings` | Organización | 1:1. Idioma, zona horaria, moneda (CHECK `EUR`). |
 | `tenant_memberships` | Organización | Usuario ↔ tenant con `role`, `taxpayer_scope` y `status`. Único `(tenant_id, user_id)`. **Un solo OWNER** por tenant (índice único parcial); el OWNER siempre tiene `ALL_TAXPAYERS` (CHECK). |
 | `tenant_invitations` | Organización | Invitación por email con **hash SHA-256 del token** (nunca el token). Nunca rol OWNER (CHECK). Una pendiente por (tenant, email) (índice parcial). Aceptada y revocada son excluyentes (CHECK). |
-| `taxpayers` | Organización | Obligado tributario emisor. NIF de 9 caracteres alfanuméricos en mayúsculas (CHECK; el dígito de control se valida en el dominio, Fase 3). Único `(tenant_id, nif)`; el mismo NIF **puede** existir en otro tenant (empresa y su gestoría): son facturaciones distintas ([VERI*FACTU](../verifactu/technical-overview.md)). Sin DELETE: se desactiva. |
+| `taxpayers` | Organización | Obligado tributario emisor. NIF de 9 caracteres alfanuméricos en mayúsculas (CHECK; el dígito de control se valida en `@facturalibre/domain` › `parseNif`, que además deduce el tipo de persona). Único `(tenant_id, nif)`; el mismo NIF **puede** existir en otro tenant (empresa y su gestoría): son facturaciones distintas ([VERI*FACTU](../verifactu/technical-overview.md)). Sin DELETE: se desactiva. |
 | `taxpayer_settings` | Contribuyente | Preferencias no fiscales (plazo de pago, pie de factura). |
 | `taxpayer_memberships` | Contribuyente | Acceso de un miembro a un contribuyente concreto (`READ_ONLY`/`FULL`). |
 | `audit_events` | Organización (o global si `tenant_id` NULL) | Registro append-only. |

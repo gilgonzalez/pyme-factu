@@ -1,6 +1,6 @@
 # Documentación de FacturaLibre
 
-Estado a **24/11/2026** (fin de Fase 2: autenticación, organizaciones, equipo e invitaciones). Leyenda usada en todos los documentos:
+Estado a **24/11/2026** (fin de Fase 3: contribuyentes con NIF validado y acceso por contribuyente). Leyenda usada en todos los documentos:
 
 | Etiqueta | Significado |
 |---|---|
@@ -31,4 +31,4 @@ La estructura del prompt maestro se ha adaptado (lo permiten sus §5 y §17) par
 
 - Documentos muy relacionados se han fusionado: `entity-relationships` y `tenant-constraints` dentro de `data-model.md`; `threat-model`, `authentication`, `authorization`, `secrets-management` y `audit` dentro de `security-architecture.md`; los de AEAT en `integration-architecture.md`; `hashing-and-chaining`, `qr-generation`, `xml-structure`, `record-lifecycle` y `compliance-mapping` dentro de `verifactu/technical-overview.md` y `compliance/regulatory-requirements.md`. Se separarán cuando su contenido crezca (fases 5 y 6).
 - Las pruebas viven junto a cada paquete (`packages/*/test`, `apps/*/test`, `apps/web/e2e`) en lugar de un `tests/` raíz: Turborepo cachea por paquete y cada paquete declara su propio entorno de pruebas.
-- Solo existen los paquetes con código real: `database`, `security`, `tenancy` y `auth` (Fase 2: identidad con Better Auth, plantillas de correo y mailer SMTP; hace las veces del `email` previsto hasta que haya más correos). Los demás (`domain`, `fiscal-core`, `verifactu`, `aeat-client`, `pdf`, `email`, `audit`, `ui`) se crearán en su fase. Los componentes shadcn viven en `apps/web/components/ui` hasta que haya un segundo consumidor.
+- Solo existen los paquetes con código real: `database`, `security`, `tenancy`, `auth` (Fase 2: identidad con Better Auth, plantillas de correo y mailer SMTP; hace las veces del `email` previsto hasta que haya más correos) y `domain` (Fase 3: validación del NIF). Los demás (`fiscal-core`, `verifactu`, `aeat-client`, `pdf`, `email`, `audit`, `ui`) se crearán en su fase. Los componentes shadcn viven en `apps/web/components/ui` hasta que haya un segundo consumidor.

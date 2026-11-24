@@ -8,7 +8,7 @@ Estados: ✅ implementado y probado · 📄 diseñado · ⏳ pendiente · ⛔ pe
 | R-02 | Encadenamiento independiente por cada facturación (OEF) en SIF multi-OT/SaaS | FAQ desarrolladores apdo. 4 | v1.3 04/12/2025 | verifactu | `billing_systems` + cadena por facturación | — | 📄 |
 | R-03 | Identificación SIF = NIF OEF + IdSIF + NºInstalación; nº instalación nunca repetido para el OEF | FAQ apdo. 4; OM HAC/1177/2024 anexo | v1.3 | verifactu | Unicidad global por NIF | — | 📄 |
 | R-04 | `IndicadorMultiplesOT` calculado por usuario del SIF SaaS | FAQ apdo. 4 | v1.3 | verifactu | — | — | ⛔ definir «usuario» |
-| R-05 | Mostrar en todo momento el obligado tributario activo; avisar si hay varios | OM art. 2.d (vía FAQ apdo. 7) | — | web | Organización activa siempre visible (✅ Fase 2); selector de contribuyente | — | 📄 Fase 3 |
+| R-05 | Mostrar en todo momento el obligado tributario activo; avisar si hay varios | OM art. 2.d (vía FAQ apdo. 7) | — | web | Organización activa siempre visible; barra «Contribuyente activo» en toda pantalla que actúa sobre uno; aviso en Contribuyentes si hay varios | `e2e/taxpayers.spec.ts` | ✅ Fase 3 (las pantallas de facturación de la Fase 4 deben usar la misma barra) |
 | R-06 | Prohibido el uso «dinámico» de modalidad/normativa | FAQ apdo. 3 | v1.3 | verifactu | `modality` fija por facturación | — | 📄 |
 | R-07 | Comprobar encadenamiento del último registro y desfase ≤ 1 min antes de generar | OM art. 7.i (vía FAQ apdo. 15) | — | verifactu | — | — | 📄 ⛔ leer OM |
 | R-08 | Huella SHA-256 encadenada | FAQ sede (huella); especificación de huella | — | verifactu | — | — | ⛔ leer especificación |

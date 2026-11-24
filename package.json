@@ -24,7 +24,8 @@
     "crap": "vitest run --coverage",
     "dry": "jscpd --similarity=0.8 --exit-code=1 --ignore \"**/generated/**,**/node_modules/**,**/.next/**,**/dist/**,**/prisma/migrations/**,apps/web/app/globals.css\" packages apps/worker/src apps/web/app apps/web/lib",
     "mutate": "stryker run",
-    "check": "pnpm typecheck && pnpm lint && pnpm crap && pnpm dry"
+    "check": "pnpm typecheck && pnpm lint && pnpm crap && pnpm dry",
+    "mutate:domain": "stryker run stryker.domain.json"
   },
   "devDependencies": {
     "@barney-media/crap-typescript": "^2.0.2",
