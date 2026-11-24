@@ -1,5 +1,6 @@
 // VERI*FACTU: registros de facturación, huella encadenada, XML oficial y QR (Fase 5). Funciones puras.
 // Especificaciones oficiales versionadas en specs/1.0 (ver specs/README.md). Decisiones: ADR-004 y ADR-008.
+export { checkChain, type RecordCheck, type StoredRecord } from "./chain";
 export { aeatAmount, aeatDate, aeatPercent, generationTimestamp } from "./format";
 export { altaHashInput, anulacionHashInput, fingerprint, type AltaHashFields, type AnulacionHashFields } from "./hash";
 export { qrSvg, qrUrl, type QrEnvironment } from "./qr";
