@@ -1,13 +1,10 @@
 "use client";
 import type { Role } from "@facturalibre/security";
-import { useId } from "react";
-import { ActionForm, type ActionResult } from "@/components/action-form";
+import { ActionForm, type FormAction } from "@/components/action-form";
 import { Field } from "@/components/form";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/select-field";
 import { ASSIGNABLE_ROLES, ROLE_INFO } from "@/lib/roles";
-
-type Action = (previous: ActionResult, data: FormData) => Promise<ActionResult>;
 
 export interface TeamMemberView {
   readonly membershipId: string;
@@ -30,39 +27,40 @@ export interface TeamManagerProps {
   readonly members: readonly TeamMemberView[];
   readonly invitations: readonly InvitationView[];
   readonly can: { readonly invite: boolean; readonly changeRole: boolean; readonly remove: boolean; readonly transfer: boolean };
-  readonly actions: { readonly invite: Action; readonly revoke: Action; readonly changeRole: Action; readonly remove: Action; readonly transfer: Action };
+  readonly actions: { readonly invite: FormAction; readonly revoke: FormAction; readonly changeRole: FormAction; readonly remove: FormAction; readonly transfer: FormAction };
 }
 
-const selectClass =
-  "h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
 function RoleSelect({ name, defaultValue, label }: { readonly name: string; readonly defaultValue?: Role; readonly label: string }) {
-  const id = useId();
   return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <select id={id} name={name} defaultValue={defaultValue ?? "EMPLOYEE"} className={selectClass}>
-        {ASSIGNABLE_ROLES.map((role) => (
-          <option key={role} value={role}>
-            {ROLE_INFO[role].label} — {ROLE_INFO[role].description}
-          </option>
-        ))}
-      </select>
-    </div>
+    <SelectField
+      name={name}
+      label={label}
+      defaultValue={defaultValue ?? "EMPLOYEE"}
+      options={ASSIGNABLE_ROLES.map((role) => ({ value: role, label: `${ROLE_INFO[role].label} — ${ROLE_INFO[role].description}` }))}
+    />
   );
 }
 
-function InviteSection({ action }: { readonly action: Action }) {
+function InviteSection({ action }: { readonly action: FormAction }) {
   return (
     <section aria-labelledby="invitar" className="grid gap-3 rounded-xl border p-4">
       <h2 id="invitar" className="font-medium">
         Invitar a alguien
       </h2>
-      <ActionForm action={action} className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end" label="Invitar a alguien">
-        {({ pending, errors }) => (
+      <ActionForm action={action} className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end" label="Invitar a alguien">
+        {({ pending, errors, values }) => (
           <>
-            <Field name="email" label="Email" type="email" required maxLength={254} autoComplete="off" error={errors["email"]} />
+            <Field name="email" label="Email" type="email" required maxLength={254} autoComplete="off" defaultValue={values["email"]} error={errors["email"]} />
             <RoleSelect name="role" label="Rol" />
+            <SelectField
+              name="taxpayerScope"
+              label="Contribuyentes"
+              defaultValue="ALL_TAXPAYERS"
+              options={[
+                { value: "ALL_TAXPAYERS", label: "Todos" },
+                { value: "ASSIGNED_TAXPAYERS", label: "Solo los que se le asignen" },
+              ]}
+            />
             <Button type="submit" disabled={pending}>
               {pending ? "Enviando…" : "Enviar invitación"}
             </Button>

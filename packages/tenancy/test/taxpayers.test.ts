@@ -2,7 +2,7 @@
 // NIF ficticios calculados con los algoritmos oficiales.
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { AuthorizationError, createTaxpayer, listTaxpayerAccess, listTaxpayers, setTaxpayerAccess, updateTaxpayer, type TenantContext } from "../src";
+import { AuthorizationError, createTaxpayer, getTaxpayer, listTaxpayerAccess, listTaxpayers, setTaxpayerAccess, updateTaxpayer, type TenantContext } from "../src";
 import { testWorld } from "./support";
 
 const world = testWorld();
@@ -198,5 +198,31 @@ describe("edición de contribuyentes", () => {
     const admin = await team.add("ADMIN", "ASSIGNED_TAXPAYERS");
     await setTaxpayerAccess(world.db, await team.ownerCtx(), { taxpayerId: id, membershipId: admin.membershipId, access: "READ_ONLY" });
     await expect(updateTaxpayer(world.db, await admin.ctx(id), { legalName: "Otro nombre" })).rejects.toBeInstanceOf(AuthorizationError);
+  });
+});
+
+describe("ficha del contribuyente activo", () => {
+  it("devuelve todos sus datos y el nivel de acceso de quien la consulta", async () => {
+    const team = await world.newTeam();
+    const id = await created(await team.ownerCtx(), { ...COMPANY, tradeName: "Fontanería Rápida", email: "Hola@Example.TEST" });
+    expect(await getTaxpayer(world.db, await team.ownerCtx(id))).toEqual({
+      id,
+      nif: "B12345674",
+      personType: "LEGAL_ENTITY",
+      legalName: "Fontanería Ficticia SL",
+      tradeName: "Fontanería Rápida",
+      addressLine: null,
+      postalCode: "28001",
+      city: "Madrid",
+      province: "Madrid",
+      email: "hola@example.test",
+      status: "ACTIVE",
+      access: "FULL",
+    });
+  });
+
+  it("sin contribuyente activo en el contexto no hay ficha", async () => {
+    const team = await world.newTeam();
+    await expect(getTaxpayer(world.db, await team.ownerCtx())).rejects.toBeInstanceOf(AuthorizationError);
   });
 });

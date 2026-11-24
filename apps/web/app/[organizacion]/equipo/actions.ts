@@ -5,20 +5,18 @@ import { invitationMessage } from "@facturalibre/auth";
 import { requireEnv } from "@facturalibre/database";
 import { ROLES, type Role } from "@facturalibre/security";
 import {
-  AuthorizationError,
   changeMemberRole,
   inviteMember,
   removeMember,
   revokeInvitation,
   transferOwnership,
-  type TenantContext,
 } from "@facturalibre/tenancy";
-import { refresh } from "next/cache";
 import type { ActionResult } from "@/components/action-form";
 import { ROLE_INFO } from "@/lib/roles";
 import { getMailer } from "@/lib/server/auth";
 import { getDatabase } from "@/lib/server/db";
-import { isSessionFresh, requireTenant, type SessionUser } from "@/lib/server/session";
+import { isSessionFresh } from "@/lib/server/session";
+import { formText, reasonMessage, tenantAction } from "@/lib/server/tenant-action";
 
 const REASONS: Readonly<Record<string, string>> = {
   NOT_FOUND: "Ese miembro o invitación ya no existe. Recarga la página.",
@@ -29,30 +27,17 @@ const REASONS: Readonly<Record<string, string>> = {
   STALE_SESSION: "Por seguridad, vuelve a iniciar sesión y repite la transferencia en los 10 minutos siguientes.",
 };
 
-const failure = (reason: string): ActionResult => ({ ok: false, message: REASONS[reason] ?? "No se ha podido completar la operación." });
-
-/** Ejecuta `work` con el contexto verificado; traduce la falta de permiso en un mensaje. */
-async function withTeam(slug: string, work: (input: { user: SessionUser; context: TenantContext }) => Promise<ActionResult>): Promise<ActionResult> {
-  try {
-    const result = await work(await requireTenant(slug, `/${slug}/equipo`));
-    if (result?.ok === true) refresh();
-    return result;
-  } catch (error) {
-    if (error instanceof AuthorizationError) return { ok: false, message: "No tienes permiso para hacer esto." };
-    throw error;
-  }
-}
 
 const isRole = (value: unknown): value is Role => typeof value === "string" && (ROLES as readonly string[]).includes(value);
-const text = (data: FormData, key: string): string => {
-  const value = data.get(key);
-  return typeof value === "string" ? value : "";
-};
 
 export async function inviteAction(slug: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
-  return withTeam(slug, async ({ user, context }) => {
-    const result = await inviteMember(getDatabase(), context, { email: data.get("email"), role: data.get("role") });
-    if (!result.ok) return result.reason === "INVALID" ? { ok: false, message: "", errors: result.errors } : failure(result.reason);
+  return tenantAction({ slug, returnPath: `/${slug}/equipo` }, async ({ user, context }) => {
+    const result = await inviteMember(getDatabase(), context, {
+      email: data.get("email"),
+      role: data.get("role"),
+      taxpayerScope: data.get("taxpayerScope"),
+    });
+    if (!result.ok) return result.reason === "INVALID" ? { ok: false, message: "", errors: result.errors } : reasonMessage(REASONS, result.reason);
     const { email, role } = result.invitation;
     try {
       await getMailer().send(
@@ -72,34 +57,34 @@ export async function inviteAction(slug: string, _previous: ActionResult, data: 
 }
 
 export async function revokeInvitationAction(slug: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
-  return withTeam(slug, async ({ context }) => {
-    const result = await revokeInvitation(getDatabase(), context, text(data, "invitationId"));
-    return result.ok ? { ok: true, message: "Invitación anulada." } : failure(result.reason);
+  return tenantAction({ slug, returnPath: `/${slug}/equipo` }, async ({ context }) => {
+    const result = await revokeInvitation(getDatabase(), context, formText(data, "invitationId"));
+    return result.ok ? { ok: true, message: "Invitación anulada." } : reasonMessage(REASONS, result.reason);
   });
 }
 
 export async function changeRoleAction(slug: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
-  return withTeam(slug, async ({ context }) => {
+  return tenantAction({ slug, returnPath: `/${slug}/equipo` }, async ({ context }) => {
     const role = data.get("role");
     if (!isRole(role)) return { ok: false, message: "Elige un rol." };
-    const result = await changeMemberRole(getDatabase(), context, text(data, "membershipId"), role);
-    return result.ok ? { ok: true, message: `Rol cambiado a ${ROLE_INFO[role].label}.` } : failure(result.reason);
+    const result = await changeMemberRole(getDatabase(), context, formText(data, "membershipId"), role);
+    return result.ok ? { ok: true, message: `Rol cambiado a ${ROLE_INFO[role].label}.` } : reasonMessage(REASONS, result.reason);
   });
 }
 
 export async function removeMemberAction(slug: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
-  return withTeam(slug, async ({ context }) => {
-    const result = await removeMember(getDatabase(), context, text(data, "membershipId"));
-    return result.ok ? { ok: true, message: "Miembro quitado de la organización." } : failure(result.reason);
+  return tenantAction({ slug, returnPath: `/${slug}/equipo` }, async ({ context }) => {
+    const result = await removeMember(getDatabase(), context, formText(data, "membershipId"));
+    return result.ok ? { ok: true, message: "Miembro quitado de la organización." } : reasonMessage(REASONS, result.reason);
   });
 }
 
 export async function transferOwnershipAction(slug: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
-  return withTeam(slug, async ({ user, context }) => {
-    if (text(data, "confirm") !== context.tenant.slug) {
+  return tenantAction({ slug, returnPath: `/${slug}/equipo` }, async ({ user, context }) => {
+    if (formText(data, "confirm") !== context.tenant.slug) {
       return { ok: false, message: `Para confirmar, escribe la dirección de la organización: ${context.tenant.slug}` };
     }
-    const result = await transferOwnership(getDatabase(), context, text(data, "membershipId"), { sessionIsFresh: isSessionFresh(user) });
-    return result.ok ? { ok: true, message: "Propiedad transferida. Ahora eres administrador." } : failure(result.reason);
+    const result = await transferOwnership(getDatabase(), context, formText(data, "membershipId"), { sessionIsFresh: isSessionFresh(user) });
+    return result.ok ? { ok: true, message: "Propiedad transferida. Ahora eres administrador." } : reasonMessage(REASONS, result.reason);
   });
 }

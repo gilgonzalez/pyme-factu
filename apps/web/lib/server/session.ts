@@ -39,12 +39,17 @@ export const isSessionFresh = (user: SessionUser, now: Date = new Date()): boole
 
 /**
  * Contexto verificado de la organización `slug` para el usuario autenticado.
- * Organización inexistente o ajena → 404 idéntico (no se revela su existencia).
+ * Con `taxpayerId`, además el contribuyente activo (verificado: acceso del usuario).
+ * Organización o contribuyente inexistente o ajeno → 404 idéntico (no se revela su existencia).
  */
-export async function requireTenant(slug: string, returnPath: string): Promise<{ user: SessionUser; context: TenantContext }> {
+export async function requireTenant(
+  slug: string,
+  returnPath: string,
+  taxpayerId: string | null = null,
+): Promise<{ user: SessionUser; context: TenantContext }> {
   const user = await requireUser(returnPath);
   const requestId = (await headers()).get("x-request-id") ?? crypto.randomUUID();
-  const result = await resolveTenantContext(getDatabase(), { userId: user.id, tenantSlug: slug, taxpayerId: null, requestId });
+  const result = await resolveTenantContext(getDatabase(), { userId: user.id, tenantSlug: slug, taxpayerId, requestId });
   if (!result.ok) notFound();
   return { user, context: result.context };
 }

@@ -1,39 +1,14 @@
 // Recorridos completos de la Fase 2 con navegador real contra el stack de docker compose
 // (web + PostgreSQL + Mailpit). Datos ficticios y únicos por ejecución.
-import { expect, test, type Browser, type Page } from "@playwright/test";
-import { linkFromEmail, uniqueEmail } from "./support/mailpit";
+import { expect, test } from "@playwright/test";
+import { acceptAsNewUser, createOrganization, invite, newPage, requireFullStack, signUpAndVerify } from "./support/flows";
+import { linkFromEmail, uniqueEmail, uniqueSuffix } from "./support/mailpit";
 
-const PASSWORD = "una-frase-de-prueba-larga";
-
-// Requiere PostgreSQL migrado, Mailpit y la web con APP_BASE_URL = baseURL de Playwright (ver docs/deployment/docker.md).
-test.skip(process.env["E2E_FULL_STACK"] !== "1", "Recorridos completos desactivados: define E2E_FULL_STACK=1");
-
-async function signUpAndVerify(page: Page, name: string, email: string, startAt = "/registro"): Promise<void> {
-  await page.goto(startAt);
-  await page.getByLabel("Nombre y apellidos").fill(name);
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Contraseña").fill(PASSWORD);
-  await page.getByRole("button", { name: "Crear cuenta" }).click();
-  await expect(page.getByRole("status")).toContainText("Revisa tu bandeja de entrada");
-  await page.goto(await linkFromEmail(email, /Confirma tu email/));
-}
-
-async function createOrganization(page: Page, name: string): Promise<string> {
-  await page.getByRole("link", { name: "Crear organización" }).click();
-  await page.getByLabel("Nombre de la organización").fill(name);
-  const slug = await page.getByLabel("Dirección").inputValue();
-  await page.getByRole("button", { name: "Crear organización" }).click();
-  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
-  return slug;
-}
-
-async function newPage(browser: Browser): Promise<Page> {
-  return (await browser.newContext()).newPage();
-}
+requireFullStack();
 
 test("alta, organización, invitación y aceptación por una segunda persona", async ({ page, browser }) => {
   const ownerEmail = uniqueEmail("propietaria");
-  const orgName = `Fontanería Ficticia ${Date.now().toString(36)}`;
+  const orgName = `Fontanería Ficticia ${uniqueSuffix()}`;
 
   await signUpAndVerify(page, "Ana Ficticia", ownerEmail);
   await expect(page).toHaveURL(/\/organizaciones$/);
@@ -43,24 +18,13 @@ test("alta, organización, invitación y aceptación por una segunda persona", a
   await expect(page).toHaveURL(new RegExp(`/${slug}$`));
   await expect(page.getByLabel("Organización activa")).toHaveText(orgName);
 
-  await page.getByRole("link", { name: "Equipo", exact: true }).click();
   const inviteeEmail = uniqueEmail("contable");
-  const inviteForm = page.getByRole("form", { name: "Invitar a alguien" });
-  await inviteForm.getByLabel("Email").fill(inviteeEmail);
-  await inviteForm.getByLabel("Rol").selectOption("ACCOUNTANT");
-  await inviteForm.getByRole("button", { name: "Enviar invitación" }).click();
-  await expect(page.getByRole("status")).toContainText(`Invitación enviada a ${inviteeEmail}`);
+  const invitationUrl = await invite(page, inviteeEmail, "ACCOUNTANT", "ALL_TAXPAYERS");
   await expect(page.getByRole("region", { name: "Invitaciones pendientes" }).getByText(inviteeEmail)).toBeVisible();
 
-  // Segunda persona, sin cuenta: abre el enlace, se registra y vuelve a la invitación.
-  const invitationUrl = await linkFromEmail(inviteeEmail, /te invita a/);
+  // Segunda persona, sin cuenta: abre el enlace, se registra, vuelve a la invitación y la acepta.
   const invitee = await newPage(browser);
-  await invitee.goto(invitationUrl);
-  await invitee.getByRole("link", { name: "Crear cuenta" }).click();
-  await invitee.waitForURL(/\/registro\?volver=%2Finvitacion%2F/);
-  await signUpAndVerify(invitee, "Carlos Ficticio", inviteeEmail, invitee.url());
-  await expect(invitee.getByText(`Te han invitado a ${orgName}`)).toBeVisible();
-  await invitee.getByRole("button", { name: "Aceptar y entrar" }).click();
+  await acceptAsNewUser(invitee, invitationUrl, "Carlos Ficticio", inviteeEmail);
   await expect(invitee).toHaveURL(new RegExp(`/${slug}$`));
   await expect(invitee.getByRole("banner").getByText("Contable", { exact: true })).toBeVisible();
 
@@ -78,7 +42,7 @@ test("alta, organización, invitación y aceptación por una segunda persona", a
 
 test("una organización ajena responde 404 aunque se conozca su dirección", async ({ page, browser }) => {
   await signUpAndVerify(page, "Bea Ficticia", uniqueEmail("bea"));
-  const slug = await createOrganization(page, `Gestoría Ficticia ${Date.now().toString(36)}`);
+  const slug = await createOrganization(page, `Gestoría Ficticia ${uniqueSuffix()}`);
 
   const stranger = await newPage(browser);
   await signUpAndVerify(stranger, "Intrusa Ficticia", uniqueEmail("intrusa"));

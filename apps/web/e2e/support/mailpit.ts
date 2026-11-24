@@ -25,4 +25,7 @@ export async function linkFromEmail(to: string, subject: RegExp): Promise<string
   return link;
 }
 
-export const uniqueEmail = (prefix: string): string => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}@example.test`;
+/** Sufijo único por ejecución y proyecto (escritorio y móvil corren en paralelo). */
+export const uniqueSuffix = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+export const uniqueEmail = (prefix: string): string => `${prefix}-${uniqueSuffix()}@example.test`;

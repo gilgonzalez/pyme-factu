@@ -97,6 +97,39 @@ export function listTaxpayers(db: Database, context: TenantContext): Promise<Tax
   });
 }
 
+export interface TaxpayerRecord extends TaxpayerSummary {
+  readonly addressLine: string | null;
+  readonly postalCode: string | null;
+  readonly city: string | null;
+  readonly province: string | null;
+  readonly email: string | null;
+}
+
+/** Ficha completa del contribuyente ACTIVO del contexto (el acceso ya se verificó al resolver el contexto). */
+export function getTaxpayer(db: Database, context: TenantContext): Promise<TaxpayerRecord> {
+  return runInTenant(db, context, "taxpayers.read", async (tx) => {
+    const active = context.taxpayer;
+    if (active === null) throw new AuthorizationError("taxpayers.read");
+    const taxpayer = await tx.taxpayer.findFirstOrThrow({
+      where: { id: active.id, tenantId: context.tenant.id },
+      select: {
+        id: true,
+        nif: true,
+        personType: true,
+        legalName: true,
+        tradeName: true,
+        addressLine: true,
+        postalCode: true,
+        city: true,
+        province: true,
+        email: true,
+        status: true,
+      },
+    });
+    return { ...taxpayer, access: active.access };
+  });
+}
+
 // ─── Edición ─────────────────────────────────────────────────────────────────
 
 /** Actualiza los datos del contribuyente ACTIVO del contexto (taxpayers.update: requiere acceso FULL). */

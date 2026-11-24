@@ -17,6 +17,7 @@ export { createOrganization, listMyOrganizations, type CreateOrganizationResult,
 export { AuthorizationError, runInTenant } from "./run-in-tenant";
 export {
   createTaxpayer,
+  getTaxpayer,
   effectiveTaxpayerAccess,
   listTaxpayerAccess,
   listTaxpayers,
@@ -27,6 +28,7 @@ export {
   type SetTaxpayerAccessResult,
   type TaxpayerAccessEntry,
   type TaxpayerAccessLevel,
+  type TaxpayerRecord,
   type TaxpayerSummary,
 } from "./taxpayers";
 export {

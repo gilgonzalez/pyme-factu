@@ -5,23 +5,32 @@ import { AppHeader } from "@/components/app-header";
 import { ROLE_INFO } from "@/lib/roles";
 import type { SessionUser } from "@/lib/server/session";
 
-type Section = "inicio" | "equipo";
+type Section = "inicio" | "contribuyentes" | "equipo";
+
+/** Contribuyente activo (obligado tributario): se muestra SIEMPRE que la pantalla actúe sobre uno (R-05). */
+export interface ActiveTaxpayer {
+  readonly legalName: string;
+  readonly nif: string;
+}
 
 /** Marco de las pantallas de una organización: cabecera, organización activa SIEMPRE visible y navegación. */
 export function TenantFrame({
   user,
   context,
   current,
+  activeTaxpayer,
   children,
 }: {
   readonly user: SessionUser;
   readonly context: TenantContext;
   readonly current: Section;
+  readonly activeTaxpayer?: ActiveTaxpayer;
   readonly children: ReactNode;
 }) {
   const base = `/${context.tenant.slug}`;
   const links: { section: Section; href: string; label: string; visible: boolean }[] = [
     { section: "inicio", href: base, label: "Inicio", visible: true },
+    { section: "contribuyentes", href: `${base}/contribuyentes`, label: "Contribuyentes", visible: context.permissions.has("taxpayers.read") },
     { section: "equipo", href: `${base}/equipo`, label: "Equipo", visible: context.permissions.has("members.read") },
   ];
   return (
@@ -60,6 +69,13 @@ export function TenantFrame({
             ))}
         </ul>
       </nav>
+      {activeTaxpayer === undefined ? null : (
+        <div className="border-b bg-muted/50">
+          <p className="mx-auto w-full max-w-5xl px-6 py-2 text-sm" aria-label="Contribuyente activo">
+            Contribuyente activo: <strong>{activeTaxpayer.legalName}</strong> · NIF {activeTaxpayer.nif}
+          </p>
+        </div>
+      )}
       <main className="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8">{children}</main>
     </>
   );
