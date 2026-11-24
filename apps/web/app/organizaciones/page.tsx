@@ -1,8 +1,8 @@
 import { listMyOrganizations } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import { AppHeader } from "@/components/app-header";
+import { Streamed } from "@/components/form";
 import { buttonVariants } from "@/components/ui/button";
 import { ROLE_INFO } from "@/lib/roles";
 import { getDatabase } from "@/lib/server/db";
@@ -12,9 +12,9 @@ export const metadata: Metadata = { title: "Tus organizaciones" };
 
 export default function OrganizationsPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-muted-foreground">Cargando tus organizaciones…</p>}>
+    <Streamed message="Cargando tus organizaciones…">
       <Organizations />
-    </Suspense>
+    </Streamed>
   );
 }
 

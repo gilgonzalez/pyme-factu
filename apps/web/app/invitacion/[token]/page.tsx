@@ -1,8 +1,7 @@
 import { previewInvitation } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
-import { AuthShell, FormAlert } from "@/components/form";
+import { AuthShell, FormAlert, Streamed } from "@/components/form";
 import { SignOutButton } from "@/components/sign-out-button";
 import { buttonVariants } from "@/components/ui/button";
 import { ROLE_INFO } from "@/lib/roles";
@@ -22,9 +21,9 @@ const CLOSED: Readonly<Record<string, string>> = {
 export default function InvitationPage({ params }: PageProps<"/invitacion/[token]">) {
   return (
     <AuthShell title="Invitación a FacturaLibre" description="Únete a una organización para trabajar con su equipo.">
-      <Suspense fallback={<p className="text-muted-foreground">Comprobando la invitación…</p>}>
+      <Streamed message="Comprobando la invitación…">
         <Invitation params={params} />
-      </Suspense>
+      </Streamed>
     </AuthShell>
   );
 }

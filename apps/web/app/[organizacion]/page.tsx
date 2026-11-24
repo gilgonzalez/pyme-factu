@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { Suspense } from "react";
+import { Streamed } from "@/components/form";
 import { TenantFrame } from "@/components/tenant-frame";
 import { buttonVariants } from "@/components/ui/button";
 import { requireTenant } from "@/lib/server/session";
 
 export default function TenantHomePage({ params }: PageProps<"/[organizacion]">) {
   return (
-    <Suspense fallback={<p className="p-6 text-muted-foreground">Cargando la organización…</p>}>
+    <Streamed message="Cargando la organización…">
       <TenantHome params={params} />
-    </Suspense>
+    </Streamed>
   );
 }
 

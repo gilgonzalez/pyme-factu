@@ -1,7 +1,6 @@
 import { listInvitations, listMembers } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { FormAlert } from "@/components/form";
+import { FormAlert, Streamed } from "@/components/form";
 import { TenantFrame } from "@/components/tenant-frame";
 import { getDatabase } from "@/lib/server/db";
 import { requireTenant } from "@/lib/server/session";
@@ -14,9 +13,9 @@ const dateFormat = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "lo
 
 export default function TeamPage({ params }: PageProps<"/[organizacion]/equipo">) {
   return (
-    <Suspense fallback={<p className="p-6 text-muted-foreground">Cargando el equipo…</p>}>
+    <Streamed message="Cargando el equipo…">
       <Team params={params} />
-    </Suspense>
+    </Streamed>
   );
 }
 
