@@ -1,6 +1,6 @@
 # Documentación de FacturaLibre
 
-Estado a **24/11/2026** (fin de Fase 0 + Fase 1). Leyenda usada en todos los documentos:
+Estado a **24/11/2026** (fin de Fase 2: autenticación, organizaciones, equipo e invitaciones). Leyenda usada en todos los documentos:
 
 | Etiqueta | Significado |
 |---|---|
