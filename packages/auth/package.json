@@ -1,0 +1,24 @@
+{
+  "name": "@facturalibre/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@facturalibre/database": "workspace:*",
+    "better-auth": "1.7.27",
+    "nodemailer": "^10.6.1"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1"
+  }
+}
