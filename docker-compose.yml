@@ -39,6 +39,14 @@ services:
       postgres: { condition: service_healthy }
     restart: "no"
 
+  # Servidor SMTP de pruebas: captura TODOS los correos (no salen a Internet). Bandeja: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.29
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+
   web:
     build: { context: ., target: web }
     restart: unless-stopped
@@ -46,10 +54,14 @@ services:
       <<: *db-urls
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       FACTURALIBRE_ENV: ${FACTURALIBRE_ENV:-development}
+      AUTH_SECRET: ${AUTH_SECRET}
+      SMTP_URL: smtp://mailpit:1025
+      MAIL_FROM: ${MAIL_FROM}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
       migrate: { condition: service_completed_successfully }
+      mailpit: { condition: service_started }
 
   worker:
     build: { context: ., target: worker }

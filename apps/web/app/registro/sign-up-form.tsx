@@ -1,0 +1,57 @@
+"use client";
+import { safeReturnPath } from "@facturalibre/security";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { AuthForm } from "@/components/auth-form";
+import { Field } from "@/components/form";
+import { authClient, authErrorMessage } from "@/lib/auth-client";
+
+export function SignUpForm() {
+  const returnPath = safeReturnPath(useSearchParams().get("volver"));
+
+  return (
+    <AuthForm
+      submitLabel="Crear cuenta"
+      pendingLabel="Creando cuenta…"
+      onSubmit={async (data) => {
+        const email = String(data.get("email") ?? "").trim();
+        const { error } = await authClient.signUp.email({
+          name: String(data.get("name") ?? "").trim(),
+          email,
+          password: String(data.get("password") ?? ""),
+          callbackURL: returnPath,
+        });
+        if (error) return { error: authErrorMessage(error.code, error.status) };
+        return {
+          success: (
+            <>
+              <strong>Revisa tu bandeja de entrada.</strong> Te hemos enviado un enlace a <strong>{email}</strong> para confirmar tu
+              cuenta. Si no lo ves en unos minutos, mira en la carpeta de spam.
+            </>
+          ),
+        };
+      }}
+      footer={
+        <p className="text-sm text-muted-foreground">
+          ¿Ya tienes cuenta?{" "}
+          <Link className="font-medium text-foreground underline underline-offset-4" href={`/entrar?volver=${encodeURIComponent(returnPath)}`}>
+            Inicia sesión
+          </Link>
+        </p>
+      }
+    >
+      <Field name="name" label="Nombre y apellidos" autoComplete="name" required maxLength={120} />
+      <Field name="email" label="Email" type="email" autoComplete="email" required maxLength={254} />
+      <Field
+        name="password"
+        label="Contraseña"
+        type="password"
+        autoComplete="new-password"
+        required
+        minLength={12}
+        maxLength={128}
+        hint="Mínimo 12 caracteres. Una frase fácil de recordar es más segura que una palabra corta."
+      />
+    </AuthForm>
+  );
+}

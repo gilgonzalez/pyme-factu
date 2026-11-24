@@ -1,4 +1,5 @@
 export { PERMISSIONS, type Permission } from "./permissions";
+export { safeReturnPath } from "./redirects";
 export {
   decideMemberRemoval,
   decideRoleChange,
