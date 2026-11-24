@@ -70,6 +70,25 @@ export type RoleChangeDecision =
   | { readonly allowed: true }
   | { readonly allowed: false; readonly reason: "MISSING_PERMISSION" | "SELF_CHANGE" | "OWNER_VIA_TRANSFER_ONLY" | "INSUFFICIENT_RANK" };
 
+export interface MemberRemovalRequest {
+  readonly actorUserId: string;
+  readonly actorRole: Role;
+  readonly targetUserId: string;
+  readonly targetRole: Role;
+}
+
+export type MemberRemovalDecision =
+  | { readonly allowed: true }
+  | { readonly allowed: false; readonly reason: "MISSING_PERMISSION" | "SELF_CHANGE" | "INSUFFICIENT_RANK" };
+
+/** Quitar a un miembro: solo con members.remove y sobre rangos estrictamente inferiores al propio. */
+export function decideMemberRemoval(request: MemberRemovalRequest): MemberRemovalDecision {
+  if (!ROLE_PERMISSIONS[request.actorRole].includes("members.remove")) return { allowed: false, reason: "MISSING_PERMISSION" };
+  if (request.targetUserId === request.actorUserId) return { allowed: false, reason: "SELF_CHANGE" };
+  if (RANK[request.targetRole] >= RANK[request.actorRole]) return { allowed: false, reason: "INSUFFICIENT_RANK" };
+  return { allowed: true };
+}
+
 /** Reglas anti-escalada para invitar o cambiar el rol de un miembro. */
 export function decideRoleChange(request: RoleChangeRequest): RoleChangeDecision {
   const required: Permission = request.targetCurrentRole === null ? "members.invite" : "members.update_role";

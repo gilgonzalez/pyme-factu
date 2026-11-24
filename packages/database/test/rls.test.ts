@@ -1,8 +1,8 @@
 // Pruebas BLOQUEANTES de aislamiento a nivel de PostgreSQL (RLS, permisos, FKs compuestas, auditoría).
 // Se conectan con los roles reales de ejecución contra un PostgreSQL 18 real.
-import pg from "pg";
+import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { FIXTURE } from "../src/testing";
+import { FIXTURE, testClients } from "../src/testing";
 
 const { users, tenants, taxpayers } = FIXTURE;
 const urls = inject("dbUrls");
@@ -13,13 +13,8 @@ interface Ctx {
   readonly taxpayer?: string;
 }
 
-const clients: pg.Client[] = [];
-async function connect(url: string): Promise<pg.Client> {
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
-  clients.push(client);
-  return client;
-}
+const clients = testClients();
+const connect = (url: string): Promise<pg.Client> => clients.connect(url);
 
 /** Ejecuta `work` en una transacción con contexto de seguridad y la revierte SIEMPRE. */
 async function inContext<T>(client: pg.Client, ctx: Ctx, work: () => Promise<T>): Promise<T> {
@@ -48,7 +43,7 @@ beforeAll(async () => {
   worker = await connect(urls.worker);
 });
 afterAll(async () => {
-  await Promise.all(clients.map((client) => client.end()));
+  await clients.closeAll();
 });
 
 describe("roles de base de datos", () => {

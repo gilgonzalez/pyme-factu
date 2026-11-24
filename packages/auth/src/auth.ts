@@ -1,7 +1,7 @@
 import { createDatabaseClient } from "@facturalibre/database";
 import { betterAuth, type BetterAuthPlugin } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { resetPasswordMessage, verifyEmailMessage } from "./emails";
+import { accountEmail } from "./emails";
 import type { Mailer } from "./mailer";
 
 export interface CreateAuthOptions {
@@ -39,14 +39,14 @@ function buildAuth(options: CreateAuthOptions, db: ReturnType<typeof createDatab
       autoSignIn: false,
       revokeSessionsOnPasswordReset: true,
       resetPasswordTokenExpiresIn: HOUR,
-      sendResetPassword: ({ user, url }) => options.mailer.send(resetPasswordMessage(user.email, user.name, url)),
+      sendResetPassword: ({ user, url }) => options.mailer.send(accountEmail("reset-password", user, url)),
     },
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: true,
       autoSignInAfterVerification: true,
       expiresIn: DAY,
-      sendVerificationEmail: ({ user, url }) => options.mailer.send(verifyEmailMessage(user.email, user.name, url)),
+      sendVerificationEmail: ({ user, url }) => options.mailer.send(accountEmail("verify-email", user, url)),
     },
     session: {
       expiresIn: 7 * DAY,

@@ -1,21 +1,16 @@
 // Alta de organizaciones e invitaciones a nivel de PostgreSQL (funciones SECURITY DEFINER del esquema app).
 // Se ejecutan con el rol real de aplicación (facturalibre_app) y el contexto de seguridad del usuario.
 import { createHash, randomUUID } from "node:crypto";
-import pg from "pg";
+import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { testClients } from "../src/testing";
 
 const urls = inject("dbUrls");
-const clients: pg.Client[] = [];
+const clients = testClients();
+const connect = (url: string): Promise<pg.Client> => clients.connect(url);
 let app: pg.Client;
 let owner: pg.Client;
 let auth: pg.Client;
-
-async function connect(url: string): Promise<pg.Client> {
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
-  clients.push(client);
-  return client;
-}
 
 /** Ejecuta `work` en una transacción confirmada con el usuario como contexto (sin tenant). */
 async function asUser<T>(userId: string, work: () => Promise<T>): Promise<T> {
@@ -43,11 +38,18 @@ async function createUser(email: string, verified = true): Promise<string> {
 }
 
 const unique = (): string => randomUUID().slice(0, 8);
+/** Única fila esperada de una consulta. */
+function single<T>(rows: T[]): T {
+  const [row] = rows;
+  if (row === undefined) throw new Error("La consulta no devolvió filas");
+  return row;
+}
+
 const sha256 = (token: string): string => createHash("sha256").update(token).digest("hex");
 
 async function createTenant(userId: string, slug: string, name = "Organización ficticia"): Promise<string> {
   const result = await asUser(userId, () => app.query<{ id: string }>("SELECT app.create_tenant($1, $2) AS id", [name, slug]));
-  return result.rows[0]!.id;
+  return single(result.rows).id;
 }
 
 async function invite(tenantId: string, invitedBy: string, email: string, options: { expiresIn?: string; role?: string } = {}): Promise<string> {
@@ -62,7 +64,7 @@ async function invite(tenantId: string, invitedBy: string, email: string, option
 
 type Acceptance = { status: string; tenant_slug: string | null };
 const accept = (userId: string, token: string): Promise<Acceptance> =>
-  asUser(userId, async () => (await app.query<Acceptance>("SELECT * FROM app.accept_invitation($1)", [sha256(token)])).rows[0]!);
+  asUser(userId, async () => single((await app.query<Acceptance>("SELECT * FROM app.accept_invitation($1)", [sha256(token)])).rows));
 
 beforeAll(async () => {
   app = await connect(urls.app);
@@ -70,7 +72,7 @@ beforeAll(async () => {
   auth = await connect(urls.auth);
 });
 afterAll(async () => {
-  await Promise.all(clients.map((client) => client.end()));
+  await clients.closeAll();
 });
 
 describe("app.create_tenant", () => {

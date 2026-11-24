@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideRoleChange, effectivePermissions, PERMISSIONS, type Permission, type Role } from "../src";
+import { decideMemberRemoval, decideRoleChange, effectivePermissions, PERMISSIONS, type Permission, type Role } from "../src";
 
 const has = (role: Role, permission: Permission, access: "FULL" | "READ_ONLY" | "NONE" = "FULL"): boolean =>
   effectivePermissions(role, access).has(permission);
@@ -115,5 +115,28 @@ describe("cambios de rol (anti-escalada)", () => {
     expect(
       decideRoleChange({ actorUserId: "u-acc", actorRole: "ACCOUNTANT", targetUserId: "u-x", targetCurrentRole: "VIEWER", newRole: "EMPLOYEE" }),
     ).toEqual({ allowed: false, reason: "MISSING_PERMISSION" });
+  });
+});
+
+describe("decideMemberRemoval", () => {
+  const remove = (actorRole: Role, targetRole: Role, targetUserId = "u-target") =>
+    decideMemberRemoval({ actorUserId: "u-actor", actorRole, targetUserId, targetRole });
+
+  it("permite quitar a miembros de rango estrictamente inferior", () => {
+    expect(remove("OWNER", "ADMIN")).toEqual({ allowed: true });
+    expect(remove("ADMIN", "ACCOUNTANT")).toEqual({ allowed: true });
+  });
+
+  it("nadie quita a alguien de rango igual o superior (el OWNER nunca se quita)", () => {
+    expect(remove("ADMIN", "ADMIN")).toEqual({ allowed: false, reason: "INSUFFICIENT_RANK" });
+    expect(remove("ADMIN", "OWNER")).toEqual({ allowed: false, reason: "INSUFFICIENT_RANK" });
+  });
+
+  it("nadie se quita a sí mismo desde la gestión de equipo", () => {
+    expect(remove("OWNER", "OWNER", "u-actor")).toEqual({ allowed: false, reason: "SELF_CHANGE" });
+  });
+
+  it("exige el permiso members.remove", () => {
+    expect(remove("ACCOUNTANT", "VIEWER")).toEqual({ allowed: false, reason: "MISSING_PERMISSION" });
   });
 });

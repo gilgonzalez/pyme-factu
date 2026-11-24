@@ -34,28 +34,26 @@ function actionEmail(email: ActionEmail): OutgoingEmail {
   return { to: email.to, subject: email.subject, text, html };
 }
 
-export function verifyEmailMessage(to: string, name: string, url: string): OutgoingEmail {
-  return actionEmail({
-    to,
+type AccountEmailText = Pick<ActionEmail, "subject" | "body" | "action" | "footer">;
+
+const ACCOUNT_EMAILS: Readonly<Record<"verify-email" | "reset-password", AccountEmailText>> = {
+  "verify-email": {
     subject: "Confirma tu email en FacturaLibre",
-    greeting: `Hola, ${name}:`,
     body: "Gracias por registrarte. Confirma tu dirección de email para activar tu cuenta.",
     action: "Confirmar mi email",
-    url,
     footer: "El enlace caduca en 24 horas. Si no has creado una cuenta, ignora este mensaje.",
-  });
-}
-
-export function resetPasswordMessage(to: string, name: string, url: string): OutgoingEmail {
-  return actionEmail({
-    to,
+  },
+  "reset-password": {
     subject: "Restablece tu contraseña de FacturaLibre",
-    greeting: `Hola, ${name}:`,
     body: "Hemos recibido una solicitud para restablecer tu contraseña. Al cambiarla se cerrarán todas tus sesiones abiertas.",
     action: "Elegir una contraseña nueva",
-    url,
     footer: "El enlace caduca en 1 hora. Si no lo has pedido tú, ignora este mensaje: tu contraseña no cambiará.",
-  });
+  },
+};
+
+/** Correos de la propia cuenta (verificación de email y restablecimiento de contraseña). */
+export function accountEmail(kind: keyof typeof ACCOUNT_EMAILS, user: { readonly email: string; readonly name: string }, url: string): OutgoingEmail {
+  return actionEmail({ ...ACCOUNT_EMAILS[kind], to: user.email, greeting: `Hola, ${user.name}:`, url });
 }
 
 export interface InvitationMessage {

@@ -32,6 +32,22 @@ export interface TestDatabase {
 
 const randomSecret = (): string => randomBytes(24).toString("hex");
 
+/** Conexiones pg directas para pruebas (un rol por conexión); `closeAll` en afterAll. */
+export function testClients(): { connect(url: string): Promise<pg.Client>; closeAll(): Promise<void> } {
+  const clients: pg.Client[] = [];
+  return {
+    async connect(url) {
+      const client = new pg.Client({ connectionString: url });
+      await client.connect();
+      clients.push(client);
+      return client;
+    },
+    async closeAll() {
+      await Promise.all(clients.map((client) => client.end()));
+    },
+  };
+}
+
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
