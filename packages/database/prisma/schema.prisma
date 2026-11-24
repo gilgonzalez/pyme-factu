@@ -286,6 +286,11 @@ model Taxpayer {
   tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   settings    TaxpayerSettings?
   memberships TaxpayerMembership[]
+  customers     Customer[]
+  products      Product[]
+  invoiceSeries InvoiceSeries[]
+  invoices      Invoice[]
+  invoiceLines  InvoiceLine[]
 
   /// Destino de las claves foráneas compuestas (tenant_id, taxpayer_id).
   @@unique([tenantId, id])
@@ -371,4 +376,154 @@ model OutboxEvent {
   @@index([status, availableAt])
   @@index([tenantId])
   @@map("outbox_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Facturación (Fase 4). Todo cuelga de un contribuyente: (tenant_id, taxpayer_id) y FKs compuestas
+// (taxpayer_id, id) para que una factura no pueda mezclar clientes, series ni líneas de otro.
+// Importes en céntimos; cantidades (3 dec.), precios (4 dec.) y porcentajes (2 dec.) como enteros
+// escalados. Ver docs/decisions/ADR-007-invoice-calculation.md. Restricciones, RLS e inmutabilidad
+// de las facturas emitidas: migración 20261124000400_invoicing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum InvoiceKind {
+  STANDARD
+  RECTIFYING
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+}
+
+model Customer {
+  id                   String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  taxpayerId           String   @map("taxpayer_id") @db.Uuid
+  /// NIF español (validado en el dominio); null para clientes sin NIF español (⏳ identificadores extranjeros).
+  nif                  String?
+  legalName            String   @map("legal_name")
+  addressLine          String?  @map("address_line")
+  postalCode           String?  @map("postal_code")
+  city                 String?
+  province             String?
+  countryCode          String   @default("ES") @map("country_code") @db.Char(2)
+  email                String?
+  /// Cliente en el régimen especial del recargo de equivalencia.
+  equivalenceSurcharge Boolean  @default(false) @map("equivalence_surcharge")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  taxpayer Taxpayer  @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  invoices Invoice[]
+
+  @@unique([taxpayerId, id])
+  @@index([taxpayerId, legalName])
+  @@map("customers")
+}
+
+model Product {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  taxpayerId String   @map("taxpayer_id") @db.Uuid
+  name       String
+  /// Precio unitario sin IVA en diezmilésimas de euro.
+  unitPrice  BigInt   @map("unit_price")
+  /// "VAT:2100" | "VAT:1000" | "VAT:400" | "VAT:0" | "EXEMPT" (CHECK en SQL).
+  taxKey     String   @map("tax_key")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  taxpayer Taxpayer @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([taxpayerId, name])
+  @@map("products")
+}
+
+model InvoiceSeries {
+  id         String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId   String      @map("tenant_id") @db.Uuid
+  taxpayerId String      @map("taxpayer_id") @db.Uuid
+  /// Prefijo visible del número, p. ej. "F2026" o "R2026" (CHECK de formato en SQL).
+  code       String
+  /// Las rectificativas van en series propias (RD 1619/2012, art. 6.1.a).
+  kind       InvoiceKind
+  /// Próximo número; solo avanza al emitir, en la misma transacción (sin huecos).
+  nextNumber Int         @default(1) @map("next_number")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  taxpayer Taxpayer  @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  invoices Invoice[]
+
+  @@unique([taxpayerId, code])
+  @@unique([taxpayerId, id])
+  @@map("invoice_series")
+}
+
+model Invoice {
+  id                   String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId             String        @map("tenant_id") @db.Uuid
+  taxpayerId           String        @map("taxpayer_id") @db.Uuid
+  seriesId             String        @map("series_id") @db.Uuid
+  customerId           String        @map("customer_id") @db.Uuid
+  kind                 InvoiceKind
+  status               InvoiceStatus @default(DRAFT)
+  /// Asignado solo al emitir (CHECK: borrador sin número, emitida con número).
+  number               Int?
+  issueDate            DateTime?     @map("issue_date") @db.Date
+  /// Fecha de la operación si es distinta de la de expedición.
+  operationDate        DateTime?     @map("operation_date") @db.Date
+  equivalenceSurcharge Boolean       @default(false) @map("equivalence_surcharge")
+  /// Retención de IRPF en porcentaje a escala 2 (1500 = 15 %).
+  withholdingPercent   Int           @default(0) @map("withholding_percent")
+  taxableBase          BigInt        @default(0) @map("taxable_base")
+  vatTotal             BigInt        @default(0) @map("vat_total")
+  surchargeTotal       BigInt        @default(0) @map("surcharge_total")
+  withholdingAmount    BigInt        @default(0) @map("withholding_amount")
+  total                BigInt        @default(0)
+  /// Datos del emisor y del destinatario tal como eran al emitir (la factura no cambia si cambian después).
+  issuerSnapshot       Json?         @map("issuer_snapshot")
+  customerSnapshot     Json?         @map("customer_snapshot")
+  /// Factura rectificada (FK compuesta (taxpayer_id, rectifies_invoice_id) definida en SQL: Prisma no admite
+  /// una relación opcional con una columna obligatoria en la clave).
+  rectifiesInvoiceId   String?       @map("rectifies_invoice_id") @db.Uuid
+  rectificationReason  String?       @map("rectification_reason")
+  notes                String?
+  createdByUserId      String?       @map("created_by_user_id") @db.Uuid
+  issuedByUserId       String?       @map("issued_by_user_id") @db.Uuid
+  issuedAt             DateTime?     @map("issued_at") @db.Timestamptz(6)
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  taxpayer Taxpayer      @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  series   InvoiceSeries @relation(fields: [taxpayerId, seriesId], references: [taxpayerId, id], onDelete: Restrict)
+  customer Customer      @relation(fields: [taxpayerId, customerId], references: [taxpayerId, id], onDelete: Restrict)
+  lines    InvoiceLine[]
+
+  @@unique([taxpayerId, id])
+  @@unique([seriesId, number])
+  @@index([taxpayerId, status, createdAt])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id              String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId        String @map("tenant_id") @db.Uuid
+  taxpayerId      String @map("taxpayer_id") @db.Uuid
+  invoiceId       String @map("invoice_id") @db.Uuid
+  position        Int
+  description     String
+  quantity        BigInt
+  unitPrice       BigInt @map("unit_price")
+  discountPercent Int    @map("discount_percent")
+  taxKey          String @map("tax_key")
+  /// Base de la línea en céntimos, calculada por fiscal-core (la BD nunca recalcula).
+  lineBase        BigInt @map("line_base")
+
+  taxpayer Taxpayer @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  invoice  Invoice  @relation(fields: [taxpayerId, invoiceId], references: [taxpayerId, id], onDelete: Cascade)
+
+  @@unique([invoiceId, position])
+  @@map("invoice_lines")
 }
