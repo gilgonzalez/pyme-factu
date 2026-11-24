@@ -1,6 +1,8 @@
 # Docker
 
-> ⚠️ **No verificado**: Docker no está instalado en el equipo donde se preparó la Fase 1. `Dockerfile` y `docker-compose.yml` están escritos según la documentación oficial (Next.js standalone, imagen `postgres:18-alpine`) pero ni la build ni el arranque se han ejecutado. Primera tarea al disponer de Docker: ejecutar los comandos de abajo y corregir lo que falle.
+> ✅ **Verificado el 24/11/2026** en Windows 11 con Docker 29.9.3 / Compose v5.7.1: la build de las tres imágenes, `migrate` ("Roles de base de datos verificados. Migraciones aplicadas."), `web` y `worker` en estado *healthy*, `GET /api/health` y `GET :8081/health` → `{"status":"ok","checks":{"database":"ok"}}`. La suite completa (`pnpm test`, 75 tests incluidos los de RLS) pasa contra el PostgreSQL del contenedor, ya que `.env` apunta a `localhost:5432`.
+>
+> No arranques a la vez `pnpm db:local` y el contenedor `postgres` si usan el mismo puerto.
 
 ```bash
 pnpm env:init                    # si no existe .env

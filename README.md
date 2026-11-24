@@ -28,7 +28,7 @@ pnpm db:migrate        # terminal 2: roles + migraciones
 pnpm dev               # http://localhost:3000
 ```
 
-### Con Docker (no verificado todavía)
+### Con Docker (verificado el 24/11/2026)
 
 ```bash
 pnpm env:init

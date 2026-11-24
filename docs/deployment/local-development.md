@@ -14,7 +14,7 @@ pnpm dev                 # web en http://localhost:3000 y worker (health en :808
 
 Comprobación: `curl http://localhost:3000/api/health` → `{"status":"ok","checks":{"database":"ok"}}`.
 
-## Opción B — con Docker
+## Opción B — con Docker (verificada el 24/11/2026)
 
 Ver [docker](docker.md).
 
