@@ -166,6 +166,17 @@ model Verification {
   @@map("verifications")
 }
 
+/// Contadores de rate limiting de la librería de autenticación (persistentes y compartidos entre réplicas).
+model RateLimit {
+  id          String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  key         String @unique
+  count       Int
+  /// Marca de tiempo en milisegundos desde epoch (formato de la librería).
+  lastRequest BigInt @map("last_request")
+
+  @@map("rate_limits")
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Organización (tenant)
 // ─────────────────────────────────────────────────────────────────────────────
