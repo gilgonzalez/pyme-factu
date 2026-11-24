@@ -1,0 +1,363 @@
+// FacturaLibre — esquema inicial (Fase 1): identidad, multi-tenancy, contribuyentes, auditoría y outbox.
+// Documentación: docs/database/data-model.md y docs/database/tenant-constraints.md
+//
+// Reglas:
+//  - Nombres físicos en snake_case (@@map/@map).
+//  - Identificadores UUID generados por PostgreSQL 18 (uuidv7()).
+//  - Toda tabla de organización lleva tenant_id; toda tabla fiscal llevará además taxpayer_id.
+//  - Las relaciones entre entidades de un tenant usan claves foráneas COMPUESTAS (tenant_id, id)
+//    para que la base de datos impida asociar filas de tenants distintos.
+//  - Restricciones que Prisma no expresa (CHECK, índices parciales, RLS, triggers) viven en SQL
+//    dentro de prisma/migrations y están documentadas en docs/tenancy/rls-policies.md.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enumeraciones
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+  ACTIVE
+  DEACTIVATED
+}
+
+enum TenantRole {
+  OWNER
+  ADMIN
+  ACCOUNTANT
+  EMPLOYEE
+  VIEWER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// Alcance de un miembro sobre los contribuyentes del tenant.
+/// ALL_TAXPAYERS: todos (típico de OWNER/ADMIN). ASSIGNED_TAXPAYERS: solo los de taxpayer_memberships.
+enum TaxpayerScope {
+  ALL_TAXPAYERS
+  ASSIGNED_TAXPAYERS
+}
+
+enum TaxpayerAccessLevel {
+  READ_ONLY
+  FULL
+}
+
+/// Persona física o jurídica (obligado tributario emisor).
+enum TaxpayerPersonType {
+  NATURAL_PERSON
+  LEGAL_ENTITY
+}
+
+enum TaxpayerStatus {
+  ACTIVE
+  DEACTIVATED
+}
+
+enum AuditOutcome {
+  SUCCESS
+  DENIED
+  FAILURE
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identidad global (no pertenece a ningún tenant)
+// Las tablas users/sessions/accounts/verifications siguen la forma que espera la
+// librería de autenticación elegida (ADR-006, Better Auth). Se revisará en Fase 2.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name          String
+  /// Siempre en minúsculas (CHECK en SQL).
+  email         String   @unique
+  emailVerified Boolean  @default(false) @map("email_verified")
+  image         String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile              UserProfile?
+  sessions             Session[]
+  accounts             Account[]
+  tenantMemberships    TenantMembership[]
+  invitationsSent      TenantInvitation[] @relation("InvitationInvitedBy")
+  invitationsAccepted  TenantInvitation[] @relation("InvitationAcceptedBy")
+
+  @@map("users")
+}
+
+model UserProfile {
+  userId    String   @id @map("user_id") @db.Uuid
+  locale    String   @default("es-ES")
+  timeZone  String   @default("Europe/Madrid") @map("time_zone")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// Token opaco de sesión (la librería de auth almacena su forma firmada/hasheada).
+  token     String   @unique
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                 String?
+  /// Hash de contraseña (nunca la contraseña en claro).
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Organización (tenant)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id            String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Identificador en URL. Nunca se usa para autorizar (CHECK de formato en SQL).
+  slug          String       @unique
+  name          String
+  contactEmail  String?      @map("contact_email")
+  contactPhone  String?      @map("contact_phone")
+  status        TenantStatus @default(ACTIVE)
+  deactivatedAt DateTime?    @map("deactivated_at") @db.Timestamptz(6)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  settings    TenantSettings?
+  memberships TenantMembership[]
+  invitations TenantInvitation[]
+  taxpayers   Taxpayer[]
+
+  @@map("tenants")
+}
+
+model TenantSettings {
+  tenantId  String   @id @map("tenant_id") @db.Uuid
+  locale    String   @default("es-ES")
+  timeZone  String   @default("Europe/Madrid") @map("time_zone")
+  /// Fase inicial: solo EUR (CHECK en SQL).
+  currency  String   @default("EUR") @db.Char(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@map("tenant_settings")
+}
+
+model TenantMembership {
+  id            String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  role          TenantRole
+  taxpayerScope TaxpayerScope    @default(ASSIGNED_TAXPAYERS) @map("taxpayer_scope")
+  status        MembershipStatus @default(ACTIVE)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  taxpayerMemberships TaxpayerMembership[]
+
+  /// Un usuario tiene como máximo una membresía por tenant.
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@map("tenant_memberships")
+}
+
+model TenantInvitation {
+  id               String              @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId         String              @map("tenant_id") @db.Uuid
+  /// Siempre en minúsculas (CHECK en SQL).
+  email            String
+  /// Nunca OWNER: la propiedad solo se transfiere (CHECK en SQL).
+  role             TenantRole
+  taxpayerScope    TaxpayerScope       @default(ASSIGNED_TAXPAYERS) @map("taxpayer_scope")
+  /// SHA-256 del token enviado por correo. El token en claro no se almacena.
+  tokenHash        String              @unique @map("token_hash")
+  invitedByUserId  String              @map("invited_by_user_id") @db.Uuid
+  expiresAt        DateTime            @map("expires_at") @db.Timestamptz(6)
+  acceptedAt       DateTime?           @map("accepted_at") @db.Timestamptz(6)
+  acceptedByUserId String?             @map("accepted_by_user_id") @db.Uuid
+  revokedAt        DateTime?           @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  invitedBy  User   @relation("InvitationInvitedBy", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+  acceptedBy User?  @relation("InvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@map("tenant_invitations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Obligado tributario (emisor fiscal) dentro de un tenant
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Taxpayer {
+  id           String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
+  personType   TaxpayerPersonType @map("person_type")
+  /// NIF del obligado tributario (9 caracteres alfanuméricos en mayúsculas; CHECK en SQL).
+  /// La validación del dígito de control vive en el dominio (Fase 3).
+  nif          String
+  /// Nombre y apellidos o razón social.
+  legalName    String             @map("legal_name")
+  tradeName    String?            @map("trade_name")
+  addressLine  String?            @map("address_line")
+  postalCode   String?            @map("postal_code")
+  city         String?
+  province     String?
+  countryCode  String             @default("ES") @map("country_code") @db.Char(2)
+  email        String?
+  status       TaxpayerStatus     @default(ACTIVE)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  settings    TaxpayerSettings?
+  memberships TaxpayerMembership[]
+
+  /// Destino de las claves foráneas compuestas (tenant_id, taxpayer_id).
+  @@unique([tenantId, id])
+  /// El mismo NIF puede existir en tenants distintos (p. ej. empresa y su gestoría): cada uno es
+  /// una "facturación" distinta (ver docs/verifactu/hashing-and-chaining.md). Dentro del tenant, único.
+  @@unique([tenantId, nif])
+  @@map("taxpayers")
+}
+
+model TaxpayerSettings {
+  taxpayerId              String   @id @map("taxpayer_id") @db.Uuid
+  tenantId                String   @map("tenant_id") @db.Uuid
+  defaultPaymentTermsDays Int?     @map("default_payment_terms_days")
+  invoiceFooterNote       String?  @map("invoice_footer_note")
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  taxpayer Taxpayer @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, taxpayerId])
+  @@map("taxpayer_settings")
+}
+
+model TaxpayerMembership {
+  id          String              @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId    String              @map("tenant_id") @db.Uuid
+  taxpayerId  String              @map("taxpayer_id") @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  accessLevel TaxpayerAccessLevel @default(FULL) @map("access_level")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  /// El contribuyente debe pertenecer al MISMO tenant (FK compuesta).
+  taxpayer         Taxpayer         @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  /// El usuario debe ser miembro del MISMO tenant (FK compuesta). Si pierde la membresía, pierde el acceso.
+  tenantMembership TenantMembership @relation(fields: [tenantId, userId], references: [tenantId, userId], onDelete: Cascade)
+
+  @@unique([taxpayerId, userId])
+  @@index([tenantId, userId])
+  @@map("taxpayer_memberships")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auditoría (append-only, protegida por trigger y permisos) y Transactional Outbox
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id          String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  occurredAt  DateTime     @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorUserId String?      @map("actor_user_id") @db.Uuid
+  tenantId    String?      @map("tenant_id") @db.Uuid
+  taxpayerId  String?      @map("taxpayer_id") @db.Uuid
+  /// Verbo en notación punto, p. ej. "tenant.switch", "member.role_changed".
+  action      String
+  entityType  String?      @map("entity_type")
+  entityId    String?      @map("entity_id")
+  outcome     AuditOutcome
+  requestId   String?      @map("request_id")
+  /// Contexto técnico mínimo. Nunca contraseñas, tokens, claves ni certificados.
+  metadata    Json?
+
+  @@index([tenantId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@map("audit_events")
+}
+
+model OutboxEvent {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  taxpayerId     String?      @map("taxpayer_id") @db.Uuid
+  type           String
+  payload        Json
+  /// Evita encolar dos veces el mismo trabajo lógico.
+  idempotencyKey String       @unique @map("idempotency_key")
+  status         OutboxStatus @default(PENDING)
+  attempts       Int          @default(0)
+  maxAttempts    Int          @default(10) @map("max_attempts")
+  availableAt    DateTime     @default(now()) @map("available_at") @db.Timestamptz(6)
+  lockedAt       DateTime?    @map("locked_at") @db.Timestamptz(6)
+  lockedBy       String?      @map("locked_by")
+  lastError      String?      @map("last_error")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  processedAt    DateTime?    @map("processed_at") @db.Timestamptz(6)
+
+  @@index([status, availableAt])
+  @@index([tenantId])
+  @@map("outbox_events")
+}

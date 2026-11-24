@@ -1,0 +1,32 @@
+{
+  "name": "@facturalibre/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts",
+    "./testing/global-setup": "./src/testing/global-setup.ts"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "db:local": "tsx src/scripts/local-postgres.ts",
+    "db:diff": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --config ../../eslint.config.js src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.16.0",
+    "dotenv": "^17.2.3",
+    "embedded-postgres": "18.7.0-beta.19",
+    "prisma": "7.10.1",
+    "tsx": "^4.23.15"
+  }
+}

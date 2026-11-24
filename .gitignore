@@ -1,0 +1,35 @@
+node_modules/
+dist/
+coverage/
+reports/
+.stryker-tmp/
+*.log
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+
+# Monorepo / herramientas
+.turbo/
+**/src/generated/
+*.tsbuildinfo
+
+# PostgreSQL local sin Docker (pnpm db:local)
+.data/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Certificados y claves: NUNCA en el repositorio
+*.pem
+*.key
+*.p12
+*.pfx
