@@ -2,7 +2,7 @@ import { listMyOrganizations } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
-import { Streamed } from "@/components/form";
+import { streamedPage } from "@/components/form";
 import { buttonVariants } from "@/components/ui/button";
 import { ROLE_INFO } from "@/lib/roles";
 import { getDatabase } from "@/lib/server/db";
@@ -10,13 +10,7 @@ import { requireUser } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "Tus organizaciones" };
 
-export default function OrganizationsPage() {
-  return (
-    <Streamed message="Cargando tus organizaciones…">
-      <Organizations />
-    </Streamed>
-  );
-}
+export default streamedPage("Cargando tus organizaciones…", Organizations);
 
 async function Organizations() {
   const user = await requireUser("/organizaciones");

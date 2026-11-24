@@ -65,3 +65,25 @@ export function AuthShell({ title, description, children }: { readonly title: st
     </main>
   );
 }
+
+/** Página de acceso: título, descripción y un único formulario cliente. */
+export function authPage(title: string, description: string, Form: () => ReactNode) {
+  return function AuthPage() {
+    return (
+      <AuthShell title={title} description={description}>
+        <Form />
+      </AuthShell>
+    );
+  };
+}
+
+/** Página cuyo contenido depende de la petición (sesión): se transmite tras un <Suspense>. */
+export function streamedPage<Props extends object>(message: string, Content: (props: Props) => Promise<ReactNode>) {
+  return function StreamedPage(props: Props) {
+    return (
+      <Streamed message={message}>
+        <Content {...props} />
+      </Streamed>
+    );
+  };
+}

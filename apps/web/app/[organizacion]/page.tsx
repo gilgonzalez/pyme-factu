@@ -1,16 +1,10 @@
 import Link from "next/link";
-import { Streamed } from "@/components/form";
+import { streamedPage } from "@/components/form";
 import { TenantFrame } from "@/components/tenant-frame";
 import { buttonVariants } from "@/components/ui/button";
 import { requireTenant } from "@/lib/server/session";
 
-export default function TenantHomePage({ params }: PageProps<"/[organizacion]">) {
-  return (
-    <Streamed message="Cargando la organización…">
-      <TenantHome params={params} />
-    </Streamed>
-  );
-}
+export default streamedPage("Cargando la organización…", TenantHome);
 
 async function TenantHome({ params }: { readonly params: PageProps<"/[organizacion]">["params"] }) {
   const { organizacion } = await params;

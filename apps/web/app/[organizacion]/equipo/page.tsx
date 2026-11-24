@@ -1,6 +1,6 @@
 import { listInvitations, listMembers } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
-import { FormAlert, Streamed } from "@/components/form";
+import { FormAlert, streamedPage } from "@/components/form";
 import { TenantFrame } from "@/components/tenant-frame";
 import { getDatabase } from "@/lib/server/db";
 import { requireTenant } from "@/lib/server/session";
@@ -11,13 +11,7 @@ export const metadata: Metadata = { title: "Equipo" };
 
 const dateFormat = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
 
-export default function TeamPage({ params }: PageProps<"/[organizacion]/equipo">) {
-  return (
-    <Streamed message="Cargando el equipo…">
-      <Team params={params} />
-    </Streamed>
-  );
-}
+export default streamedPage("Cargando el equipo…", Team);
 
 async function Team({ params }: { readonly params: PageProps<"/[organizacion]/equipo">["params"] }) {
   const { organizacion } = await params;
