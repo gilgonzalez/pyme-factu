@@ -14,6 +14,8 @@ export interface DatabaseClientOptions {
  * (facturalibre_app o facturalibre_worker), nunca la del propietario de las tablas.
  */
 export function createDatabaseClient(connectionString: string, options: DatabaseClientOptions = {}): Database {
-  const adapter = new PrismaPg({ connectionString, max: options.maxConnections ?? 10 });
+  // Sesiones en UTC: el adaptador intercambia las fechas sin desfase, así que con otra zona horaria del servidor
+  // las fechas escritas desde JavaScript quedarían desplazadas frente a now() en SQL (test/client.test.ts).
+  const adapter = new PrismaPg({ connectionString, max: options.maxConnections ?? 10, options: "-c TimeZone=UTC" });
   return new PrismaClient({ adapter });
 }
