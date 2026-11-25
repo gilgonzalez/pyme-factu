@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": [
+    "@stryker-mutator/vitest-runner",
+    "@stryker-mutator/typescript-checker"
+  ],
+  "checkers": [
+    "typescript"
+  ],
+  "tsconfigFile": "packages/aeat-client/tsconfig.json",
+  "vitest": {
+    "configFile": "packages/aeat-client/vitest.config.ts",
+    "dir": "packages/aeat-client"
+  },
+  "mutate": [
+    "packages/aeat-client/src/**/*.ts"
+  ],
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html"
+  ],
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 80
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/aeat-client.html"
+  }
+}

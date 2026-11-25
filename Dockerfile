@@ -17,6 +17,7 @@ FROM base AS deps
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
+COPY packages/aeat-client/package.json packages/aeat-client/
 COPY packages/auth/package.json packages/auth/
 COPY packages/database/package.json packages/database/
 COPY packages/domain/package.json packages/domain/
