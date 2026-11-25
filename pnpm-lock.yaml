@@ -144,12 +144,22 @@ importers:
 
   apps/worker:
     dependencies:
+      '@facturalibre/aeat-client':
+        specifier: workspace:*
+        version: link:../../packages/aeat-client
       '@facturalibre/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@facturalibre/verifactu':
+        specifier: workspace:*
+        version: link:../../packages/verifactu
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+    devDependencies:
+      '@facturalibre/tenancy':
+        specifier: workspace:*
+        version: link:../../packages/tenancy
 
   packages/aeat-client:
     dependencies:

@@ -11,7 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@facturalibre/aeat-client": "workspace:*",
     "@facturalibre/database": "workspace:*",
+    "@facturalibre/verifactu": "workspace:*",
     "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@facturalibre/tenancy": "workspace:*"
   }
 }
