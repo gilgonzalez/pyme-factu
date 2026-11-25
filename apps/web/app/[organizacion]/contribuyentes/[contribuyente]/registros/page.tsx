@@ -2,6 +2,7 @@ import { listBillingRecords, type BillingRecordView } from "@facturalibre/tenanc
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FormAlert, streamedPage } from "@/components/form";
+import { StatusBadge, type Tone } from "@/components/invoice-status";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { spanishShortDateTime } from "@/lib/invoice-view";
 import { getDatabase } from "@/lib/server/db";
@@ -11,11 +12,11 @@ export const metadata: Metadata = { title: "Registros VERI*FACTU" };
 
 export default streamedPage("Comprobando la cadena de registros…", Records);
 
-const STATUS: Readonly<Record<BillingRecordView["status"], { readonly label: string; readonly className: string }>> = {
-  PENDING: { label: "Pendiente de remitir", className: "border-foreground/20 bg-card text-muted-foreground" },
-  ACCEPTED: { label: "Aceptado", className: "border-ok-ink/25 bg-ok text-ok-ink" },
-  ACCEPTED_WITH_ERRORS: { label: "Aceptado con errores", className: "border-copy-yellow-ink/30 bg-copy-yellow text-copy-yellow-ink" },
-  REJECTED: { label: "Rechazado", className: "border-copy-pink-ink/30 bg-copy-pink text-copy-pink-ink" },
+const STATUS: Readonly<Record<BillingRecordView["status"], { readonly label: string; readonly tone: Tone }>> = {
+  PENDING: { label: "Pendiente de remitir", tone: "neutral" },
+  ACCEPTED: { label: "Aceptado", tone: "success" },
+  ACCEPTED_WITH_ERRORS: { label: "Aceptado con errores", tone: "warning" },
+  REJECTED: { label: "Rechazado", tone: "danger" },
 };
 
 const shortHash = (hash: string): string => `${hash.slice(0, 8)}…${hash.slice(-8)}`;
@@ -34,7 +35,7 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="registros">
       <div className="grid gap-1">
-        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Registros VERI*FACTU</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">Registros VERI*FACTU</h1>
         <p className="text-muted-foreground">
           Cada factura emitida genera un registro de alta; una factura anulada, uno de anulación. Cada registro incluye la huella del anterior.
         </p>
@@ -50,18 +51,18 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
         </FormAlert>
       )}
       {records.length === 0 ? null : (
-        <div className="sheet overflow-x-auto">
+        <div className="surface overflow-x-auto">
           <table className="figures w-full text-sm">
             <caption className="sr-only">Cadena de registros de {taxpayer.legalName}</caption>
-            <thead className="border-b text-left text-muted-foreground">
+            <thead className="border-b bg-subtle text-left text-xs text-muted-foreground">
               <tr>
-                <th scope="col" className="px-4 py-3 font-semibold">Nº</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Tipo</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Factura</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Generado</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Huella</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Comprobación</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Remisión</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Nº</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Tipo</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Factura</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Generado</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Huella</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Comprobación</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Remisión</th>
               </tr>
             </thead>
             <tbody>
@@ -73,7 +74,7 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
                     <td className="px-4 py-3 tabular-nums">{record.sequence}</td>
                     <td className="px-4 py-3">{record.kind === "ALTA" ? `Alta (${record.invoiceType ?? ""})` : "Anulación"}</td>
                     <td className="px-4 py-3">
-                      <Link href={`${path}/facturas/${record.invoiceId}`} className="font-mono font-bold whitespace-nowrap text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary">
+                      <Link href={`${path}/facturas/${record.invoiceId}`} className="font-mono font-medium whitespace-nowrap hover:text-primary hover:underline hover:underline-offset-4">
                         {record.invoiceNumber}
                       </Link>
                     </td>
@@ -87,7 +88,7 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
                     </td>
                     <td className={ok ? "px-4 py-3" : "px-4 py-3 font-medium text-destructive"}>{ok ? "Correcta" : "No coincide"}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-sm border px-2 py-0.5 text-xs font-bold whitespace-nowrap ${STATUS[record.status].className}`}>{STATUS[record.status].label}</span>
+                      <StatusBadge tone={STATUS[record.status].tone}>{STATUS[record.status].label}</StatusBadge>
                       {record.aeatErrorDescription === null ? null : (
                         <span className="mt-1 block max-w-56 text-xs text-muted-foreground">
                           {record.aeatErrorCode ?? ""} {record.aeatErrorDescription}

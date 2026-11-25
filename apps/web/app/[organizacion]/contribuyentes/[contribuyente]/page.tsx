@@ -30,15 +30,15 @@ async function Taxpayer({ params }: { readonly params: Params }) {
         <Link href={`/${slug}/contribuyentes`} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
           Volver a contribuyentes
         </Link>
-        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">{taxpayer.legalName}</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">{taxpayer.legalName}</h1>
         <p className="text-muted-foreground">
           NIF {taxpayer.nif}, {taxpayer.personType === "LEGAL_ENTITY" ? "persona jurídica o entidad" : "persona física"}; tu acceso:{" "}
           {taxpayer.access === "FULL" ? "completo" : "solo lectura"}
         </p>
       </div>
 
-      <section aria-labelledby="datos" className="grid gap-3 sheet p-5">
-        <h2 id="datos" className="text-lg font-bold">
+      <section aria-labelledby="datos" className="grid gap-3 surface p-5">
+        <h2 id="datos" className="font-semibold">
           Datos fiscales
         </h2>
         {context.permissions.has("taxpayers.update") ? (
@@ -65,7 +65,7 @@ async function Taxpayer({ params }: { readonly params: Params }) {
 
       {canManageAccess ? (
         <section aria-labelledby="accesos" className="grid gap-3">
-          <h2 id="accesos" className="text-lg font-bold">
+          <h2 id="accesos" className="font-semibold">
             Quién puede trabajar con este contribuyente
           </h2>
           <AccessManager

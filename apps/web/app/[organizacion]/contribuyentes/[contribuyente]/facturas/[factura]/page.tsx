@@ -2,11 +2,12 @@ import { formatAmount, formatDecimal, SCALE } from "@facturalibre/fiscal-core";
 import { getInvoice, type BillingRecordView, type InvoiceDetail } from "@facturalibre/tenancy";
 import { qrSvg, qrUrl } from "@facturalibre/verifactu";
 import type { Metadata } from "next";
+import { Download } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { FormAlert, streamedPage } from "@/components/form";
-import { InvoiceStatus, invoiceState, STUB_TINT, type InvoiceState } from "@/components/invoice-status";
+import { InvoiceStatus, invoiceState, StatusBadge, type Tone } from "@/components/invoice-status";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { buttonVariants } from "@/components/ui/button";
 import { partyFrom, spanishDate, spanishDateTime, type Party } from "@/lib/invoice-view";
@@ -29,8 +30,8 @@ const percent = (scaled: bigint): string => `${formatDecimal(scaled, SCALE.perce
 function PartyBlock({ title, party }: { readonly title: string; readonly party: Party }) {
   return (
     <section className="grid content-start gap-0.5 text-sm">
-      <h2 className="mb-1 text-xs font-bold text-muted-foreground">{title}</h2>
-      <p className="text-base font-bold">{party.legalName}</p>
+      <h2 className="mb-1 text-xs font-medium text-muted-foreground">{title}</h2>
+      <p className="font-semibold">{party.legalName}</p>
       {party.nif === null ? null : <p className="font-mono">NIF {party.nif}</p>}
       {party.address === "" ? null : <p className="text-muted-foreground">{party.address}</p>}
     </section>
@@ -42,24 +43,24 @@ function Lines({ invoice }: { readonly invoice: InvoiceDetail }) {
     <>
       <table className="figures hidden w-full text-sm sm:table">
         <caption className="sr-only">Líneas de la factura</caption>
-        <thead className="border-b-2 border-foreground text-left">
+        <thead className="border-b text-left text-xs text-muted-foreground">
           <tr>
-            <th scope="col" className="py-2 pr-3 font-bold">
+            <th scope="col" className="py-2 pr-3 font-medium">
               Descripción
             </th>
-            <th scope="col" className="px-3 py-2 text-right font-bold">
+            <th scope="col" className="px-3 py-2 text-right font-medium">
               Cantidad
             </th>
-            <th scope="col" className="px-3 py-2 text-right font-bold">
+            <th scope="col" className="px-3 py-2 text-right font-medium">
               Precio
             </th>
-            <th scope="col" className="px-3 py-2 text-right font-bold">
+            <th scope="col" className="px-3 py-2 text-right font-medium">
               Dto.
             </th>
-            <th scope="col" className="px-3 py-2 font-bold">
+            <th scope="col" className="px-3 py-2 font-medium">
               IVA
             </th>
-            <th scope="col" className="py-2 pl-3 text-right font-bold">
+            <th scope="col" className="py-2 pl-3 text-right font-medium">
               Base
             </th>
           </tr>
@@ -96,7 +97,7 @@ function Lines({ invoice }: { readonly invoice: InvoiceDetail }) {
 
 function AmountRow({ label, value, strong = false }: { readonly label: ReactNode; readonly value: string; readonly strong?: boolean }) {
   return (
-    <div className={`flex justify-between gap-4 ${strong ? "mt-1 border-t-2 border-foreground pt-2 text-xl font-bold" : ""}`}>
+    <div className={`flex justify-between gap-4 ${strong ? "mt-2 border-t pt-3 text-lg font-semibold" : "text-muted-foreground [&>dd]:text-foreground"}`}>
       <dt>{label}</dt>
       <dd className="whitespace-nowrap">{value}</dd>
     </div>
@@ -130,11 +131,11 @@ function Totals({ invoice }: { readonly invoice: InvoiceDetail }) {
   );
 }
 
-const STATUS_TEXT: Readonly<Record<BillingRecordView["status"], string>> = {
-  PENDING: "Pendiente de remitir a la AEAT",
-  ACCEPTED: "Aceptado por la AEAT",
-  ACCEPTED_WITH_ERRORS: "Aceptado por la AEAT con errores: hay que revisarlo",
-  REJECTED: "Rechazado por la AEAT: hay que revisarlo",
+const STATUS_TEXT: Readonly<Record<BillingRecordView["status"], { readonly label: string; readonly tone: Tone }>> = {
+  PENDING: { label: "Pendiente de remitir", tone: "neutral" },
+  ACCEPTED: { label: "Aceptado por la AEAT", tone: "success" },
+  ACCEPTED_WITH_ERRORS: { label: "Aceptado con errores", tone: "warning" },
+  REJECTED: { label: "Rechazado por la AEAT", tone: "danger" },
 };
 
 /**
@@ -154,7 +155,7 @@ async function TaxQr({ record }: { readonly record: BillingRecordView }) {
   );
   const svg = await qrSvg(url);
   return (
-    <section aria-label="QR tributario" className="mx-auto grid justify-items-center text-center text-base font-bold">
+    <section aria-label="QR tributario" className="mx-auto grid justify-items-center text-center text-base font-semibold">
       <p>QR tributario:</p>
       <a href={url} target="_blank" rel="noopener noreferrer" className="bg-white" style={{ padding: "6mm" }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- SVG generado en el servidor como data URI */}
@@ -169,32 +170,13 @@ async function TaxQr({ record }: { readonly record: BillingRecordView }) {
   );
 }
 
-/** La matriz del talonario: lo que queda en el talonario cuando se arranca la hoja. */
-function Stub({ invoice, state }: { readonly invoice: InvoiceDetail; readonly state: InvoiceState }) {
-  return (
-    <div
-      className={`flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-t-[6px] px-5 py-4 sm:grid sm:content-start sm:gap-4 sm:rounded-l-[6px] sm:rounded-tr-none sm:px-4 sm:py-6 ${STUB_TINT[state]}`}
-    >
-      <p className="grid">
-        <span className="text-xs font-bold opacity-80">{invoice.kind === "RECTIFYING" ? "Rectificativa" : "Factura"}</span>
-        <span className="font-mono text-2xl leading-tight font-bold whitespace-nowrap sm:text-lg">{invoice.number ?? "Sin número"}</span>
-      </p>
-      <p className="grid">
-        <span className="text-xs font-bold opacity-80">Fecha</span>
-        <span className="figures">{invoice.issueDate === null ? "—" : spanishDate(invoice.issueDate)}</span>
-      </p>
-      <p className="grid">
-        <span className="text-xs font-bold opacity-80">Total</span>
-        <span className="figures font-bold">{formatAmount(invoice.total)}</span>
-      </p>
-    </div>
-  );
-}
-
 function RecordInfo({ title, record }: { readonly title: string; readonly record: BillingRecordView }) {
   return (
     <div className="grid gap-2">
-      <h3 className="font-bold">{title}</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <StatusBadge tone={STATUS_TEXT[record.status].tone}>{STATUS_TEXT[record.status].label}</StatusBadge>
+      </div>
       <dl className="grid gap-1.5 text-sm">
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Posición</dt>
@@ -203,10 +185,6 @@ function RecordInfo({ title, record }: { readonly title: string; readonly record
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Generado</dt>
           <dd className="text-right">{spanishDateTime(record.generatedAt)}</dd>
-        </div>
-        <div className="grid gap-0.5">
-          <dt className="text-muted-foreground">Estado</dt>
-          <dd className={record.status === "REJECTED" ? "font-semibold text-destructive" : "font-semibold"}>{STATUS_TEXT[record.status]}</dd>
         </div>
         {record.aeatErrorDescription === null ? null : (
           <div className="grid gap-0.5">
@@ -234,8 +212,8 @@ function RecordInfo({ title, record }: { readonly title: string; readonly record
 function VerifactuInfo({ invoice }: { readonly invoice: InvoiceDetail }) {
   const { alta, anulacion } = invoice.verifactu;
   return (
-    <section aria-labelledby="verifactu" className="sheet grid gap-4 p-5">
-      <h2 id="verifactu" className="text-lg font-bold">
+    <section aria-labelledby="verifactu" className="surface grid gap-4 p-5">
+      <h2 id="verifactu" className="font-semibold">
         Registro VERI*FACTU
       </h2>
       {alta === null ? (
@@ -261,8 +239,8 @@ function Disclosure({
   readonly children: ReactNode;
 }) {
   return (
-    <details className={`sheet group p-0 ${tone === "danger" ? "open:shadow-[inset_4px_0_0_var(--destructive),0_0_0_1px_rgb(27_33_64/0.08)]" : ""}`}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[6px] px-5 py-4 font-bold hover:bg-accent/60 [&::-webkit-details-marker]:hidden">
+    <details className="surface group p-0">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[14px] px-5 py-3.5 text-sm font-semibold hover:bg-subtle [&::-webkit-details-marker]:hidden">
         <span className={tone === "danger" ? "text-destructive" : ""}>{title}</span>
         <svg viewBox="0 0 16 16" aria-hidden="true" className="size-4 shrink-0 transition-transform group-open:rotate-180">
           <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -303,23 +281,26 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
-      <div className="grid gap-2">
-        <Link href={invoicesPath(slug, taxpayer.id)} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
+      <div className="grid gap-3">
+        <Link href={invoicesPath(slug, taxpayer.id)} className="w-fit text-sm text-muted-foreground hover:text-foreground">
           Volver a facturas
         </Link>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">
-            {invoice.kind === "RECTIFYING" ? "Factura rectificativa " : "Factura "}
-            {invoice.number ?? "(borrador)"}
-          </h1>
-          <InvoiceStatus state={state} />
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-muted-foreground">
-            {draft ? "Borrador: todavía no tiene número ni validez fiscal." : `Expedida el ${spanishDate(invoice.issueDate ?? "")}. No se puede modificar.`}
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="grid gap-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">
+                {invoice.kind === "RECTIFYING" ? "Factura rectificativa " : "Factura "}
+                {invoice.number ?? "(borrador)"}
+              </h1>
+              <InvoiceStatus state={state} />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {draft ? "Borrador: todavía no tiene número ni validez fiscal." : `Expedida el ${spanishDate(invoice.issueDate ?? "")}. No se puede modificar.`}
+            </p>
+          </div>
           {draft ? null : (
-            <a href={`${path}/pdf`} download className={buttonVariants({ size: "lg" })}>
+            <a href={`${path}/pdf`} download className={buttonVariants()}>
+              <Download aria-hidden="true" />
               Descargar PDF
             </a>
           )}
@@ -338,15 +319,12 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
         </FormAlert>
       ) : null}
 
-      <div className="grid gap-6">
-        {/* La hoja del talonario: matriz | perforación | factura. */}
-        <article aria-label="Factura" className="sheet grid sm:grid-cols-[9.5rem_14px_minmax(0,1fr)]">
-          <Stub invoice={invoice} state={state} />
-          <div aria-hidden="true" className="perforation-x h-[14px] bg-card sm:perforation sm:h-auto" />
-          <div className="grid min-w-0 gap-7 overflow-x-auto p-5 sm:p-8 sm:pl-6">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem]">
+        <article aria-label="Factura" className="surface min-w-0 overflow-x-auto">
+          <div className="grid min-w-0 gap-8 p-5 sm:p-8">
             {alta === null || anulacion !== null ? null : <TaxQr record={alta} />}
             {invoice.kind === "RECTIFYING" ? (
-              <p className="rounded-md border-l-4 border-primary bg-accent px-4 py-3 text-sm">
+              <p className="rounded-lg bg-accent px-4 py-3 text-sm text-accent-foreground">
                 Rectifica la factura <strong>{invoice.rectifiesNumber ?? ""}</strong> ({rectificationLabel(invoice.rectificationCode)}). Motivo:{" "}
                 {invoice.rectificationReason ?? ""}
               </p>
@@ -359,16 +337,32 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
             <Totals invoice={invoice} />
             {invoice.notes === null ? null : (
               <p className="border-t pt-4 text-sm">
-                <span className="font-bold">Observaciones:</span> {invoice.notes}
+                <span className="text-muted-foreground">Observaciones:</span> {invoice.notes}
               </p>
             )}
           </div>
         </article>
 
-        <div className="grid items-start gap-4 md:grid-cols-2">
+        <div className="grid content-start gap-4">
+          <section aria-label="Resumen" className="surface grid gap-3 p-5">
+            <p className="grid">
+              <span className="text-xs font-medium text-muted-foreground">Total</span>
+              <span className="figures text-[1.75rem] font-semibold tracking-[-0.02em]">{formatAmount(invoice.total)}</span>
+            </p>
+            <dl className="grid gap-1.5 border-t pt-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Cliente</dt>
+                <dd className="truncate text-right font-medium">{recipient.legalName}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Fecha</dt>
+                <dd className="figures">{invoice.issueDate === null ? "Sin emitir" : spanishDate(invoice.issueDate)}</dd>
+              </div>
+            </dl>
+          </section>
           {draft ? (
-            <section aria-labelledby="acciones" className="sheet grid gap-4 p-5">
-              <h2 id="acciones" className="text-lg font-bold">
+            <section aria-labelledby="acciones" className="surface grid gap-4 p-5">
+              <h2 id="acciones" className="font-semibold">
                 Emitir
               </h2>
               {can("invoices.issue") ? (
@@ -388,25 +382,23 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
           ) : (
             <VerifactuInfo invoice={invoice} />
           )}
-          <div className="grid gap-4">
-            {canRectify ? (
-              <Disclosure
-                title="Corregir con una rectificativa"
-                description="Una factura emitida no se modifica: se corrige con una factura rectificativa, que se numera en su propia serie."
-              >
-                <RectifyForm action={rectifyAction.bind(null, slug, taxpayer.id, invoice.id)} />
-              </Disclosure>
-            ) : null}
-            {canAnnul ? (
-              <Disclosure
-                title="Anular: se expidió por error"
-                tone="danger"
-                description="Solo si no hubo ninguna operación real (por ejemplo, una factura duplicada). Si la operación existió y algo está mal, rectifícala."
-              >
-                <AnnulForm action={annulAction.bind(null, slug, taxpayer.id, invoice.id)} />
-              </Disclosure>
-            ) : null}
-          </div>
+          {canRectify ? (
+            <Disclosure
+              title="Corregir con una rectificativa"
+              description="Una factura emitida no se modifica: se corrige con una factura rectificativa, que se numera en su propia serie."
+            >
+              <RectifyForm action={rectifyAction.bind(null, slug, taxpayer.id, invoice.id)} />
+            </Disclosure>
+          ) : null}
+          {canAnnul ? (
+            <Disclosure
+              title="Anular: se expidió por error"
+              tone="danger"
+              description="Solo si no hubo ninguna operación real (por ejemplo, una factura duplicada). Si la operación existió y algo está mal, rectifícala."
+            >
+              <AnnulForm action={annulAction.bind(null, slug, taxpayer.id, invoice.id)} />
+            </Disclosure>
+          ) : null}
         </div>
       </div>
     </TaxpayerFrame>

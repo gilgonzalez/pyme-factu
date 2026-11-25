@@ -20,13 +20,13 @@ async function TenantHome({ params }: { readonly params: PageProps<"/[organizaci
   return (
     <TenantFrame user={user} context={context} current="inicio">
       <div className="grid gap-1">
-        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">{context.tenant.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">{context.tenant.name}</h1>
         <p className="text-muted-foreground">Hola, {user.name}.</p>
       </div>
 
       {taxpayers.length === 0 ? (
-        <section className="sheet grid justify-items-start gap-3 p-8">
-          <h2 className="text-xl font-bold">Empieza por el contribuyente</h2>
+        <section className="surface grid justify-items-start gap-3 p-8">
+          <h2 className="text-lg font-semibold">Empieza por el contribuyente</h2>
           <p className="max-w-prose text-muted-foreground">
             Es la persona o empresa que emite las facturas: tú, si eres autónomo, o tu sociedad. Con su NIF, FacturaLibre numera sus facturas y genera sus
             registros VERI*FACTU.
@@ -41,12 +41,12 @@ async function TenantHome({ params }: { readonly params: PageProps<"/[organizaci
         </section>
       ) : (
         <section aria-labelledby="facturar" className="grid gap-3">
-          <h2 id="facturar" className="text-xl font-bold">
+          <h2 id="facturar" className="text-lg font-semibold">
             ¿Para quién facturas?
           </h2>
           <ul className="grid gap-3 md:grid-cols-2" aria-label="Contribuyentes">
             {taxpayers.map((taxpayer) => (
-              <li key={taxpayer.id} className="sheet grid gap-4 p-5">
+              <li key={taxpayer.id} className="surface grid gap-4 p-5">
                 <div className="grid gap-0.5">
                   <p className="text-lg leading-snug font-bold">{taxpayer.legalName}</p>
                   <p className="font-mono text-sm">NIF {taxpayer.nif}</p>
@@ -69,7 +69,7 @@ async function TenantHome({ params }: { readonly params: PageProps<"/[organizaci
 
       {can("members.read") ? (
         <section className="grid gap-1 border-t pt-6">
-          <h2 className="font-bold">Equipo</h2>
+          <h2 className="text-sm font-semibold">Equipo</h2>
           <p className="text-muted-foreground">
             Invita a tu gestoría o a tus empleados y decide qué puede hacer cada uno.{" "}
             <Link href={`/${context.tenant.slug}/equipo`} className="font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">

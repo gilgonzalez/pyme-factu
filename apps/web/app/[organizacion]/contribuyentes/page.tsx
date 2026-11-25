@@ -23,7 +23,7 @@ async function Taxpayers({ params }: { readonly params: PageProps<"/[organizacio
   return (
     <TenantFrame user={user} context={context} current="contribuyentes">
       <div className="grid gap-1">
-        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Contribuyentes</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">Contribuyentes</h1>
         <p className="text-muted-foreground">
           Las personas o empresas en cuyo nombre se emiten facturas. Cada una tiene su propio NIF y su propia numeración.
         </p>
@@ -43,10 +43,10 @@ async function Taxpayers({ params }: { readonly params: PageProps<"/[organizacio
             <li key={taxpayer.id}>
               <Link
                 href={`${base}/${taxpayer.id}`}
-                className="sheet flex flex-wrap items-center justify-between gap-3 p-5 hover:bg-accent/40"
+                className="surface flex flex-wrap items-center justify-between gap-3 p-5 hover:bg-accent/40"
               >
                 <span className="grid">
-                  <span className="text-lg font-bold">{taxpayer.legalName}</span>
+                  <span className="font-semibold">{taxpayer.legalName}</span>
                   <span className="text-sm text-muted-foreground">
                     <span className="font-mono text-foreground">NIF {taxpayer.nif}</span>, {PERSON_TYPE[taxpayer.personType].toLowerCase()}
                     {taxpayer.tradeName === null ? "" : `, nombre comercial «${taxpayer.tradeName}»`}
@@ -62,8 +62,8 @@ async function Taxpayers({ params }: { readonly params: PageProps<"/[organizacio
       )}
 
       {context.permissions.has("taxpayers.create") ? (
-        <section aria-labelledby="nuevo" className="grid gap-3 sheet p-5">
-          <h2 id="nuevo" className="text-lg font-bold">
+        <section aria-labelledby="nuevo" className="grid gap-3 surface p-5">
+          <h2 id="nuevo" className="font-semibold">
             Dar de alta un contribuyente
           </h2>
           <TaxpayerForm action={createTaxpayerAction.bind(null, context.tenant.slug)} withNif />

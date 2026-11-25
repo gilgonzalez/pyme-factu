@@ -51,7 +51,7 @@ export function AccessManager({ rows, action }: { readonly rows: readonly Access
   return (
     <ul className="grid gap-3">
       {rows.map((row) => (
-        <li key={row.membershipId} className="flex flex-wrap items-end justify-between gap-3 sheet p-5">
+        <li key={row.membershipId} className="flex flex-wrap items-end justify-between gap-3 surface p-5">
           <span className="grid">
             <span className="font-medium">
               {row.name} {row.isMe ? <span className="text-sm font-normal text-muted-foreground">(tú)</span> : null}

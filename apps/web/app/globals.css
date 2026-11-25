@@ -3,16 +3,15 @@
 @import "shadcn/tailwind.css";
 
 /*
- * Identidad: el talonario de facturas con papel de calco. La mesa (fondo) es gris azulado; el papel, blanco; la
- * tinta, azul de bolígrafo. Los estados de una factura usan las copias del talonario: amarilla (borrador),
- * rosa (anulada). Tipografía Atkinson Hyperlegible (Braille Institute): distingue 0/O, 1/l/I y 5/S en NIF e
- * importes. Fuentes alojadas en el propio proyecto (@fontsource): sin descargas de terceros.
+ * Estilo «fintech nítido»: fondo blanco, superficies gris 50, bordes finos, texto casi negro y un único acento
+ * violeta. Geist (grotesca con cifras tabulares) para todo; Geist Mono para NIF, números de factura y huellas.
+ * Fuentes alojadas en el propio proyecto (@fontsource): sin descargas de terceros.
  */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Atkinson Hyperlegible Mono Variable", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "Cascadia Code", Consolas, monospace;
   --font-heading: var(--font-sans);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -30,13 +29,17 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  /* Copias del talonario y sello de aceptado. */
-  --color-copy-yellow: var(--copy-yellow);
-  --color-copy-yellow-ink: var(--copy-yellow-ink);
-  --color-copy-pink: var(--copy-pink);
-  --color-copy-pink-ink: var(--copy-pink-ink);
-  --color-ok: var(--ok);
-  --color-ok-ink: var(--ok-ink);
+  --color-subtle: var(--subtle);
+  /* Estados: fondo suave + tinta legible + punto. */
+  --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
+  --color-success: var(--success);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning: var(--warning);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger: var(--danger);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -47,34 +50,38 @@
 }
 
 :root {
-  /* Mesa, papel y tinta. */
-  --background: #e9ecf1;
+  --background: #ffffff;
+  /* Lateral y fondos de zona: gris 50 frío. */
+  --subtle: #f7f7f9;
   --card: #ffffff;
   --popover: #ffffff;
-  --foreground: #1b2140;
-  --card-foreground: #1b2140;
-  --popover-foreground: #1b2140;
-  /* Tinta de bolígrafo: acciones y enlaces. */
-  --primary: #2a3bb7;
+  --foreground: #15151c;
+  --card-foreground: #15151c;
+  --popover-foreground: #15151c;
+  /* Acento único: violeta. */
+  --primary: #5a3ff2;
   --primary-foreground: #ffffff;
-  --accent: #e6e9fa;
-  --accent-foreground: #1d2a8a;
-  --secondary: #f2f4f8;
-  --secondary-foreground: #1b2140;
-  --muted: #f2f4f8;
-  --muted-foreground: #565c78;
-  --destructive: #a3123a;
-  --border: #d3d8e2;
-  /* Bordes de campos con contraste ≥ 3:1 sobre el papel (WCAG 1.4.11). */
-  --input: #858da3;
-  --ring: #2a3bb7;
-  --copy-yellow: #fff1a8;
-  --copy-yellow-ink: #5c4700;
-  --copy-pink: #f9d5dd;
-  --copy-pink-ink: #8f1033;
-  --ok: #dcf1e2;
-  --ok-ink: #1a6236;
-  --radius: 0.5rem;
+  --accent: #f1eefe;
+  --accent-foreground: #4529d6;
+  --secondary: #f3f3f6;
+  --secondary-foreground: #15151c;
+  --muted: #f3f3f6;
+  --muted-foreground: #62626f;
+  --destructive: #d92d20;
+  --border: #e8e8ee;
+  /* Bordes de campos con contraste ≥ 3:1 (WCAG 1.4.11). */
+  --input: #8c8c9a;
+  --ring: #5a3ff2;
+  --success-soft: #e9f8ef;
+  --success-ink: #126a3a;
+  --success: #17b26a;
+  --warning-soft: #fef6e7;
+  --warning-ink: #8a4b05;
+  --warning: #f79009;
+  --danger-soft: #fef0ef;
+  --danger-ink: #b42318;
+  --danger: #f04438;
+  --radius: 0.625rem;
 }
 
 @layer base {
@@ -87,11 +94,13 @@
   body {
     @apply bg-background text-foreground;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
   h1,
   h2,
   h3 {
     text-wrap: balance;
+    letter-spacing: -0.015em;
   }
   p {
     text-wrap: pretty;
@@ -99,12 +108,12 @@
   input[type="checkbox"],
   input[type="radio"] {
     accent-color: var(--primary);
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1rem;
+    height: 1rem;
   }
   /* Foco siempre visible con teclado, también en enlaces y desplegables. */
   :where(a, summary, button, select, textarea, input, [tabindex]):focus-visible {
-    outline: 3px solid var(--ring);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {
@@ -117,31 +126,15 @@
   }
 }
 
-/* Una hoja de papel sobre la mesa. */
-@utility sheet {
-  border-radius: 6px;
+/* Superficie de trabajo: blanca, borde fino y sombra apenas perceptible. */
+@utility surface {
+  border-radius: 14px;
+  border: 1px solid var(--border);
   background: var(--card);
   color: var(--card-foreground);
-  box-shadow:
-    0 0 0 1px rgb(27 33 64 / 0.08),
-    0 1px 2px rgb(27 33 64 / 0.06),
-    0 10px 28px -14px rgb(27 33 64 / 0.22);
-}
-/* Línea perforada del talonario, entre la matriz y la hoja. */
-@utility perforation {
-  background-image: radial-gradient(circle, var(--background) 3px, transparent 3.5px);
-  background-size: 100% 12px;
-  background-position: center top;
-  background-repeat: repeat-y;
-}
-/* La misma línea perforada, en horizontal (móvil). */
-@utility perforation-x {
-  background-image: radial-gradient(circle, var(--background) 3px, transparent 3.5px);
-  background-size: 12px 100%;
-  background-position: left center;
-  background-repeat: repeat-x;
+  box-shadow: 0 1px 2px rgb(16 16 32 / 0.04);
 }
 /* Cifras alineadas en columnas. */
 @utility figures {
-  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-numeric: tabular-nums;
 }

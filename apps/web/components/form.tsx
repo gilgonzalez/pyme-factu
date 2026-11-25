@@ -35,9 +35,9 @@ export function Field({ name, label, hint, error, ...input }: FieldProps) {
 }
 
 export function FormAlert({ tone, children }: { readonly tone: "error" | "success"; readonly children: ReactNode }) {
-  const styles = tone === "error" ? "border-copy-pink-ink/25 bg-copy-pink text-copy-pink-ink" : "border-ok-ink/25 bg-ok text-ok-ink";
+  const styles = tone === "error" ? "border-danger-ink/25 bg-danger-soft text-danger-ink" : "border-success-ink/25 bg-success-soft text-success-ink";
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`rounded-md border px-4 py-3 text-sm ${styles}`}>
+    <div role={tone === "error" ? "alert" : "status"} className={`rounded-lg border px-4 py-3 text-sm ${styles}`}>
       {children}
     </div>
   );
@@ -56,9 +56,9 @@ export function AuthShell({ title, description, children }: { readonly title: st
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
       <Brand href="/" />
-      <div className="sheet grid gap-6 p-6 sm:p-8">
+      <div className="surface grid gap-6 p-6 sm:p-8">
         <header className="grid gap-1">
-          <h1 className="font-heading text-[1.65rem] leading-tight font-bold tracking-[-0.02em]">{title}</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">{title}</h1>
           <p className="text-muted-foreground">{description}</p>
         </header>
         <Suspense>{children}</Suspense>

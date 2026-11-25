@@ -46,7 +46,7 @@ const EMPTY_LINE: EditorLine = { description: "", quantity: "1", unitPrice: "", 
 type KeyedLine = EditorLine & { readonly key: number };
 
 const selectClass =
-  "h-10 w-full min-w-0 rounded-md border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm";
+  "h-10 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base shadow-[0_1px_2px_rgb(16_16_32/0.04)] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm";
 
 function useLines(initial: readonly EditorLine[]) {
   const [nextKey, setNextKey] = useState(initial.length + 1);
@@ -84,7 +84,7 @@ function LiveTotals({
   return (
     <section
       aria-labelledby="totales"
-      className="figures sticky bottom-0 z-10 -mx-5 -mb-5 grid gap-1 rounded-b-[6px] border-t-2 border-foreground bg-card/95 px-5 py-4 text-sm backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8"
+      className="figures sticky bottom-0 z-10 -mx-5 -mb-5 grid gap-1 rounded-b-[14px] border-t bg-card/95 px-5 py-4 text-sm backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8"
     >
       <h2 id="totales" className="sr-only">
         Totales
@@ -123,10 +123,10 @@ export function InvoiceEditor({ action, customers, products, initial, newCustome
   const surcharge = customers.find((customer) => customer.id === customerId)?.equivalenceSurcharge ?? false;
 
   return (
-    <ActionForm action={action} className="sheet grid" label="Factura">
+    <ActionForm action={action} className="surface grid" label="Factura">
       {({ pending, errors }) => (
         <>
-          <p className="rounded-t-[6px] border-b border-copy-yellow-ink/20 bg-copy-yellow px-5 py-2 text-sm font-semibold text-copy-yellow-ink sm:px-8">
+          <p className="rounded-t-[14px] border-b border-warning-ink/20 bg-warning-soft px-5 py-2 text-sm font-semibold text-warning-ink sm:px-8">
             Borrador: no tiene número ni validez fiscal hasta que lo emitas.
           </p>
           <div className="grid gap-7 p-5 sm:p-8">
@@ -171,7 +171,7 @@ export function InvoiceEditor({ action, customers, products, initial, newCustome
             </div>
 
             <fieldset className="grid gap-3">
-              <legend className="mb-1 text-lg font-bold">Líneas</legend>
+              <legend className="mb-1 font-semibold">Líneas</legend>
               {errors["lines"] === undefined ? null : <p className="text-sm text-destructive">{errors["lines"]}</p>}
               {lines.map((line, index) => {
                 const name = (field: string) => `lines.${String(index)}.${field}`;
@@ -288,7 +288,7 @@ export function InvoiceEditor({ action, customers, products, initial, newCustome
                   defaultValue={initial.notes}
                   maxLength={1000}
                   rows={3}
-                  className="rounded-md border border-input bg-card px-3 py-2 text-base md:text-sm"
+                  className="rounded-lg border border-input bg-card px-3 py-2 text-base md:text-sm"
                 />
               </div>
             </div>

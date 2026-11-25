@@ -32,7 +32,7 @@ export function SelectField<Value extends string>({
         required={placeholder !== undefined}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={error === undefined ? undefined : errorId}
-        className="h-10 w-full min-w-0 max-w-full truncate rounded-md border border-input bg-card px-3 text-base md:text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+        className="h-10 w-full min-w-0 max-w-full truncate rounded-lg border border-input bg-card shadow-[0_1px_2px_rgb(16_16_32/0.04)] px-3 text-base md:text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
       >
         {placeholder === undefined ? null : (
           <option value="" disabled>

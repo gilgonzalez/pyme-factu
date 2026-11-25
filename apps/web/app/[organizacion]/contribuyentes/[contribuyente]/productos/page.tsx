@@ -21,13 +21,13 @@ async function Products({ params }: { readonly params: PageProps<"/[organizacion
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="productos">
       <div className="grid gap-1">
-        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Productos y servicios</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">Productos y servicios</h1>
         <p className="text-muted-foreground">Los que guardes aquí se añaden a una factura con un clic.</p>
       </div>
       {products.length === 0 ? (
         <p className="text-muted-foreground">Aún no hay productos guardados.</p>
       ) : (
-        <ul className="sheet grid divide-y" aria-label="Productos">
+        <ul className="surface grid divide-y" aria-label="Productos">
           {products.map((product) => (
             <li key={product.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
               <span className="font-medium">{product.name}</span>
@@ -39,8 +39,8 @@ async function Products({ params }: { readonly params: PageProps<"/[organizacion
         </ul>
       )}
       {context.permissions.has("products.write") ? (
-        <section aria-labelledby="nuevo-producto" className="grid gap-3 sheet p-5">
-          <h2 id="nuevo-producto" className="text-lg font-bold">
+        <section aria-labelledby="nuevo-producto" className="grid gap-3 surface p-5">
+          <h2 id="nuevo-producto" className="font-semibold">
             Nuevo producto o servicio
           </h2>
           <ProductForm action={createProductAction.bind(null, context.tenant.slug, taxpayer.id)} />

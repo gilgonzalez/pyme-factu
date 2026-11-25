@@ -18,11 +18,11 @@ async function Customers({ params }: { readonly params: PageProps<"/[organizacio
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="clientes">
-      <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Clientes</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">Clientes</h1>
       {customers.length === 0 ? (
         <p className="text-muted-foreground">Aún no hay clientes. Da de alta el primero para poder facturarle.</p>
       ) : (
-        <ul className="sheet grid divide-y" aria-label="Clientes">
+        <ul className="surface grid divide-y" aria-label="Clientes">
           {customers.map((customer) => (
             <li key={customer.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
               <span className="grid">
@@ -38,8 +38,8 @@ async function Customers({ params }: { readonly params: PageProps<"/[organizacio
         </ul>
       )}
       {context.permissions.has("customers.write") ? (
-        <section aria-labelledby="nuevo-cliente" className="grid gap-3 sheet p-5">
-          <h2 id="nuevo-cliente" className="text-lg font-bold">
+        <section aria-labelledby="nuevo-cliente" className="grid gap-3 surface p-5">
+          <h2 id="nuevo-cliente" className="font-semibold">
             Nuevo cliente
           </h2>
           <PartyForm

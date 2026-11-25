@@ -28,7 +28,7 @@ async function EditInvoice({ params }: { readonly params: Params }) {
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
-      <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">{invoice.kind === "RECTIFYING" ? "Editar rectificativa" : "Editar borrador"}</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">{invoice.kind === "RECTIFYING" ? "Editar rectificativa" : "Editar borrador"}</h1>
       <InvoiceEditor
         action={saveDraftAction.bind(null, context.tenant.slug, taxpayer.id, invoice.id)}
         customers={customers}

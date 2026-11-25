@@ -44,10 +44,10 @@ async function About() {
           Ir a mis organizaciones
         </Link>
       </div>
-      <div className="sheet grid gap-8 p-6 sm:p-8">
-        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Acerca de FacturaLibre</h1>
+      <div className="surface grid gap-8 p-6 sm:p-8">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">Acerca de FacturaLibre</h1>
         <section aria-labelledby="sistema" className="grid gap-2">
-          <h2 id="sistema" className="text-lg font-bold">
+          <h2 id="sistema" className="font-semibold">
             Sistema informático de facturación
           </h2>
           {configured ? (
@@ -64,7 +64,7 @@ async function About() {
           )}
         </section>
         <section aria-labelledby="declaracion" className="grid gap-2">
-          <h2 id="declaracion" className="text-lg font-bold">
+          <h2 id="declaracion" className="font-semibold">
             Declaración responsable
           </h2>
           {declaration === undefined || declaration === "" ? (
