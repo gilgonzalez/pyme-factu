@@ -33,7 +33,7 @@ async function Team({ params }: { readonly params: PageProps<"/[organizacion]/eq
   return (
     <TenantFrame user={user} context={context} current="equipo">
       <div className="grid gap-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Equipo</h1>
+        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Equipo</h1>
         <p className="text-muted-foreground">Quién tiene acceso a {context.tenant.name} y con qué rol.</p>
       </div>
       <TeamManager

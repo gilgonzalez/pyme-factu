@@ -4,10 +4,12 @@ import { qrSvg, qrUrl } from "@facturalibre/verifactu";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { FormAlert, streamedPage } from "@/components/form";
+import { InvoiceStatus, invoiceState, STUB_TINT, type InvoiceState } from "@/components/invoice-status";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { buttonVariants } from "@/components/ui/button";
-import { partyFrom, type Party } from "@/lib/invoice-view";
+import { partyFrom, spanishDate, spanishDateTime, type Party } from "@/lib/invoice-view";
 import { rectificationLabel, taxLabel } from "@/lib/invoicing";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
@@ -22,12 +24,14 @@ export default streamedPage("Cargando la factura…", Invoice);
 
 type Props = PageProps<"/[organizacion]/contribuyentes/[contribuyente]/facturas/[factura]">;
 
-function PartyCard({ title, party }: { readonly title: string; readonly party: Party }) {
+const percent = (scaled: bigint): string => `${formatDecimal(scaled, SCALE.percent)} %`;
+
+function PartyBlock({ title, party }: { readonly title: string; readonly party: Party }) {
   return (
-    <section className="grid gap-0.5 rounded-xl border p-4 text-sm">
-      <h2 className="font-medium">{title}</h2>
-      <p>{party.legalName}</p>
-      {party.nif === null ? null : <p>NIF {party.nif}</p>}
+    <section className="grid content-start gap-0.5 text-sm">
+      <h2 className="mb-1 text-xs font-bold text-muted-foreground">{title}</h2>
+      <p className="text-base font-bold">{party.legalName}</p>
+      {party.nif === null ? null : <p className="font-mono">NIF {party.nif}</p>}
       {party.address === "" ? null : <p className="text-muted-foreground">{party.address}</p>}
     </section>
   );
@@ -35,77 +39,93 @@ function PartyCard({ title, party }: { readonly title: string; readonly party: P
 
 function Lines({ invoice }: { readonly invoice: InvoiceDetail }) {
   return (
-    <div className="overflow-x-auto rounded-xl border">
-      <table className="w-full text-sm">
+    <>
+      <table className="figures hidden w-full text-sm sm:table">
         <caption className="sr-only">Líneas de la factura</caption>
-        <thead className="bg-muted/50 text-left">
+        <thead className="border-b-2 border-foreground text-left">
           <tr>
-            <th scope="col" className="px-3 py-2 font-medium">Descripción</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Cantidad</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Precio</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Dto.</th>
-            <th scope="col" className="px-3 py-2 font-medium">IVA</th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">Base</th>
+            <th scope="col" className="py-2 pr-3 font-bold">
+              Descripción
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-bold">
+              Cantidad
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-bold">
+              Precio
+            </th>
+            <th scope="col" className="px-3 py-2 text-right font-bold">
+              Dto.
+            </th>
+            <th scope="col" className="px-3 py-2 font-bold">
+              IVA
+            </th>
+            <th scope="col" className="py-2 pl-3 text-right font-bold">
+              Base
+            </th>
           </tr>
         </thead>
         <tbody>
           {invoice.lines.map((line) => (
-            <tr key={line.position} className="border-t">
-              <td className="px-3 py-2">{line.description}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatDecimal(line.quantity, SCALE.quantity)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatDecimal(line.unitPrice, SCALE.unitPrice)} €</td>
-              <td className="px-3 py-2 text-right tabular-nums">{line.discountPercent === 0n ? "—" : `${formatDecimal(line.discountPercent, SCALE.percent)} %`}</td>
-              <td className="px-3 py-2">{taxLabel(line.taxKey)}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatAmount(line.lineBase)}</td>
+            <tr key={line.position} className="border-b">
+              <td className="py-2.5 pr-3">{line.description}</td>
+              <td className="px-3 py-2.5 text-right">{formatDecimal(line.quantity, SCALE.quantity)}</td>
+              <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatDecimal(line.unitPrice, SCALE.unitPrice)} €</td>
+              <td className="px-3 py-2.5 text-right whitespace-nowrap">{line.discountPercent === 0n ? "—" : percent(line.discountPercent)}</td>
+              <td className="px-3 py-2.5 whitespace-nowrap">{taxLabel(line.taxKey)}</td>
+              <td className="py-2.5 pl-3 text-right whitespace-nowrap">{formatAmount(line.lineBase)}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {/* En móvil, cada línea en dos renglones: qué y cuánto. */}
+      <ul className="figures grid divide-y border-y text-sm sm:hidden" aria-label="Líneas de la factura">
+        {invoice.lines.map((line) => (
+          <li key={line.position} className="grid grid-cols-[1fr_auto] gap-x-3 py-2.5">
+            <span className="font-semibold">{line.description}</span>
+            <span className="text-right font-semibold whitespace-nowrap">{formatAmount(line.lineBase)}</span>
+            <span className="col-span-2 text-muted-foreground">
+              {formatDecimal(line.quantity, SCALE.quantity)} × {formatDecimal(line.unitPrice, SCALE.unitPrice)} €
+              {line.discountPercent === 0n ? "" : `, dto. ${percent(line.discountPercent)}`}, {taxLabel(line.taxKey)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function AmountRow({ label, value, strong = false }: { readonly label: ReactNode; readonly value: string; readonly strong?: boolean }) {
+  return (
+    <div className={`flex justify-between gap-4 ${strong ? "mt-1 border-t-2 border-foreground pt-2 text-xl font-bold" : ""}`}>
+      <dt>{label}</dt>
+      <dd className="whitespace-nowrap">{value}</dd>
     </div>
   );
 }
 
 function Totals({ invoice }: { readonly invoice: InvoiceDetail }) {
   return (
-    <section aria-labelledby="importes" className="ml-auto grid w-full max-w-sm gap-1 text-sm">
+    <section aria-labelledby="importes" className="figures ml-auto w-full max-w-sm text-sm">
       <h2 id="importes" className="sr-only">
         Importes
       </h2>
-      {invoice.breakdown.map((entry) => (
-        <p key={entry.key} className="flex justify-between gap-4">
-          <span>
-            {taxLabel(entry.key)} sobre {formatAmount(entry.base)}
-          </span>
-          <span className="tabular-nums">
-            {formatAmount(entry.quota)}
-            {entry.surchargeQuota === 0n ? "" : ` + RE ${formatDecimal(entry.surchargePercent, SCALE.percent)} %: ${formatAmount(entry.surchargeQuota)}`}
-          </span>
-        </p>
-      ))}
-      <p className="flex justify-between border-t pt-1">
-        <span>Base imponible</span>
-        <span className="tabular-nums">{formatAmount(invoice.taxableBase)}</span>
-      </p>
-      <p className="flex justify-between">
-        <span>IVA</span>
-        <span className="tabular-nums">{formatAmount(invoice.vatTotal)}</span>
-      </p>
-      {invoice.surchargeTotal === 0n ? null : (
-        <p className="flex justify-between">
-          <span>Recargo de equivalencia</span>
-          <span className="tabular-nums">{formatAmount(invoice.surchargeTotal)}</span>
-        </p>
-      )}
-      {invoice.withholdingAmount === 0n ? null : (
-        <p className="flex justify-between">
-          <span>Retención IRPF ({formatDecimal(invoice.withholdingPercent, SCALE.percent)} %)</span>
-          <span className="tabular-nums">−{formatAmount(invoice.withholdingAmount)}</span>
-        </p>
-      )}
-      <p className="flex justify-between border-t pt-1 text-base font-semibold">
-        <span>Total</span>
-        <span className="tabular-nums">{formatAmount(invoice.total)}</span>
-      </p>
+      <dl className="grid gap-1">
+        {invoice.breakdown.map((entry) => (
+          <AmountRow
+            key={entry.key}
+            label={`${taxLabel(entry.key)} sobre ${formatAmount(entry.base)}`}
+            value={`${formatAmount(entry.quota)}${entry.surchargeQuota === 0n ? "" : ` + RE ${percent(entry.surchargePercent)}: ${formatAmount(entry.surchargeQuota)}`}`}
+          />
+        ))}
+        <div className="border-t" />
+        <AmountRow label="Base imponible" value={formatAmount(invoice.taxableBase)} />
+        <AmountRow label="IVA" value={formatAmount(invoice.vatTotal)} />
+        {invoice.surchargeTotal === 0n ? null : <AmountRow label="Recargo de equivalencia" value={formatAmount(invoice.surchargeTotal)} />}
+        {invoice.withholdingAmount === 0n ? null : (
+          <AmountRow label={`Retención IRPF (${percent(invoice.withholdingPercent)})`} value={`−${formatAmount(invoice.withholdingAmount)}`} />
+        )}
+        <AmountRow label="Total" value={formatAmount(invoice.total)} strong />
+      </dl>
     </section>
   );
 }
@@ -123,10 +143,18 @@ const STATUS_TEXT: Readonly<Record<BillingRecordView["status"], string>> = {
  * blanco de al menos 2 mm (6 mm recomendados). Imagen con texto alternativo, sin HTML inyectado.
  */
 async function TaxQr({ record }: { readonly record: BillingRecordView }) {
-  const url = qrUrl(qrEnvironment(), { issuerNif: record.issuerNif, number: record.invoiceNumber, issueDate: record.issueDate }, record.importeTotal ?? "");
+  const url = qrUrl(
+    qrEnvironment(),
+    {
+      issuerNif: record.issuerNif,
+      number: record.invoiceNumber,
+      issueDate: record.issueDate,
+    },
+    record.importeTotal ?? "",
+  );
   const svg = await qrSvg(url);
   return (
-    <section aria-label="QR tributario" className="mx-auto grid justify-items-center gap-1 text-center text-base font-medium">
+    <section aria-label="QR tributario" className="mx-auto grid justify-items-center text-center text-base font-bold">
       <p>QR tributario:</p>
       <a href={url} target="_blank" rel="noopener noreferrer" className="bg-white" style={{ padding: "6mm" }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- SVG generado en el servidor como data URI */}
@@ -141,22 +169,64 @@ async function TaxQr({ record }: { readonly record: BillingRecordView }) {
   );
 }
 
+/** La matriz del talonario: lo que queda en el talonario cuando se arranca la hoja. */
+function Stub({ invoice, state }: { readonly invoice: InvoiceDetail; readonly state: InvoiceState }) {
+  return (
+    <div
+      className={`flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-t-[6px] px-5 py-4 sm:grid sm:content-start sm:gap-4 sm:rounded-l-[6px] sm:rounded-tr-none sm:px-4 sm:py-6 ${STUB_TINT[state]}`}
+    >
+      <p className="grid">
+        <span className="text-xs font-bold opacity-80">{invoice.kind === "RECTIFYING" ? "Rectificativa" : "Factura"}</span>
+        <span className="font-mono text-2xl leading-tight font-bold whitespace-nowrap sm:text-lg">{invoice.number ?? "Sin número"}</span>
+      </p>
+      <p className="grid">
+        <span className="text-xs font-bold opacity-80">Fecha</span>
+        <span className="figures">{invoice.issueDate === null ? "—" : spanishDate(invoice.issueDate)}</span>
+      </p>
+      <p className="grid">
+        <span className="text-xs font-bold opacity-80">Total</span>
+        <span className="figures font-bold">{formatAmount(invoice.total)}</span>
+      </p>
+    </div>
+  );
+}
+
 function RecordInfo({ title, record }: { readonly title: string; readonly record: BillingRecordView }) {
   return (
-    <div className="grid gap-0.5">
-      <h3 className="font-medium">{title}</h3>
-      <p>
-        Nº {record.sequence} de la cadena · generado {record.generatedAt} · {STATUS_TEXT[record.status]}
-      </p>
-      <p className="text-muted-foreground">
-        Huella: <code className="break-all">{record.hash}</code>
-      </p>
-      {record.aeatCsv === null ? null : <p className="text-muted-foreground">CSV de la AEAT: {record.aeatCsv}</p>}
-      {record.aeatErrorDescription === null ? null : (
-        <p className={record.status === "REJECTED" ? "text-destructive" : "text-muted-foreground"}>
-          AEAT ({record.aeatErrorCode ?? ""}): {record.aeatErrorDescription}
-        </p>
-      )}
+    <div className="grid gap-2">
+      <h3 className="font-bold">{title}</h3>
+      <dl className="grid gap-1.5 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted-foreground">Posición</dt>
+          <dd>Nº {record.sequence} de la cadena</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted-foreground">Generado</dt>
+          <dd className="text-right">{spanishDateTime(record.generatedAt)}</dd>
+        </div>
+        <div className="grid gap-0.5">
+          <dt className="text-muted-foreground">Estado</dt>
+          <dd className={record.status === "REJECTED" ? "font-semibold text-destructive" : "font-semibold"}>{STATUS_TEXT[record.status]}</dd>
+        </div>
+        {record.aeatErrorDescription === null ? null : (
+          <div className="grid gap-0.5">
+            <dt className="text-muted-foreground">Respuesta de la AEAT</dt>
+            <dd>
+              {record.aeatErrorCode ?? ""} {record.aeatErrorDescription}
+            </dd>
+          </div>
+        )}
+        {record.aeatCsv === null ? null : (
+          <div className="grid gap-0.5">
+            <dt className="text-muted-foreground">CSV de la AEAT</dt>
+            <dd className="font-mono break-all">{record.aeatCsv}</dd>
+          </div>
+        )}
+        <div className="grid gap-0.5">
+          <dt className="text-muted-foreground">Huella</dt>
+          <dd className="font-mono text-xs break-all">{record.hash}</dd>
+        </div>
+      </dl>
     </div>
   );
 }
@@ -164,17 +234,45 @@ function RecordInfo({ title, record }: { readonly title: string; readonly record
 function VerifactuInfo({ invoice }: { readonly invoice: InvoiceDetail }) {
   const { alta, anulacion } = invoice.verifactu;
   return (
-    <section aria-labelledby="verifactu" className="grid gap-2 rounded-xl border p-4 text-sm">
-      <h2 id="verifactu" className="font-medium">
+    <section aria-labelledby="verifactu" className="sheet grid gap-4 p-5">
+      <h2 id="verifactu" className="text-lg font-bold">
         Registro VERI*FACTU
       </h2>
       {alta === null ? (
-        <p className="text-muted-foreground">Esta factura se emitió antes de activar VERI*FACTU en FacturaLibre: no tiene registro de facturación.</p>
+        <p className="text-sm text-muted-foreground">Esta factura se emitió antes de activar VERI*FACTU en FacturaLibre: no tiene registro de facturación.</p>
       ) : (
         <RecordInfo title="Registro de alta" record={alta} />
       )}
       {anulacion === null ? null : <RecordInfo title="Registro de anulación" record={anulacion} />}
     </section>
+  );
+}
+
+/** Acción poco frecuente, plegada para que no compita con lo habitual; se abre para usarla. */
+function Disclosure({
+  title,
+  description,
+  tone = "default",
+  children,
+}: {
+  readonly title: string;
+  readonly description: string;
+  readonly tone?: "default" | "danger";
+  readonly children: ReactNode;
+}) {
+  return (
+    <details className={`sheet group p-0 ${tone === "danger" ? "open:shadow-[inset_4px_0_0_var(--destructive),0_0_0_1px_rgb(27_33_64/0.08)]" : ""}`}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-[6px] px-5 py-4 font-bold hover:bg-accent/60 [&::-webkit-details-marker]:hidden">
+        <span className={tone === "danger" ? "text-destructive" : ""}>{title}</span>
+        <svg viewBox="0 0 16 16" aria-hidden="true" className="size-4 shrink-0 transition-transform group-open:rotate-180">
+          <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
+        </svg>
+      </summary>
+      <div className="grid gap-3 px-5 pb-5">
+        <p className="text-sm text-muted-foreground">{description}</p>
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -188,103 +286,129 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
   const can = (permission: Parameters<typeof context.permissions.has>[0]): boolean => context.permissions.has(permission);
   const slug = context.tenant.slug;
   const draft = invoice.status === "DRAFT";
-  const issuer = partyFrom(invoice.issuerSnapshot) ?? { legalName: taxpayer.legalName, nif: taxpayer.nif, address: "" };
-  const recipient = partyFrom(invoice.customerSnapshot) ?? { legalName: invoice.customerName, nif: null, address: "" };
+  const state = invoiceState(invoice);
+  const issuer = partyFrom(invoice.issuerSnapshot) ?? {
+    legalName: taxpayer.legalName,
+    nif: taxpayer.nif,
+    address: "",
+  };
+  const recipient = partyFrom(invoice.customerSnapshot) ?? {
+    legalName: invoice.customerName,
+    nif: null,
+    address: "",
+  };
   const { alta, anulacion } = invoice.verifactu;
   const canAnnul = can("invoices.rectify") && alta !== null && anulacion === null;
+  const canRectify = !draft && can("invoices.rectify") && anulacion === null;
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
-      <div className="grid gap-1">
-        <Link href={invoicesPath(slug, taxpayer.id)} className="text-sm text-muted-foreground underline underline-offset-4">
+      <div className="grid gap-2">
+        <Link href={invoicesPath(slug, taxpayer.id)} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
           Volver a facturas
         </Link>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          {invoice.kind === "RECTIFYING" ? "Factura rectificativa " : "Factura "}
-          {invoice.number ?? "(borrador)"}
-        </h1>
-        <p className="text-muted-foreground">
-          {draft ? "Borrador: todavía no tiene número ni validez fiscal." : `Expedida el ${invoice.issueDate ?? ""}. No se puede modificar.`}
-        </p>
-        {draft ? null : (
-          <a href={`${path}/pdf`} download className={buttonVariants({ variant: "outline", className: "w-fit" })}>
-            Descargar PDF
-          </a>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">
+            {invoice.kind === "RECTIFYING" ? "Factura rectificativa " : "Factura "}
+            {invoice.number ?? "(borrador)"}
+          </h1>
+          <InvoiceStatus state={state} />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-muted-foreground">
+            {draft ? "Borrador: todavía no tiene número ni validez fiscal." : `Expedida el ${spanishDate(invoice.issueDate ?? "")}. No se puede modificar.`}
+          </p>
+          {draft ? null : (
+            <a href={`${path}/pdf`} download className={buttonVariants({ size: "lg" })}>
+              Descargar PDF
+            </a>
+          )}
+        </div>
       </div>
-
-      {alta === null || anulacion !== null ? null : <TaxQr record={alta} />}
 
       {anulacion === null ? null : (
         <FormAlert tone="error">
-          <strong>Factura anulada</strong>{anulada === undefined ? "" : " ahora"}: se expidió por error y tiene registro de anulación VERI*FACTU.
+          <strong>Factura anulada</strong>
+          {anulada === undefined ? "" : " ahora"}: se expidió por error y tiene registro de anulación VERI*FACTU.
         </FormAlert>
       )}
-
       {!draft && emitida === invoice.number ? (
         <FormAlert tone="success">
           Factura <strong>{invoice.number}</strong> emitida. Ya no se puede modificar.
         </FormAlert>
       ) : null}
 
-      {invoice.kind === "RECTIFYING" ? (
-        <FormAlert tone="success">
-          Rectifica la factura <strong>{invoice.rectifiesNumber ?? ""}</strong> ({rectificationLabel(invoice.rectificationCode)}). Motivo:{" "}
-          {invoice.rectificationReason ?? ""}
-        </FormAlert>
-      ) : null}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <PartyCard title="Emisor" party={issuer} />
-        <PartyCard title="Destinatario" party={recipient} />
-      </div>
-      <Lines invoice={invoice} />
-      <Totals invoice={invoice} />
-      {invoice.notes === null ? null : <p className="text-sm">Observaciones: {invoice.notes}</p>}
-      {draft ? null : <VerifactuInfo invoice={invoice} />}
-
-      {draft ? (
-        <section aria-labelledby="acciones" className="grid gap-4 rounded-xl border p-4">
-          <h2 id="acciones" className="font-medium">
-            Acciones
-          </h2>
-          <div className="flex flex-wrap items-center gap-3">
-            {can("invoices.draft") ? (
-              <Link href={`${path}/editar`} className={buttonVariants({ variant: "outline" })}>
-                Editar borrador
-              </Link>
+      <div className="grid gap-6">
+        {/* La hoja del talonario: matriz | perforación | factura. */}
+        <article aria-label="Factura" className="sheet grid sm:grid-cols-[9.5rem_14px_minmax(0,1fr)]">
+          <Stub invoice={invoice} state={state} />
+          <div aria-hidden="true" className="perforation-x h-[14px] bg-card sm:perforation sm:h-auto" />
+          <div className="grid min-w-0 gap-7 overflow-x-auto p-5 sm:p-8 sm:pl-6">
+            {alta === null || anulacion !== null ? null : <TaxQr record={alta} />}
+            {invoice.kind === "RECTIFYING" ? (
+              <p className="rounded-md border-l-4 border-primary bg-accent px-4 py-3 text-sm">
+                Rectifica la factura <strong>{invoice.rectifiesNumber ?? ""}</strong> ({rectificationLabel(invoice.rectificationCode)}). Motivo:{" "}
+                {invoice.rectificationReason ?? ""}
+              </p>
             ) : null}
-            {can("invoices.draft") ? <DeleteDraftForm action={deleteDraftAction.bind(null, slug, taxpayer.id, invoice.id)} /> : null}
+            <div className="grid gap-6 sm:grid-cols-2">
+              <PartyBlock title="Emisor" party={issuer} />
+              <PartyBlock title="Destinatario" party={recipient} />
+            </div>
+            <Lines invoice={invoice} />
+            <Totals invoice={invoice} />
+            {invoice.notes === null ? null : (
+              <p className="border-t pt-4 text-sm">
+                <span className="font-bold">Observaciones:</span> {invoice.notes}
+              </p>
+            )}
           </div>
-          {can("invoices.issue") ? (
-            <IssueForm action={issueAction.bind(null, slug, taxpayer.id, invoice.id)} total={formatAmount(invoice.total)} />
-          ) : (
-            <p className="text-sm text-muted-foreground">Tu rol puede preparar borradores; emitirlos corresponde a un contable o administrador.</p>
-          )}
-        </section>
-      ) : can("invoices.rectify") && anulacion === null ? (
-        <section aria-labelledby="rectificar" className="grid gap-3 rounded-xl border p-4">
-          <h2 id="rectificar" className="font-medium">
-            ¿Hay un error?
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Una factura emitida no se modifica: se corrige con una factura rectificativa, que se numera en su propia serie.
-          </p>
-          <RectifyForm action={rectifyAction.bind(null, slug, taxpayer.id, invoice.id)} />
-        </section>
-      ) : null}
+        </article>
 
-      {canAnnul ? (
-        <section aria-labelledby="anular" className="grid gap-3 rounded-xl border border-destructive/40 p-4">
-          <h2 id="anular" className="font-medium">
-            ¿Se expidió por error?
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Solo si no hubo ninguna operación real (por ejemplo, una factura duplicada). Si la operación existió y algo está mal, rectifícala.
-          </p>
-          <AnnulForm action={annulAction.bind(null, slug, taxpayer.id, invoice.id)} />
-        </section>
-      ) : null}
+        <div className="grid items-start gap-4 md:grid-cols-2">
+          {draft ? (
+            <section aria-labelledby="acciones" className="sheet grid gap-4 p-5">
+              <h2 id="acciones" className="text-lg font-bold">
+                Emitir
+              </h2>
+              {can("invoices.issue") ? (
+                <IssueForm action={issueAction.bind(null, slug, taxpayer.id, invoice.id)} total={formatAmount(invoice.total)} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Tu rol puede preparar borradores; emitirlos corresponde a un contable o administrador.</p>
+              )}
+              {can("invoices.draft") ? (
+                <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+                  <Link href={`${path}/editar`} className={buttonVariants({ variant: "outline" })}>
+                    Editar borrador
+                  </Link>
+                  <DeleteDraftForm action={deleteDraftAction.bind(null, slug, taxpayer.id, invoice.id)} />
+                </div>
+              ) : null}
+            </section>
+          ) : (
+            <VerifactuInfo invoice={invoice} />
+          )}
+          <div className="grid gap-4">
+            {canRectify ? (
+              <Disclosure
+                title="Corregir con una rectificativa"
+                description="Una factura emitida no se modifica: se corrige con una factura rectificativa, que se numera en su propia serie."
+              >
+                <RectifyForm action={rectifyAction.bind(null, slug, taxpayer.id, invoice.id)} />
+              </Disclosure>
+            ) : null}
+            {canAnnul ? (
+              <Disclosure
+                title="Anular: se expidió por error"
+                tone="danger"
+                description="Solo si no hubo ninguna operación real (por ejemplo, una factura duplicada). Si la operación existió y algo está mal, rectifícala."
+              >
+                <AnnulForm action={annulAction.bind(null, slug, taxpayer.id, invoice.id)} />
+              </Disclosure>
+            ) : null}
+          </div>
+        </div>
+      </div>
     </TaxpayerFrame>
   );
 }

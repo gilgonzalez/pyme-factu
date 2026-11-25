@@ -21,26 +21,26 @@ async function Products({ params }: { readonly params: PageProps<"/[organizacion
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="productos">
       <div className="grid gap-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Productos y servicios</h1>
+        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Productos y servicios</h1>
         <p className="text-muted-foreground">Los que guardes aquí se añaden a una factura con un clic.</p>
       </div>
       {products.length === 0 ? (
         <p className="text-muted-foreground">Aún no hay productos guardados.</p>
       ) : (
-        <ul className="grid gap-2" aria-label="Productos">
+        <ul className="sheet grid divide-y" aria-label="Productos">
           {products.map((product) => (
-            <li key={product.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
+            <li key={product.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
               <span className="font-medium">{product.name}</span>
               <span className="text-sm text-muted-foreground">
-                {formatDecimal(product.unitPrice, SCALE.unitPrice)} € · {taxLabel(product.taxKey)}
+                {formatDecimal(product.unitPrice, SCALE.unitPrice)} € sin IVA, {taxLabel(product.taxKey)}
               </span>
             </li>
           ))}
         </ul>
       )}
       {context.permissions.has("products.write") ? (
-        <section aria-labelledby="nuevo-producto" className="grid gap-3 rounded-xl border p-4">
-          <h2 id="nuevo-producto" className="font-medium">
+        <section aria-labelledby="nuevo-producto" className="grid gap-3 sheet p-5">
+          <h2 id="nuevo-producto" className="text-lg font-bold">
             Nuevo producto o servicio
           </h2>
           <ProductForm action={createProductAction.bind(null, context.tenant.slug, taxpayer.id)} />

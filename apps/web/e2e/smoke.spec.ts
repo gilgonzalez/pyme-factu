@@ -3,8 +3,11 @@ import { expect, test } from "@playwright/test";
 test("la página pública se muestra en español y advierte del estado del producto", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.getByRole("heading", { level: 1, name: "FacturaLibre" })).toBeVisible();
-  await expect(page.getByText("No está homologado ni certificado por la Agencia Tributaria.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Facturas con VERI*FACTU, sin pagar por ello." })).toBeVisible();
+  // Advierte de que aún no sirve para facturar de verdad y de que no hay «homologación» de la AEAT.
+  const warning = page.getByText("todavía no sirve para facturar de verdad", { exact: false });
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText("Ningún programa está «homologado» por la AEAT");
 });
 
 test("las respuestas incluyen cabeceras de seguridad", async ({ request }) => {

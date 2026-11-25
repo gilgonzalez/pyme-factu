@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FormAlert, streamedPage } from "@/components/form";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
+import { spanishShortDateTime } from "@/lib/invoice-view";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
 
@@ -10,11 +11,11 @@ export const metadata: Metadata = { title: "Registros VERI*FACTU" };
 
 export default streamedPage("Comprobando la cadena de registros…", Records);
 
-const STATUS: Readonly<Record<BillingRecordView["status"], string>> = {
-  PENDING: "Pendiente de remitir",
-  ACCEPTED: "Aceptado",
-  ACCEPTED_WITH_ERRORS: "Aceptado con errores",
-  REJECTED: "Rechazado",
+const STATUS: Readonly<Record<BillingRecordView["status"], { readonly label: string; readonly className: string }>> = {
+  PENDING: { label: "Pendiente de remitir", className: "border-foreground/20 bg-card text-muted-foreground" },
+  ACCEPTED: { label: "Aceptado", className: "border-ok-ink/25 bg-ok text-ok-ink" },
+  ACCEPTED_WITH_ERRORS: { label: "Aceptado con errores", className: "border-copy-yellow-ink/30 bg-copy-yellow text-copy-yellow-ink" },
+  REJECTED: { label: "Rechazado", className: "border-copy-pink-ink/30 bg-copy-pink text-copy-pink-ink" },
 };
 
 const shortHash = (hash: string): string => `${hash.slice(0, 8)}…${hash.slice(-8)}`;
@@ -33,7 +34,7 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="registros">
       <div className="grid gap-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Registros VERI*FACTU</h1>
+        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Registros VERI*FACTU</h1>
         <p className="text-muted-foreground">
           Cada factura emitida genera un registro de alta; una factura anulada, uno de anulación. Cada registro incluye la huella del anterior.
         </p>
@@ -49,18 +50,18 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
         </FormAlert>
       )}
       {records.length === 0 ? null : (
-        <div className="overflow-x-auto rounded-xl border">
-          <table className="w-full text-sm">
+        <div className="sheet overflow-x-auto">
+          <table className="figures w-full text-sm">
             <caption className="sr-only">Cadena de registros de {taxpayer.legalName}</caption>
-            <thead className="bg-muted/50 text-left">
+            <thead className="border-b text-left text-muted-foreground">
               <tr>
-                <th scope="col" className="px-3 py-2 font-medium">Nº</th>
-                <th scope="col" className="px-3 py-2 font-medium">Tipo</th>
-                <th scope="col" className="px-3 py-2 font-medium">Factura</th>
-                <th scope="col" className="px-3 py-2 font-medium">Generado</th>
-                <th scope="col" className="px-3 py-2 font-medium">Huella</th>
-                <th scope="col" className="px-3 py-2 font-medium">Comprobación</th>
-                <th scope="col" className="px-3 py-2 font-medium">Remisión</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Nº</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Tipo</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Factura</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Generado</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Huella</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Comprobación</th>
+                <th scope="col" className="px-4 py-3 font-semibold">Remisión</th>
               </tr>
             </thead>
             <tbody>
@@ -69,23 +70,27 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
                 const ok = check?.hashOk === true && check.linkOk;
                 return (
                   <tr key={record.id} className="border-t">
-                    <td className="px-3 py-2 tabular-nums">{record.sequence}</td>
-                    <td className="px-3 py-2">{record.kind === "ALTA" ? `Alta (${record.invoiceType ?? ""})` : "Anulación"}</td>
-                    <td className="px-3 py-2">
-                      <Link href={`${path}/facturas/${record.invoiceId}`} className="underline underline-offset-4">
+                    <td className="px-4 py-3 tabular-nums">{record.sequence}</td>
+                    <td className="px-4 py-3">{record.kind === "ALTA" ? `Alta (${record.invoiceType ?? ""})` : "Anulación"}</td>
+                    <td className="px-4 py-3">
+                      <Link href={`${path}/facturas/${record.invoiceId}`} className="font-mono font-bold whitespace-nowrap text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary">
                         {record.invoiceNumber}
                       </Link>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">{record.generatedAt}</td>
-                    <td className="px-3 py-2">
-                      <code title={record.hash}>{shortHash(record.hash)}</code>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <time dateTime={record.generatedAt}>{spanishShortDateTime(record.generatedAt)}</time>
                     </td>
-                    <td className={ok ? "px-3 py-2" : "px-3 py-2 font-medium text-destructive"}>{ok ? "Correcta" : "No coincide"}</td>
-                    <td className="px-3 py-2">
-                      {STATUS[record.status]}
+                    <td className="px-4 py-3">
+                      <code title={record.hash} className="font-mono text-xs whitespace-nowrap">
+                        {shortHash(record.hash)}
+                      </code>
+                    </td>
+                    <td className={ok ? "px-4 py-3" : "px-4 py-3 font-medium text-destructive"}>{ok ? "Correcta" : "No coincide"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-sm border px-2 py-0.5 text-xs font-bold whitespace-nowrap ${STATUS[record.status].className}`}>{STATUS[record.status].label}</span>
                       {record.aeatErrorDescription === null ? null : (
-                        <span className="block text-xs text-muted-foreground">
-                          {record.aeatErrorCode ?? ""} · {record.aeatErrorDescription}
+                        <span className="mt-1 block max-w-56 text-xs text-muted-foreground">
+                          {record.aeatErrorCode ?? ""} {record.aeatErrorDescription}
                         </span>
                       )}
                     </td>

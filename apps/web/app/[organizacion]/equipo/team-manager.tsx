@@ -43,8 +43,8 @@ function RoleSelect({ name, defaultValue, label }: { readonly name: string; read
 
 function InviteSection({ action }: { readonly action: FormAction }) {
   return (
-    <section aria-labelledby="invitar" className="grid gap-3 rounded-xl border p-4">
-      <h2 id="invitar" className="font-medium">
+    <section aria-labelledby="invitar" className="grid gap-3 sheet p-5">
+      <h2 id="invitar" className="text-lg font-bold">
         Invitar a alguien
       </h2>
       <ActionForm action={action} className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end" label="Invitar a alguien">
@@ -129,12 +129,12 @@ export function TeamManager(props: TeamManagerProps) {
       {props.can.invite ? <InviteSection action={props.actions.invite} /> : null}
 
       <section aria-labelledby="miembros" className="grid gap-3">
-        <h2 id="miembros" className="font-medium">
+        <h2 id="miembros" className="text-lg font-bold">
           Miembros ({props.members.length})
         </h2>
         <ul className="grid gap-3">
           {props.members.map((member) => (
-            <li key={member.membershipId} className="grid gap-3 rounded-xl border p-4">
+            <li key={member.membershipId} className="grid gap-3 sheet p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="grid">
                   <span className="font-medium">
@@ -142,7 +142,7 @@ export function TeamManager(props: TeamManagerProps) {
                   </span>
                   <span className="text-sm text-muted-foreground">{member.email}</span>
                 </span>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{ROLE_INFO[member.role].label}</span>
+                <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">{ROLE_INFO[member.role].label}</span>
               </div>
               <MemberActions member={member} props={props} />
             </li>
@@ -152,16 +152,16 @@ export function TeamManager(props: TeamManagerProps) {
 
       {props.invitations.length === 0 ? null : (
         <section aria-labelledby="pendientes" className="grid gap-3">
-          <h2 id="pendientes" className="font-medium">
+          <h2 id="pendientes" className="text-lg font-bold">
             Invitaciones pendientes
           </h2>
           <ul className="grid gap-3">
             {props.invitations.map((invitation) => (
-              <li key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+              <li key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 sheet p-5">
                 <span className="grid">
                   <span className="font-medium">{invitation.email}</span>
                   <span className="text-sm text-muted-foreground">
-                    {ROLE_INFO[invitation.role].label} · invitado por {invitation.invitedByName} · caduca el {invitation.expiresOn}
+                    {ROLE_INFO[invitation.role].label}. Invitado por {invitation.invitedByName}; caduca el {invitation.expiresOn}
                   </span>
                 </span>
                 {props.can.invite ? (

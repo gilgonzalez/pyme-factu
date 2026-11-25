@@ -1,6 +1,6 @@
 // Piezas de formulario accesibles: cada campo tiene etiqueta visible, el error se asocia con
 // aria-describedby y los avisos se anuncian a lectores de pantalla (role="alert" / "status").
-import Link from "next/link";
+import { Brand } from "@/components/brand";
 import { Suspense, useId, type ComponentProps, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,9 +35,9 @@ export function Field({ name, label, hint, error, ...input }: FieldProps) {
 }
 
 export function FormAlert({ tone, children }: { readonly tone: "error" | "success"; readonly children: ReactNode }) {
-  const styles = tone === "error" ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-emerald-600/30 bg-emerald-50 text-emerald-900";
+  const styles = tone === "error" ? "border-copy-pink-ink/25 bg-copy-pink text-copy-pink-ink" : "border-ok-ink/25 bg-ok text-ok-ink";
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`rounded-lg border px-3 py-2 text-sm ${styles}`}>
+    <div role={tone === "error" ? "alert" : "status"} className={`rounded-md border px-4 py-3 text-sm ${styles}`}>
       {children}
     </div>
   );
@@ -54,15 +54,15 @@ export function Streamed({ message, children }: { readonly message: string; read
  */
 export function AuthShell({ title, description, children }: { readonly title: string; readonly description: string; readonly children: ReactNode }) {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-12">
-      <header className="grid gap-2">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
-          FacturaLibre
-        </Link>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground">{description}</p>
-      </header>
-      <Suspense>{children}</Suspense>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
+      <Brand href="/" />
+      <div className="sheet grid gap-6 p-6 sm:p-8">
+        <header className="grid gap-1">
+          <h1 className="font-heading text-[1.65rem] leading-tight font-bold tracking-[-0.02em]">{title}</h1>
+          <p className="text-muted-foreground">{description}</p>
+        </header>
+        <Suspense>{children}</Suspense>
+      </div>
     </main>
   );
 }

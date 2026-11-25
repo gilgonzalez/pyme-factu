@@ -34,7 +34,7 @@ export function SignUpForm() {
       footer={
         <p className="text-sm text-muted-foreground">
           ¿Ya tienes cuenta?{" "}
-          <Link className="font-medium text-foreground underline underline-offset-4" href={`/entrar?volver=${encodeURIComponent(returnPath)}`}>
+          <Link className="font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary" href={`/entrar?volver=${encodeURIComponent(returnPath)}`}>
             Inicia sesión
           </Link>
         </p>

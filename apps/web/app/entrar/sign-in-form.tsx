@@ -9,7 +9,7 @@ import { authClient, authErrorMessage } from "@/lib/auth-client";
 export function SignInForm() {
   const router = useRouter();
   const returnPath = safeReturnPath(useSearchParams().get("volver"));
-  const linkClass = "font-medium text-foreground underline underline-offset-4";
+  const linkClass = "font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary";
 
   return (
     <AuthForm

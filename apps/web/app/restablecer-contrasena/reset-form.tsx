@@ -13,7 +13,7 @@ export function ResetPasswordForm() {
     return (
       <FormAlert tone="error">
         El enlace no es válido o ha caducado.{" "}
-        <Link className="font-medium underline underline-offset-4" href="/recuperar-contrasena">
+        <Link className="font-semibold text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary" href="/recuperar-contrasena">
           Pide uno nuevo
         </Link>
         .
@@ -32,7 +32,7 @@ export function ResetPasswordForm() {
           success: (
             <>
               Contraseña cambiada. Hemos cerrado tus otras sesiones por seguridad.{" "}
-              <Link className="font-medium underline underline-offset-4" href="/entrar">
+              <Link className="font-semibold text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary" href="/entrar">
                 Inicia sesión
               </Link>
               .

@@ -14,7 +14,7 @@ Estado a **25/11/2026** (fin de Fase 7, última fase planificada, y después el 
 
 | Área | Documento |
 |---|---|
-| Arquitectura | [overview](architecture/overview.md) · [application-flow](architecture/application-flow.md) · [technology-decisions](architecture/technology-decisions.md) |
+| Arquitectura | [overview](architecture/overview.md) · [application-flow](architecture/application-flow.md) · [technology-decisions](architecture/technology-decisions.md) · [interface-design](architecture/interface-design.md) |
 | Base de datos | [data-model](database/data-model.md) · [migrations](database/migrations.md) |
 | Multi-tenancy | [multi-tenant-architecture](tenancy/multi-tenant-architecture.md) · [roles-and-permissions](tenancy/roles-and-permissions.md) · [rls-policies](tenancy/rls-policies.md) · [isolation-tests](tenancy/isolation-tests.md) |
 | VERI*FACTU | [technical-overview](verifactu/technical-overview.md) |

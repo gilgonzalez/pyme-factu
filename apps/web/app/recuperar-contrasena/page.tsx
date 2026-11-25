@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
           };
         }}
         footer={
-          <Link className="text-sm font-medium underline underline-offset-4" href="/entrar">
+          <Link className="text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary" href="/entrar">
             Volver a iniciar sesión
           </Link>
         }

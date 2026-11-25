@@ -51,13 +51,13 @@ export function AccessManager({ rows, action }: { readonly rows: readonly Access
   return (
     <ul className="grid gap-3">
       {rows.map((row) => (
-        <li key={row.membershipId} className="flex flex-wrap items-end justify-between gap-3 rounded-xl border p-4">
+        <li key={row.membershipId} className="flex flex-wrap items-end justify-between gap-3 sheet p-5">
           <span className="grid">
             <span className="font-medium">
               {row.name} {row.isMe ? <span className="text-sm font-normal text-muted-foreground">(tú)</span> : null}
             </span>
             <span className="text-sm text-muted-foreground">
-              {row.email} · {ROLE_INFO[row.role].label}
+              {row.email}, {ROLE_INFO[row.role].label.toLowerCase()}
             </span>
           </span>
           {row.scope === "ALL_TAXPAYERS" || row.isMe ? (

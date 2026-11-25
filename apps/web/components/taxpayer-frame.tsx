@@ -9,7 +9,8 @@ export type TaxpayerSection = "datos" | "facturas" | "clientes" | "productos" | 
 
 /**
  * Marco de toda pantalla que actúa sobre un contribuyente: el contribuyente activo SIEMPRE visible (R-05)
- * y sus secciones. Las secciones sin permiso no se muestran.
+ * y sus secciones, en un lateral (escritorio) o en una tira desplazable (móvil). Las secciones sin permiso no
+ * se muestran.
  */
 export function TaxpayerFrame({
   user,
@@ -26,17 +27,27 @@ export function TaxpayerFrame({
 }) {
   const base = `/${context.tenant.slug}/contribuyentes/${taxpayer.id}`;
   const sections: { id: TaxpayerSection; href: string; label: string; visible: boolean }[] = [
-    { id: "datos", href: base, label: "Datos", visible: true },
     { id: "facturas", href: `${base}/facturas`, label: "Facturas", visible: context.permissions.has("invoices.read") },
     { id: "clientes", href: `${base}/clientes`, label: "Clientes", visible: context.permissions.has("customers.read") },
     { id: "productos", href: `${base}/productos`, label: "Productos", visible: context.permissions.has("products.read") },
     { id: "registros", href: `${base}/registros`, label: "Registros VERI*FACTU", visible: context.permissions.has("verifactu.read") },
     { id: "certificado", href: `${base}/certificado`, label: "Certificado", visible: context.permissions.has("certificates.manage") },
+    { id: "datos", href: base, label: "Datos", visible: true },
   ];
-  return (
-    <TenantFrame user={user} context={context} current="contribuyentes" activeTaxpayer={taxpayer}>
-      <nav aria-label="Secciones del contribuyente">
-        <ul className="flex flex-wrap gap-2">
+  const aside = (
+    <aside className="grid min-w-0 content-start gap-3 lg:sticky lg:top-6 lg:self-start">
+      <div className="sheet grid gap-0.5 p-4" aria-label="Contribuyente activo">
+        <p className="text-sm text-muted-foreground">Facturando como</p>
+        <p className="leading-snug font-bold">{taxpayer.legalName}</p>
+        <p className="font-mono text-sm">NIF {taxpayer.nif}</p>
+        {context.permissions.has("taxpayers.read") ? (
+          <Link href={`/${context.tenant.slug}/contribuyentes`} className="mt-1 w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
+            Cambiar de contribuyente
+          </Link>
+        ) : null}
+      </div>
+      <nav aria-label="Secciones del contribuyente" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ul className="flex gap-1 lg:grid">
           {sections
             .filter((section) => section.visible)
             .map((section) => (
@@ -44,7 +55,7 @@ export function TaxpayerFrame({
                 <Link
                   href={section.href}
                   aria-current={section.id === current ? "page" : undefined}
-                  className="inline-block rounded-full border px-3 py-1 text-sm hover:bg-muted aria-[current=page]:border-foreground aria-[current=page]:bg-foreground aria-[current=page]:text-background"
+                  className="block rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-card hover:text-foreground aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_3px_0_0_var(--primary),0_0_0_1px_rgb(27_33_64/0.08)]"
                 >
                   {section.label}
                 </Link>
@@ -52,6 +63,10 @@ export function TaxpayerFrame({
             ))}
         </ul>
       </nav>
+    </aside>
+  );
+  return (
+    <TenantFrame user={user} context={context} current="contribuyentes" aside={aside}>
       <SubmissionNotice context={context} recordsHref={`${base}/registros`} />
       {children}
     </TenantFrame>

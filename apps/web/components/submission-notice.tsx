@@ -14,7 +14,7 @@ export async function SubmissionNotice({ context, recordsHref }: { readonly cont
   const status = await submissionStatus(getDatabase(), context);
   if (status.failingSince === null && status.rejected === 0) return null;
   return (
-    <div role="alert" className="grid gap-1 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
+    <div role="alert" className="grid gap-1 rounded-md border border-copy-pink-ink/25 bg-copy-pink px-4 py-3 text-sm text-copy-pink-ink">
       {status.failingSince === null ? null : (
         <p>
           <strong>No se han podido remitir {records(status.pending)} a la AEAT</strong> desde el {dateTime.format(status.failingSince)}
@@ -24,7 +24,7 @@ export async function SubmissionNotice({ context, recordsHref }: { readonly cont
       {status.rejected === 0 ? null : (
         <p>
           <strong>La AEAT ha rechazado {records(status.rejected)}.</strong>{" "}
-          <Link href={recordsHref} className="underline underline-offset-4">
+          <Link href={recordsHref} className="text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">
             Revísalos en Registros VERI*FACTU
           </Link>
           .

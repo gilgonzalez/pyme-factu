@@ -17,7 +17,7 @@ async function NewInvoice({ params }: { readonly params: PageProps<"/[organizaci
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
-      <h1 className="font-heading text-2xl font-semibold tracking-tight">Nueva factura</h1>
+      <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Nueva factura</h1>
       <InvoiceEditor
         action={saveDraftAction.bind(null, context.tenant.slug, taxpayer.id, null)}
         customers={customers}

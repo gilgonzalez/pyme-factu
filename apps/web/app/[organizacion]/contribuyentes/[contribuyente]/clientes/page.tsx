@@ -18,18 +18,18 @@ async function Customers({ params }: { readonly params: PageProps<"/[organizacio
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="clientes">
-      <h1 className="font-heading text-2xl font-semibold tracking-tight">Clientes</h1>
+      <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Clientes</h1>
       {customers.length === 0 ? (
         <p className="text-muted-foreground">Aún no hay clientes. Da de alta el primero para poder facturarle.</p>
       ) : (
-        <ul className="grid gap-2" aria-label="Clientes">
+        <ul className="sheet grid divide-y" aria-label="Clientes">
           {customers.map((customer) => (
-            <li key={customer.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
+            <li key={customer.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5">
               <span className="grid">
                 <span className="font-medium">{customer.legalName}</span>
                 <span className="text-sm text-muted-foreground">
                   {customer.nif === null ? "Sin NIF" : `NIF ${customer.nif}`}
-                  {customer.city === null ? "" : ` · ${customer.city}`}
+                  {customer.city === null ? "" : `, ${customer.city}`}
                 </span>
               </span>
               {customer.equivalenceSurcharge ? <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs">Recargo de equivalencia</span> : null}
@@ -38,8 +38,8 @@ async function Customers({ params }: { readonly params: PageProps<"/[organizacio
         </ul>
       )}
       {context.permissions.has("customers.write") ? (
-        <section aria-labelledby="nuevo-cliente" className="grid gap-3 rounded-xl border p-4">
-          <h2 id="nuevo-cliente" className="font-medium">
+        <section aria-labelledby="nuevo-cliente" className="grid gap-3 sheet p-5">
+          <h2 id="nuevo-cliente" className="text-lg font-bold">
             Nuevo cliente
           </h2>
           <PartyForm

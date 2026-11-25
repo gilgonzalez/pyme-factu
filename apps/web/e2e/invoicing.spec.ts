@@ -85,6 +85,8 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await expect(page.getByRole("heading", { level: 1, name: `Factura F${YEAR}-0001` })).toBeVisible();
 
   // Rectificativa por diferencias en su propia serie.
+  // Rectificar y anular son acciones poco frecuentes: van plegadas y se abren para usarlas.
+  await page.getByText("Corregir con una rectificativa").click();
   const rectify = page.getByRole("form", { name: "Rectificar la factura" });
   await rectify.getByLabel("Motivo de la rectificación").fill("Precio unitario incorrecto");
   await rectify.getByLabel("Tipo de rectificación").selectOption("R1");
@@ -115,6 +117,7 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await page.getByRole("form", { name: "Emitir la factura" }).getByRole("checkbox").check();
   await page.getByRole("form", { name: "Emitir la factura" }).getByRole("button", { name: "Emitir factura" }).click();
   await expect(page.getByRole("heading", { level: 1, name: `Factura F${YEAR}-0002` })).toBeVisible();
+  await page.getByText("Anular: se expidió por error").click();
   const annul = page.getByRole("form", { name: "Anular la factura" });
   await annul.getByLabel("Por qué se anula").fill("Duplicada: no hubo venta");
   await annul.getByRole("checkbox").check();

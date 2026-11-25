@@ -23,7 +23,7 @@ async function Taxpayers({ params }: { readonly params: PageProps<"/[organizacio
   return (
     <TenantFrame user={user} context={context} current="contribuyentes">
       <div className="grid gap-1">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Contribuyentes</h1>
+        <h1 className="font-heading text-[1.95rem] leading-tight font-bold tracking-[-0.02em]">Contribuyentes</h1>
         <p className="text-muted-foreground">
           Las personas o empresas en cuyo nombre se emiten facturas. Cada una tiene su propio NIF y su propia numeración.
         </p>
@@ -31,7 +31,7 @@ async function Taxpayers({ params }: { readonly params: PageProps<"/[organizacio
 
       {taxpayers.length > 1 ? (
         <FormAlert tone="success">
-          Hay {taxpayers.length} contribuyentes: antes de facturar, comprueba siempre cuál está activo en la barra superior.
+          Hay {taxpayers.length} contribuyentes: antes de facturar, comprueba siempre cuál está activo: aparece en el lateral, en «Facturando como».
         </FormAlert>
       ) : null}
 
@@ -43,16 +43,16 @@ async function Taxpayers({ params }: { readonly params: PageProps<"/[organizacio
             <li key={taxpayer.id}>
               <Link
                 href={`${base}/${taxpayer.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+                className="sheet flex flex-wrap items-center justify-between gap-3 p-5 hover:bg-accent/40"
               >
                 <span className="grid">
-                  <span className="font-medium">{taxpayer.legalName}</span>
+                  <span className="text-lg font-bold">{taxpayer.legalName}</span>
                   <span className="text-sm text-muted-foreground">
-                    NIF {taxpayer.nif} · {PERSON_TYPE[taxpayer.personType]}
-                    {taxpayer.tradeName === null ? "" : ` · ${taxpayer.tradeName}`}
+                    <span className="font-mono text-foreground">NIF {taxpayer.nif}</span>, {PERSON_TYPE[taxpayer.personType].toLowerCase()}
+                    {taxpayer.tradeName === null ? "" : `, nombre comercial «${taxpayer.tradeName}»`}
                   </span>
                 </span>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+                <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
                   {taxpayer.access === "FULL" ? "Acceso completo" : "Solo lectura"}
                 </span>
               </Link>
@@ -62,8 +62,8 @@ async function Taxpayers({ params }: { readonly params: PageProps<"/[organizacio
       )}
 
       {context.permissions.has("taxpayers.create") ? (
-        <section aria-labelledby="nuevo" className="grid gap-3 rounded-xl border p-4">
-          <h2 id="nuevo" className="font-medium">
+        <section aria-labelledby="nuevo" className="grid gap-3 sheet p-5">
+          <h2 id="nuevo" className="text-lg font-bold">
             Dar de alta un contribuyente
           </h2>
           <TaxpayerForm action={createTaxpayerAction.bind(null, context.tenant.slug)} withNif />
