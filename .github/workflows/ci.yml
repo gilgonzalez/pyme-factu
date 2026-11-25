@@ -42,6 +42,17 @@ jobs:
       APP_BASE_URL: http://127.0.0.1:3100
     steps:
       - uses: actions/checkout@v4
+      # `trust` solo para el administrador efímero: los roles de ejecución deben autenticarse con contraseña
+      # (SCRAM), como en producción; si no, cualquier contraseña sería aceptada y las pruebas no lo detectarían.
+      - name: Autenticación por contraseña para los roles de ejecución
+        run: |
+          container=${{ job.services.postgres.id }}
+          hba=$(docker exec "$container" psql -U ci_admin -d postgres -tAc 'SHOW hba_file')
+          docker exec "$container" sh -c "printf '%s\n' \
+            'local all all trust' \
+            'host all ci_admin all trust' \
+            'host all all all scram-sha-256' > '$hba'"
+          docker exec "$container" psql -U ci_admin -d postgres -tAc 'SELECT pg_reload_conf()'
       # Secretos de CI generados en cada ejecución (nunca en el repositorio) y enmascarados en los logs.
       - name: Secretos efímeros
         run: |
