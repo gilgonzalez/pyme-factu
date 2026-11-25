@@ -50,7 +50,7 @@ erDiagram
 | Diseños de registro | XSD `SuministroLR.xsd` / `SuministroInformacion.xsd` 1.0; `DsRegistroVeriFactu.xlsx` | `packages/verifactu/src/record.ts` y `xml.ts`: XML en el orden del XSD, validado contra él en los tests |
 | Huella | Especificación de la huella v0.1.2 | `hash.ts`: SHA-256 en mayúsculas sobre «campo=valor&…»; los 3 ejemplos oficiales son tests |
 | Firma electrónica | OM art. 14 | No aplica: la OM (art. 3) la excluye para los sistemas VERI*FACTU |
-| QR y cotejo | Especificación del QR v0.5.0 | `qr.ts` y ficha de la factura: URL de cotejo, nivel M, 35 mm, «QR tributario:» y «VERI*FACTU» |
+| QR y cotejo | Especificación del QR v0.5.0 | `qr.ts`, ficha de la factura y PDF (`packages/invoice-pdf`): URL de cotejo, nivel M, 35 mm, «QR tributario:» y «VERI*FACTU» |
 | Servicios web | Descripción de los servicios web v1.0.3; `SistemaFacturacion.wsdl` | `submissionXml` y `soapEnvelope` preparados; el envío es la Fase 6 |
 | Validaciones y errores | Validaciones v1.2.2; `errores.properties` | `validateAlta`: lo que la AEAT rechazaría no se emite (destinatario sin NIF, exención sin causa…) |
 | Registro de eventos | `EventosSIF.xsd` | No aplica: solo para NO VERI*FACTU (OM arts. 3 y 9) |

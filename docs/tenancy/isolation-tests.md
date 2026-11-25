@@ -19,5 +19,6 @@ Resultado a 24/11/2026: **todas en verde** (database 42, tenancy 14).
 | Higiene de roles | sin superusuario ni BYPASSRLS; ninguno propietario; todas las tablas con RLS | ✅ |
 | Escalada de privilegios | `authorization.test.ts` › cambios de rol (anti-escalada) | ✅ lógica + `tenancy/test/team.test.ts` (ADMIN no invita ADMIN, nadie cambia su rol ni el de rango ≥) |
 | Membresía suspendida | «un miembro SUSPENDIDO no ve nada del tenant»; TENANT_NOT_FOUND | ✅ |
-| PDFs y certificados de otros tenants | — | ⏳ Fases 4 y 6 (aún no existen esas tablas) |
+| PDFs de otros tenants | «una factura emitida de otra organización no se lee aunque se conozca su id (tampoco su PDF, que sale de aquí)» (`tenancy/test/invoices.test.ts`). El PDF no se guarda: se genera en cada descarga desde `getInvoice` (RLS) y la ruta responde 404 | ✅ |
+| Certificados de otros tenants | Tabla `taxpayer_certificates` con RLS (`rls.test.ts` › todas las tablas con RLS); `certificates.test.ts` › solo quien administra el contribuyente lo gestiona | ✅ |
 | Recorridos HTTP completos con sesión | `apps/web/e2e/team.spec.ts` (organización ajena → 404 idéntico; invitación solo para su email) | ✅ |

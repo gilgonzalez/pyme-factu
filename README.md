@@ -2,16 +2,20 @@
 
 Plataforma SaaS **gratuita** y multi-tenant de facturación para autónomos, empresas y gestorías en España, diseñada para la modalidad **VERI*FACTU**.
 
-> **Estado: Fase 1 (esqueleto técnico).** Todavía **no** emite facturas ni registros de facturación y **no** se comunica con la AEAT. FacturaLibre **no está homologado ni certificado** por la Agencia Tributaria. Estado detallado en [docs/README.md](docs/README.md).
+> **Estado: fin de la Fase 7 + PDF de la factura (25/11/2026).** Emite facturas con registro VERI*FACTU encadenado, QR tributario (en la ficha y en el PDF) y remisión a la AEAT, que **solo se ha probado contra el simulador propio**: falta el portal de pruebas de la AEAT (certificado y NIF reales) y la declaración responsable del productor. **No usar en producción.** FacturaLibre **no está homologado ni certificado** por la Agencia Tributaria (no existe tal homologación: el productor declara que cumple). Estado detallado en [docs/README.md](docs/README.md).
 
 ## Qué hay hoy
 
 - Monorepo pnpm + Turborepo, TypeScript estricto.
-- `apps/web` — Next.js 16, Tailwind 4, shadcn/ui; página pública y `GET /api/health`.
-- `apps/worker` — proceso asíncrono (health check y ciclo de vida; aún sin trabajos).
+- `apps/web` — Next.js 16, Tailwind 4, shadcn/ui: registro, organizaciones y equipo, contribuyentes, clientes, productos, facturas (borrador, emisión, rectificativa, anulación, **PDF con QR**), registros VERI*FACTU, certificado, cuenta (exportación y baja).
+- `apps/worker` — remisión periódica de los registros a la AEAT (control de flujo, reintentos, incidencias).
 - `packages/database` — Prisma 7 + PostgreSQL 18, migraciones con **RLS en todas las tablas**, roles de BD sin BYPASSRLS.
 - `packages/security` — permisos granulares y reglas anti-escalada.
 - `packages/tenancy` — `TenantContext` y `runInTenant`, único acceso a datos de una organización.
+- `packages/domain`, `packages/fiscal-core` — NIF y cálculo de facturas (importes enteros escalados).
+- `packages/verifactu` — huella, registros, XML (validado con los XSD oficiales) y QR.
+- `packages/aeat-client` — remisión SOAP con certificado, respuesta, plazos y simulador.
+- `packages/invoice-pdf` — PDF A4 de la factura con el QR tributario en su sitio.
 - Pruebas de aislamiento entre organizaciones contra PostgreSQL real.
 
 ## Arranque desde cero

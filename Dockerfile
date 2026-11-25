@@ -22,6 +22,7 @@ COPY packages/auth/package.json packages/auth/
 COPY packages/database/package.json packages/database/
 COPY packages/domain/package.json packages/domain/
 COPY packages/fiscal-core/package.json packages/fiscal-core/
+COPY packages/invoice-pdf/package.json packages/invoice-pdf/
 COPY packages/verifactu/package.json packages/verifactu/
 COPY packages/security/package.json packages/security/
 COPY packages/tenancy/package.json packages/tenancy/

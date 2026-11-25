@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { FormAlert, streamedPage } from "@/components/form";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { buttonVariants } from "@/components/ui/button";
+import { partyFrom, type Party } from "@/lib/invoice-view";
 import { rectificationLabel, taxLabel } from "@/lib/invoicing";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
@@ -20,21 +21,6 @@ export const metadata: Metadata = { title: "Factura" };
 export default streamedPage("Cargando la factura…", Invoice);
 
 type Props = PageProps<"/[organizacion]/contribuyentes/[contribuyente]/facturas/[factura]">;
-
-interface Party {
-  readonly legalName: string;
-  readonly nif: string | null;
-  readonly address: string;
-}
-
-/** Datos de una parte a partir de la instantánea guardada al emitir (o null si aún es borrador). */
-function partyFrom(snapshot: unknown): Party | null {
-  if (typeof snapshot !== "object" || snapshot === null) return null;
-  const data = snapshot as Record<string, unknown>;
-  const text = (key: string): string | null => (typeof data[key] === "string" ? data[key] : null);
-  const address = [text("addressLine"), [text("postalCode"), text("city")].filter(Boolean).join(" "), text("province")].filter(Boolean).join(", ");
-  return { legalName: text("legalName") ?? "", nif: text("nif"), address };
-}
 
 function PartyCard({ title, party }: { readonly title: string; readonly party: Party }) {
   return (
@@ -220,6 +206,11 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
         <p className="text-muted-foreground">
           {draft ? "Borrador: todavía no tiene número ni validez fiscal." : `Expedida el ${invoice.issueDate ?? ""}. No se puede modificar.`}
         </p>
+        {draft ? null : (
+          <a href={`${path}/pdf`} download className={buttonVariants({ variant: "outline", className: "w-fit" })}>
+            Descargar PDF
+          </a>
+        )}
       </div>
 
       {alta === null || anulacion !== null ? null : <TaxQr record={alta} />}

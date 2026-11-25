@@ -88,6 +88,15 @@ describe("borradores", () => {
     expect(await deleteDraftInvoice(world.db, await b.ctx(), id)).toEqual({ ok: true });
     expect(await getInvoice(world.db, await b.ctx(), id)).toBeNull();
   });
+
+  it("una factura emitida de otra organización no se lee aunque se conozca su id (tampoco su PDF, que sale de aquí)", async () => {
+    const owner = await billing();
+    const id = await draft(owner);
+    expect(await issueInvoice(world.db, await owner.ctx(), id, VERIFACTU)).toMatchObject({ ok: true });
+    const stranger = await billing();
+    expect(await getInvoice(world.db, await stranger.ctx(), id)).toBeNull();
+    expect((await getInvoice(world.db, await owner.ctx(), id))?.status).toBe("ISSUED");
+  });
 });
 
 describe("emisión y numeración", () => {

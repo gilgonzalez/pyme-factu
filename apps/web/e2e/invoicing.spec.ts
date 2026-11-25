@@ -1,6 +1,7 @@
 // Fases 4 y 5: facturar de principio a fin con navegador real — cliente, producto, borrador con totales en vivo,
 // emisión con número correlativo y registro VERI*FACTU (QR tributario), inmutabilidad, rectificativa en su propia
 // serie, anulación y cadena de registros comprobada. Datos ficticios.
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { createOrganization, requireFullStack, signUpAndVerify } from "./support/flows";
 import { uniqueEmail, uniqueSuffix } from "./support/mailpit";
@@ -73,6 +74,13 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await expect(qr.getByRole("img", { name: new RegExp(`Código QR tributario de la factura F${YEAR}-0001`) })).toBeVisible();
   await expect(qr.getByRole("link")).toHaveAttribute("href", new RegExp(String.raw`ValidarQR\?nif=12345678Z&numserie=F${YEAR}-0001&fecha=\d{2}-\d{2}-${YEAR}&importe=163\.96$`));
   await expect(page.getByRole("region", { name: "Registro VERI*FACTU" })).toContainText("Nº 1 de la cadena");
+  // PDF de la factura emitida (con el QR): se descarga con su número como nombre.
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Descargar PDF" }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe(`F${YEAR}-0001.pdf`);
+  const pdf = await readFile(await download.path());
+  expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   await page.goto(`${new URL(page.url()).pathname}/editar`);
   await expect(page.getByRole("heading", { level: 1, name: `Factura F${YEAR}-0001` })).toBeVisible();
 

@@ -17,6 +17,7 @@
     "@facturalibre/auth": "workspace:*",
     "@facturalibre/database": "workspace:*",
     "@facturalibre/fiscal-core": "workspace:*",
+    "@facturalibre/invoice-pdf": "workspace:*",
     "@facturalibre/security": "workspace:*",
     "@facturalibre/tenancy": "workspace:*",
     "@facturalibre/verifactu": "workspace:*",

@@ -20,10 +20,11 @@ Versiones comprobadas en el registro npm el **24/11/2026** (`npm view <paquete> 
 | ESLint | 9.39.5 | 10.15.0 | Los plugins de `eslint-config-next` 16.4.6 (react, import, jsx-a11y) declaran soporte hasta ESLint 9. npm marca 9.x como *deprecated*: **Revisado en la Fase 7**: `eslint-plugin-react` (incluido en `eslint-config-next`) sigue admitiendo solo ESLint ≤ 9.7, así que se mantiene ESLint 9 |
 | embedded-postgres | 18.7.0-beta.19 (solo desarrollo/pruebas) | 19.0.0-beta.20 | Binarios oficiales de PostgreSQL sin Docker; el paquete solo publica versiones *beta*. No forma parte del producto |
 | tsx | 4.23.15 | — | Ejecuta el worker y scripts TS |
-| Zod, React Hook Form, decimal.js, PDFKit, Better Auth, pg-boss | **no instalados** | — | Se instalan en la fase que los usa (regla: sin dependencias sin uso) |
+| pdf-lib | 1.17.1 | 1.17.1 | PDF de la factura (`packages/invoice-pdf`). Elegido frente a PDFKit: JavaScript puro, sin `fs` ni ficheros de fuentes (las 14 estándar, WinAnsi: lo que no se puede escribir sale «?»), funciona igual en Next, Docker y Windows. Sin mantenimiento activo desde 2021: se revisa si aparece un fallo |
+| Zod, React Hook Form, decimal.js, pg-boss | **no instalados** | — | Se instalan en la fase que los usa (regla: sin dependencias sin uso) |
 
 ## Calidad (herramientas del proyecto, ub-mode)
 
 - `pnpm crap` — CRAP < 10 por función (Vitest + cobertura v8).
 - `pnpm dry` — jscpd, similitud ≥ 0,8 (excluye código generado, migraciones históricas y CSS generado por shadcn).
-- `pnpm mutate` — Stryker sobre `packages/security` (lógica pura), umbral 80 %.
+- `pnpm mutate` — Stryker sobre `packages/security` (lógica pura), umbral 80 %. Paquetes puros con su propia configuración y objetivo 100 %: `mutate:domain`, `mutate:fiscal-core`, `mutate:verifactu`, `mutate:aeat-client`, `mutate:invoice-pdf`.
