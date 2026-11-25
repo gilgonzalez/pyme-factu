@@ -1,7 +1,7 @@
 // QR tributario: «Detalle de las especificaciones técnicas del código QR», AEAT v0.5.0 (10/12/2025).
 import QRCode from "qrcode";
 import { describe, expect, it } from "vitest";
-import { qrSvg, qrUrl } from "../src/qr";
+import { qrPng, qrSvg, qrUrl } from "../src/qr";
 
 const invoice = { issuerNif: "89890001K", number: "12345678&G33", issueDate: "2024-01-01" };
 
@@ -20,6 +20,16 @@ describe("URL del servicio de cotejo", () => {
 
   it("solo los 4 parámetros obligatorios (nunca «formato», apartado 7)", () => {
     expect([...new URL(qrUrl("test", invoice, "1.00")).searchParams.keys()]).toEqual(["nif", "numserie", "fecha", "importe"]);
+  });
+});
+
+describe("QR en PNG (para el PDF de la factura)", () => {
+  it("es el mismo QR (nivel M, sin margen propio) en formato PNG", async () => {
+    const url = qrUrl("test", invoice, "241.40");
+    const png = await qrPng(url);
+    expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(png).toEqual(await QRCode.toBuffer(url, { errorCorrectionLevel: "M", margin: 0, scale: 8 }));
+    expect(png).not.toEqual(await QRCode.toBuffer(url, { errorCorrectionLevel: "L", margin: 0, scale: 8 }));
   });
 });
 

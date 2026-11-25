@@ -3,7 +3,7 @@
 export { checkChain, type RecordCheck, type StoredRecord } from "./chain";
 export { aeatAmount, aeatDate, aeatPercent, generationTimestamp } from "./format";
 export { altaHashInput, anulacionHashInput, fingerprint, type AltaHashFields, type AnulacionHashFields } from "./hash";
-export { qrSvg, qrUrl, type QrEnvironment } from "./qr";
+export { qrPng, qrSvg, qrUrl, type QrEnvironment } from "./qr";
 export {
   buildAlta,
   buildAnulacion,

@@ -28,3 +28,6 @@ export function qrUrl(environment: QrEnvironment, invoice: InvoiceId, importeTot
 
 /** SVG del QR (ISO/IEC 18004, nivel de corrección M). El tamaño (30–40 mm) y el margen los fija la página. */
 export const qrSvg = (url: string): Promise<string> => QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 0 });
+
+/** PNG del mismo QR (nivel M, sin margen propio) para el PDF de la factura; 8 píxeles por módulo. */
+export const qrPng = (url: string): Promise<Buffer> => QRCode.toBuffer(url, { errorCorrectionLevel: "M", margin: 0, scale: 8 });
