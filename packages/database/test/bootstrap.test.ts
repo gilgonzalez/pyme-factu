@@ -65,8 +65,9 @@ describe("isDatabaseReachable", () => {
   });
 
   it("es falso (sin lanzar) si la base de datos no es accesible", async () => {
+    // Un puerto sin servidor: inaccesible sea cual sea la autenticación (en CI, PostgreSQL usa «trust»).
     const bad = new URL(urls.app);
-    bad.password = "incorrecta-000000";
+    bad.port = "1";
     const db = createDatabaseClient(bad.toString(), { maxConnections: 1 });
     expect(await isDatabaseReachable(db)).toBe(false);
     await db.$disconnect();

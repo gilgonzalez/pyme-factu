@@ -20,9 +20,9 @@ jobs:
       postgres:
         image: postgres:18-alpine
         env:
-          # Credenciales desechables, solo para este contenedor efímero de CI.
+          # Contenedor efímero, solo accesible desde el runner: sin contraseña de administrador en el repositorio.
           POSTGRES_USER: ci_admin
-          POSTGRES_PASSWORD: ci_admin_password_only_for_ci
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: facturalibre
           POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
         ports: ["5432:5432"]
@@ -34,22 +34,32 @@ jobs:
         image: axllent/mailpit:v1.29
         ports: ["1025:1025", "8025:8025"]
     env:
-      TEST_DATABASE_URL: postgresql://ci_admin:ci_admin_password_only_for_ci@localhost:5432/postgres
-      DATABASE_URL: postgresql://ci_admin:ci_admin_password_only_for_ci@localhost:5432/facturalibre
-      APP_DB_PASSWORD: ci_app_password_only_for_ci
-      AUTH_DB_PASSWORD: ci_auth_password_only_for_ci
-      WORKER_DB_PASSWORD: ci_worker_password_only_for_ci
-      APP_DATABASE_URL: postgresql://facturalibre_app:ci_app_password_only_for_ci@localhost:5432/facturalibre
-      AUTH_DATABASE_URL: postgresql://facturalibre_auth:ci_auth_password_only_for_ci@localhost:5432/facturalibre
-      AUTH_SECRET: ci_auth_secret_only_for_ci_0123456789abcdef
-      # 32 bytes en base64 ("ci_certificate_kek_only_for_ci_0"): solo para CI.
-      CERTIFICATE_KEK: Y2lfY2VydGlmaWNhdGVfa2VrX29ubHlfZm9yX2NpXzA=
+      TEST_DATABASE_URL: postgresql://ci_admin@localhost:5432/postgres
+      DATABASE_URL: postgresql://ci_admin@localhost:5432/facturalibre
       SMTP_URL: smtp://localhost:1025
       MAIL_FROM: "FacturaLibre CI <no-responder@ci.invalid>"
       # Debe coincidir con la baseURL de Playwright: los enlaces de los correos y las cookies dependen de ella.
       APP_BASE_URL: http://127.0.0.1:3100
     steps:
       - uses: actions/checkout@v4
+      # Secretos de CI generados en cada ejecución (nunca en el repositorio) y enmascarados en los logs.
+      - name: Secretos efímeros
+        run: |
+          app=$(openssl rand -hex 24)
+          auth=$(openssl rand -hex 24)
+          worker=$(openssl rand -hex 24)
+          auth_secret=$(openssl rand -hex 32)
+          kek=$(openssl rand -base64 32)
+          for value in "$app" "$auth" "$worker" "$auth_secret" "$kek"; do echo "::add-mask::$value"; done
+          {
+            echo "APP_DB_PASSWORD=$app"
+            echo "AUTH_DB_PASSWORD=$auth"
+            echo "WORKER_DB_PASSWORD=$worker"
+            echo "APP_DATABASE_URL=postgresql://facturalibre_app:$app@localhost:5432/facturalibre"
+            echo "AUTH_DATABASE_URL=postgresql://facturalibre_auth:$auth@localhost:5432/facturalibre"
+            echo "AUTH_SECRET=$auth_secret"
+            echo "CERTIFICATE_KEK=$kek"
+          } >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
