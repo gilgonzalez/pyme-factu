@@ -8,6 +8,7 @@ export {
   type CustomerSummary,
   type ProductSummary,
 } from "./catalog";
+export { deactivateMyAccount, exportMyData, type DeactivateResult, type PersonalData } from "./account";
 export { certificateStatus, deleteCertificate, saveCertificate, type SaveCertificateResult } from "./certificates";
 export { databaseErrorCode } from "./database-errors";
 export {

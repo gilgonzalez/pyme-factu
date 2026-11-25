@@ -12,6 +12,9 @@ export function AppHeader({ userName, organization }: { readonly userName: strin
         </Link>
         {organization}
         <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/cuenta" className="underline-offset-4 hover:underline">
+            Mi cuenta
+          </Link>
           <Link href="/acerca" className="underline-offset-4 hover:underline">
             Acerca de
           </Link>

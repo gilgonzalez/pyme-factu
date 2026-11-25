@@ -17,7 +17,7 @@
 | Rate limiting persistente en PostgreSQL (`rate_limits`, rol auth): login 5/15 min, registro 10/h, recuperación 3/15 min por IP. Desactivado solo con `FACTURALIBRE_ENV=development` | ✅ probado (429) |
 | Redirecciones abiertas (`?volver=`): solo rutas internas (`safeReturnPath`) | ✅ probado (unitario + E2E) |
 | Tokens de invitación: 32 bytes aleatorios, solo su SHA-256 en BD, 7 días, un solo uso, ligados al email; página con `Referrer-Policy: no-referrer` | ✅ probado |
-| CSP con nonces | ⏳ Pendiente: los nonces obligan a renderizar dinámicamente todas las páginas y anulan el prerender parcial (`cacheComponents`). Evaluar CSP con hashes en la fase de endurecimiento (Fase 7) |
+| CSP | ✅ Fase 7 (`next.config.ts`, comprobada en E2E): `default-src 'self'`, sin objetos, marcos, `base-uri` ni formularios hacia fuera, imágenes propias y `data:` (QR); en producción `upgrade-insecure-requests` y HSTS. ⚠️ Riesgo residual: `script-src` admite `'unsafe-inline'` porque los nonces obligarían a renderizar todo dinámicamente y anularían el prerender parcial (`cacheComponents`); lo mitigan el escapado de React y la ausencia de HTML inyectado. Revisar si Next ofrece hashes de sus scripts de arranque |
 | Cifrado de certificados | ✅ Fase 6: cifrado por sobre (DEK AES-256-GCM por certificado envuelta con `CERTIFICATE_KEK`, que nunca está en la BD); validado al subirlo; solo se descifra en memoria en el worker; nunca vuelve al navegador ([integration-architecture](../aeat/integration-architecture.md)) |
 
 ## Modelo de amenazas (resumen)
@@ -29,7 +29,7 @@
 | Error de aplicación que fija otro tenant | Bug en un Server Action | RLS exige membresía del `app.user_id` (probado) |
 | Fuga de contexto por pool | Conexión reutilizada | `SET LOCAL` (probado con pool de 1) |
 | Inyección SQL | Parámetros | Prisma/pg parametrizados; identificadores dinámicos con `escapeIdentifier` |
-| XSS | Datos de clientes en la UI | Escapado de React; HTML de correos escapado (`escapeHtml`, probado); sin `dangerouslySetInnerHTML`; CSP pendiente (Fase 7) |
+| XSS | Datos de clientes en la UI | Escapado de React; HTML de correos escapado (`escapeHtml`, probado); sin `dangerouslySetInnerHTML`; CSP (Fase 7, con `'unsafe-inline'` en scripts: ver arriba) |
 | CSRF | Server Actions | Comprobación de Origin (Better Auth en `/api/auth/*`, Next.js en Server Actions) + cookies `SameSite=Lax` ✅ |
 | Fuerza bruta | Login | Rate limiting persistente en PostgreSQL ✅; contraseñas ≥ 12 caracteres |
 | Robo de certificados | Volcado de BD | Cifrado por sobre con KEK fuera de la BD ✅ (`certificates.test.ts`: sin la KEK no se abre; una manipulación se detecta) |

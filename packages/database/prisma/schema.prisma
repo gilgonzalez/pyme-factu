@@ -89,6 +89,8 @@ model User {
   /// Siempre en minúsculas (CHECK en SQL).
   email         String   @unique
   emailVerified Boolean  @default(false) @map("email_verified")
+  /// Cuenta desactivada por su titular (Fase 7): sin acceso; se conserva la autoría en la auditoría.
+  deactivatedAt DateTime? @map("deactivated_at") @db.Timestamptz(6)
   image         String?
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

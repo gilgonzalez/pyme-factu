@@ -13,6 +13,11 @@ test("las respuestas incluyen cabeceras de seguridad", async ({ request }) => {
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["x-frame-options"]).toBe("DENY");
   expect(headers["x-powered-by"]).toBeUndefined();
+  // CSP (Fase 7): nada de terceros, ni objetos, ni marcos, ni formularios hacia fuera; imágenes data: para el QR.
+  const csp = headers["content-security-policy"] ?? "";
+  for (const directive of ["default-src 'self'", "object-src 'none'", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "img-src 'self' data:"]) {
+    expect(csp).toContain(directive);
+  }
 });
 
 test("el health check informa del estado de la base de datos sin detalles internos", async ({ request }) => {

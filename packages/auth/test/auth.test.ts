@@ -94,6 +94,19 @@ describe("registro y verificación de email", () => {
     expect(cookie).toMatch(/SameSite=Lax/i);
   });
 
+  it("una cuenta desactivada por su titular no puede iniciar sesión (Fase 7)", async () => {
+    const email = newEmail();
+    await signUpAndVerify(email);
+    // Como hace app.deactivate_my_account(): marca la cuenta y cierra sus sesiones (la verificación abrió una).
+    await owner.query("UPDATE users SET deactivated_at = now() WHERE email = $1", [email]);
+    await owner.query("DELETE FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = $1)", [email]);
+    const response = await post("/sign-in/email", { email, password: PASSWORD }, { "x-forwarded-for": "10.77.0.1" });
+    expect(response.status).toBe(403);
+    expect(response.headers.get("set-cookie") ?? "").not.toMatch(/session_token=[^;]+/);
+    const sessions = await owner.query("SELECT 1 FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.email = $1", [email]);
+    expect(sessions.rowCount).toBe(0);
+  });
+
   it("guarda el email en minúsculas (restricción de la base de datos)", async () => {
     const email = newEmail();
     const response = await post("/sign-up/email", { name: "Persona Ficticia", email: email.toUpperCase(), password: PASSWORD });

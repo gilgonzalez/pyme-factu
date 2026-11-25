@@ -32,5 +32,6 @@ Toda operación sobre datos de un tenant se ejecuta con `runInTenant(db, ctx, <p
 | Ver la cadena de registros VERI*FACTU y su comprobación | Página | Sesión + acceso al contribuyente | `verifactu.read` | ✅ `tenancy/test/verifactu.test.ts`, E2E |
 | Subir, sustituir o borrar el certificado electrónico del contribuyente | Server Action | Sesión + acceso FULL | `certificates.manage` (OWNER y ADMIN) | ✅ `tenancy/test/certificates.test.ts`, E2E |
 | Aviso de registros pendientes o rechazados por la AEAT | Todas las pantallas del contribuyente | Sesión + acceso al contribuyente | `verifactu.read` | ✅ `tenancy/test/certificates.test.ts` |
+| Descargar mis datos personales / desactivar mi cuenta | Ruta `/cuenta/datos` y Server Action | Sesión (solo la propia cuenta; email como confirmación) | — (función limitada al usuario del contexto) | ✅ `account.test.ts`, `auth.test.ts`, E2E |
 
 Matriz rol → permiso: [roles-and-permissions](../tenancy/roles-and-permissions.md).

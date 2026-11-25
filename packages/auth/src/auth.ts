@@ -1,6 +1,7 @@
 import { createDatabaseClient } from "@facturalibre/database";
 import { betterAuth, type BetterAuthPlugin } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
 import { accountEmail } from "./emails";
 import type { Mailer } from "./mailer";
 
@@ -68,6 +69,17 @@ function buildAuth(options: CreateAuthOptions, db: ReturnType<typeof createDatab
       },
     },
     plugins: options.plugins ?? [],
+    databaseHooks: {
+      session: {
+        create: {
+          /** Una cuenta desactivada por su titular (Fase 7) no abre sesiones nuevas. */
+          before: async (session) => {
+            const user = await db.user.findUnique({ where: { id: session.userId }, select: { deactivatedAt: true } });
+            if (user?.deactivatedAt != null) throw new APIError("FORBIDDEN", { message: "Esta cuenta está desactivada.", code: "ACCOUNT_DEACTIVATED" });
+          },
+        },
+      },
+    },
   });
 }
 
