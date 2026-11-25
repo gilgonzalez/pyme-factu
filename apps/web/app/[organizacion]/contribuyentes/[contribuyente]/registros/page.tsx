@@ -81,7 +81,14 @@ async function Records({ params }: { readonly params: PageProps<"/[organizacion]
                       <code title={record.hash}>{shortHash(record.hash)}</code>
                     </td>
                     <td className={ok ? "px-3 py-2" : "px-3 py-2 font-medium text-destructive"}>{ok ? "Correcta" : "No coincide"}</td>
-                    <td className="px-3 py-2">{STATUS[record.status]}</td>
+                    <td className="px-3 py-2">
+                      {STATUS[record.status]}
+                      {record.aeatErrorDescription === null ? null : (
+                        <span className="block text-xs text-muted-foreground">
+                          {record.aeatErrorCode ?? ""} · {record.aeatErrorDescription}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

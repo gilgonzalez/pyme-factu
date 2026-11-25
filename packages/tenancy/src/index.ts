@@ -8,6 +8,7 @@ export {
   type CustomerSummary,
   type ProductSummary,
 } from "./catalog";
+export { certificateStatus, deleteCertificate, saveCertificate, type SaveCertificateResult } from "./certificates";
 export { databaseErrorCode } from "./database-errors";
 export {
   createDraftInvoice,
@@ -57,6 +58,8 @@ export {
 export {
   annulInvoice,
   listBillingRecords,
+  submissionStatus,
+  type SubmissionStatus,
   type AnnulResult,
   type BillingRecordView,
   type InvoiceRecords,

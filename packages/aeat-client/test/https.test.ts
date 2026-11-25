@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:https";
 import { TLSSocket } from "node:tls";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { httpTransport } from "../src/transport";
-import { fictitiousCertificate } from "./support";
+import { fictitiousCertificate } from "../src/testing";
 
 let server: Server;
 let url = "";

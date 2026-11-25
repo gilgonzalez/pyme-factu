@@ -14,7 +14,8 @@
     "dir": "packages/aeat-client"
   },
   "mutate": [
-    "packages/aeat-client/src/**/*.ts"
+    "packages/aeat-client/src/**/*.ts",
+    "!packages/aeat-client/src/testing/**"
   ],
   "reporters": [
     "clear-text",

@@ -3,7 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { checkCertificate, openCertificate, parseKek, sealCertificate } from "../src/certificates";
-import { fictitiousCertificate } from "./support";
+import { fictitiousCertificate } from "../src/testing";
 
 const PASSPHRASE = "contraseña-ficticia";
 const kek = randomBytes(32);

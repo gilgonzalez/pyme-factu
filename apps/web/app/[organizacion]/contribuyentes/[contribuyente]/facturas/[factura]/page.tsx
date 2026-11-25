@@ -165,6 +165,12 @@ function RecordInfo({ title, record }: { readonly title: string; readonly record
       <p className="text-muted-foreground">
         Huella: <code className="break-all">{record.hash}</code>
       </p>
+      {record.aeatCsv === null ? null : <p className="text-muted-foreground">CSV de la AEAT: {record.aeatCsv}</p>}
+      {record.aeatErrorDescription === null ? null : (
+        <p className={record.status === "REJECTED" ? "text-destructive" : "text-muted-foreground"}>
+          AEAT ({record.aeatErrorCode ?? ""}): {record.aeatErrorDescription}
+        </p>
+      )}
     </div>
   );
 }

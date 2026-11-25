@@ -57,6 +57,10 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       SMTP_URL: smtp://mailpit:1025
       MAIL_FROM: ${MAIL_FROM}
+      CERTIFICATE_KEK: ${CERTIFICATE_KEK:-}
+      SIF_PRODUCER_NAME: ${SIF_PRODUCER_NAME:-}
+      SIF_PRODUCER_NIF: ${SIF_PRODUCER_NIF:-}
+      SIF_DECLARATION_URL: ${SIF_DECLARATION_URL:-}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
@@ -70,6 +74,7 @@ services:
       <<: *db-urls
       FACTURALIBRE_ENV: ${FACTURALIBRE_ENV:-development}
       WORKER_HEALTH_PORT: "8081"
+      CERTIFICATE_KEK: ${CERTIFICATE_KEK:-}
     depends_on:
       migrate: { condition: service_completed_successfully }
 

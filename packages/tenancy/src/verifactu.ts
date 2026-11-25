@@ -209,6 +209,10 @@ export interface BillingRecordView extends StoredRecord {
   readonly id: string;
   readonly invoiceId: string;
   readonly status: "PENDING" | "ACCEPTED" | "ACCEPTED_WITH_ERRORS" | "REJECTED";
+  readonly submittedAt: Date | null;
+  readonly aeatCsv: string | null;
+  readonly aeatErrorCode: string | null;
+  readonly aeatErrorDescription: string | null;
 }
 
 const RECORD_FIELDS = {
@@ -226,6 +230,10 @@ const RECORD_FIELDS = {
   hash: true,
   generatedAt: true,
   status: true,
+  submittedAt: true,
+  aeatCsv: true,
+  aeatErrorCode: true,
+  aeatErrorDescription: true,
 } as const;
 
 const viewOf = <T extends { readonly issueDate: Date }>(row: T): Omit<T, "issueDate"> & { issueDate: string } => ({ ...row, issueDate: isoDate(row.issueDate) });
@@ -252,4 +260,27 @@ export interface InvoiceRecords {
 export async function invoiceRecords(tx: Tx, taxpayerId: string, invoiceId: string): Promise<InvoiceRecords> {
   const rows = (await tx.billingRecord.findMany({ where: { invoiceId, taxpayerId }, select: RECORD_FIELDS })).map(viewOf);
   return { alta: rows.find((row) => row.kind === "ALTA") ?? null, anulacion: rows.find((row) => row.kind === "ANULACION") ?? null };
+}
+
+// ─── Estado de la remisión (Fase 6) ──────────────────────────────────────────
+
+export interface SubmissionStatus {
+  readonly pending: number;
+  readonly rejected: number;
+  /** Desde cuándo una incidencia impide remitir (null = sin incidencia): mientras dure se avisa (OM art. 16.4). */
+  readonly failingSince: Date | null;
+  readonly lastError: string | null;
+}
+
+/** Cuántos registros faltan por remitir o fueron rechazados, y la incidencia en curso si la hay. */
+export function submissionStatus(db: Database, context: TenantContext): Promise<SubmissionStatus> {
+  return runInTenant(db, context, "verifactu.read", async (tx) => {
+    const taxpayerId = activeTaxpayerId(context, "verifactu.read");
+    const [pending, rejected, system] = await Promise.all([
+      tx.billingRecord.count({ where: { taxpayerId, status: "PENDING" } }),
+      tx.billingRecord.count({ where: { taxpayerId, status: "REJECTED" } }),
+      tx.billingSystem.findUnique({ where: { taxpayerId }, select: { failingSince: true, lastError: true } }),
+    ]);
+    return { pending, rejected, failingSince: system?.failingSince ?? null, lastError: system?.lastError ?? null };
+  });
 }

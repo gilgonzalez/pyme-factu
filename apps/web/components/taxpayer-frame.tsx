@@ -1,10 +1,11 @@
 import type { TaxpayerRecord, TenantContext } from "@facturalibre/tenancy";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SubmissionNotice } from "@/components/submission-notice";
 import { TenantFrame } from "@/components/tenant-frame";
 import type { SessionUser } from "@/lib/server/session";
 
-export type TaxpayerSection = "datos" | "facturas" | "clientes" | "productos" | "registros";
+export type TaxpayerSection = "datos" | "facturas" | "clientes" | "productos" | "registros" | "certificado";
 
 /**
  * Marco de toda pantalla que actúa sobre un contribuyente: el contribuyente activo SIEMPRE visible (R-05)
@@ -30,6 +31,7 @@ export function TaxpayerFrame({
     { id: "clientes", href: `${base}/clientes`, label: "Clientes", visible: context.permissions.has("customers.read") },
     { id: "productos", href: `${base}/productos`, label: "Productos", visible: context.permissions.has("products.read") },
     { id: "registros", href: `${base}/registros`, label: "Registros VERI*FACTU", visible: context.permissions.has("verifactu.read") },
+    { id: "certificado", href: `${base}/certificado`, label: "Certificado", visible: context.permissions.has("certificates.manage") },
   ];
   return (
     <TenantFrame user={user} context={context} current="contribuyentes" activeTaxpayer={taxpayer}>
@@ -50,6 +52,7 @@ export function TaxpayerFrame({
             ))}
         </ul>
       </nav>
+      <SubmissionNotice context={context} recordsHref={`${base}/registros`} />
       {children}
     </TenantFrame>
   );

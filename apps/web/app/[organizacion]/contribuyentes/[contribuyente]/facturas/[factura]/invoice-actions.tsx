@@ -1,4 +1,5 @@
 "use client";
+import { ActionButton } from "@/components/action-button";
 import { ActionForm, type FormAction } from "@/components/action-form";
 import { Field } from "@/components/form";
 import { SelectField } from "@/components/select-field";
@@ -27,17 +28,9 @@ export function IssueForm({ action, total }: { readonly action: FormAction; read
   );
 }
 
-export function DeleteDraftForm({ action }: { readonly action: FormAction }) {
-  return (
-    <ActionForm action={action} label="Borrar el borrador">
-      {({ pending }) => (
-        <Button type="submit" variant="destructive" disabled={pending}>
-          {pending ? "Borrando…" : "Borrar borrador"}
-        </Button>
-      )}
-    </ActionForm>
-  );
-}
+export const DeleteDraftForm = ({ action }: { readonly action: FormAction }) => (
+  <ActionButton action={action} label="Borrar el borrador" idle="Borrar borrador" busy="Borrando…" variant="destructive" />
+);
 
 export function RectifyForm({ action }: { readonly action: FormAction }) {
   return (

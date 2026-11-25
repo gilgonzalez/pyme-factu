@@ -9,7 +9,7 @@ Estado: ✅ implementado (migraciones `…0100_security_rls` y `…0200_taxpayer
 | *(propietario / migrador)* | Solo `pnpm db:migrate` | Sí | — (nunca en ejecución) |
 | `facturalibre_app` | Aplicación web | No | No |
 | `facturalibre_auth` | Librería de autenticación (solo `users`, `sessions`, `accounts`, `verifications`, `user_profiles`) | No | No |
-| `facturalibre_worker` | Worker (outbox; dominio siempre con contexto de tenant) | No | No |
+| `facturalibre_worker` | Worker (outbox y remisión a la AEAT) | No | No |
 
 No se usa `FORCE ROW LEVEL SECURITY`: las funciones `SECURITY DEFINER` (propiedad del migrador) necesitan leer membresías sin recursión de políticas, y el propietario nunca se usa en ejecución. Una prueba verifica que ningún rol de ejecución es propietario ni tiene BYPASSRLS.
 
@@ -45,7 +45,7 @@ Al acabar la transacción las variables vuelven a `''` (no a NULL); por eso las 
 | `audit_events` | tenant autorizado | INSERT solo con `actor_user_id = app.current_user_id()` y tenant NULL o autorizado; **sin UPDATE/DELETE** (sin GRANT y trigger que lo rechaza incluso al propietario) |
 | `outbox_events` | tenant autorizado | INSERT en tenant autorizado |
 
-Rol `facturalibre_worker`: `outbox_events` SELECT/UPDATE en todos los tenants (reclamar trabajos); `audit_events` SELECT/INSERT solo del `app.current_tenant_id()` fijado desde el evento y sin actor de usuario; **sin acceso** a tablas de dominio (las políticas de dominio para el worker se añadirán, tenant a tenant, cuando procese trabajos fiscales).
+Rol `facturalibre_worker`: `outbox_events` SELECT/UPDATE en todos los tenants (reclamar trabajos); `audit_events` SELECT/INSERT solo del `app.current_tenant_id()` fijado desde el evento y sin actor de usuario; **sin acceso** a las tablas de dominio salvo lo justo para remitir a la AEAT (Fase 6, migración `20261125000600`): lee `billing_systems`, `billing_records`, `taxpayer_certificates` y `taxpayers` de todas las organizaciones (como el outbox, es un proceso de plataforma) y solo actualiza las columnas de la remisión mediante GRANT por columna. No lee facturas, clientes, productos ni usuarios (`rls.test.ts`).
 
 ## Uso desde Prisma
 

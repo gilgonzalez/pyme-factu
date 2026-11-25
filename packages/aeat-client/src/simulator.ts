@@ -4,13 +4,10 @@
 // inexistentes (3002). No sustituye al portal de pruebas externas de la AEAT.
 import { randomBytes } from "node:crypto";
 import { altaHashInput, anulacionHashInput, fingerprint, generationTimestamp, NAMESPACES } from "@facturalibre/verifactu";
-import { XMLParser } from "fast-xml-parser";
 import type { DuplicateState, RecordState } from "./response";
+import { xmlNode as node, xmlReader, type XmlNode as Node } from "./xml-reader";
 
-const parser = new XMLParser({ removeNSPrefix: true, ignoreAttributes: true, parseTagValue: false, trimValues: true, isArray: (name) => name === "RegistroFactura" });
-
-type Node = Readonly<Record<string, unknown>>;
-const node = (value: unknown): Node => (value instanceof Object ? (value as Node) : {});
+const parser = xmlReader("RegistroFactura");
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 const escapeXml = (value: string): string => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 

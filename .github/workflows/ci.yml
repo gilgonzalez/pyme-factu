@@ -42,6 +42,8 @@ jobs:
       APP_DATABASE_URL: postgresql://facturalibre_app:ci_app_password_only_for_ci@localhost:5432/facturalibre
       AUTH_DATABASE_URL: postgresql://facturalibre_auth:ci_auth_password_only_for_ci@localhost:5432/facturalibre
       AUTH_SECRET: ci_auth_secret_only_for_ci_0123456789abcdef
+      # 32 bytes en base64 ("ci_certificate_kek_only_for_ci_0"): solo para CI.
+      CERTIFICATE_KEK: Y2lfY2VydGlmaWNhdGVfa2VrX29ubHlfZm9yX2NpXzA=
       SMTP_URL: smtp://localhost:1025
       MAIL_FROM: "FacturaLibre CI <no-responder@ci.invalid>"
       # Debe coincidir con la baseURL de Playwright: los enlaces de los correos y las cookies dependen de ella.

@@ -1,5 +1,6 @@
 import "server-only";
 import type { VerifactuSettings } from "@facturalibre/tenancy";
+import { endpointFor, parseKek } from "@facturalibre/aeat-client";
 import { validateSoftware, type QrEnvironment, type Software } from "@facturalibre/verifactu";
 
 // Identidad del sistema informático de facturación (ADR-008, decisión 10). En producción los datos del productor
@@ -39,3 +40,16 @@ export const verifactuSettings = (): VerifactuSettings => ({ software: softwareI
 
 /** El QR apunta al servicio de cotejo de producción solo cuando FacturaLibre funciona en producción. */
 export const qrEnvironment = (): QrEnvironment => (isProduction() ? "production" : "test");
+
+/** Clave para cifrar los certificados (CERTIFICATE_KEK, fuera de la base de datos), o null si no está configurada. */
+export function certificateKek(): Buffer | null {
+  const value = process.env["CERTIFICATE_KEK"]?.trim();
+  return value === undefined || value === "" ? null : parseKek(value);
+}
+
+/** A dónde remite el worker en este despliegue (R-19), para decírselo al usuario. */
+export function aeatEnvironmentLabel(): string {
+  const endpoint = endpointFor(process.env["FACTURALIBRE_ENV"]);
+  if (endpoint.kind === "simulator") return "simulador local (entorno de desarrollo: nada llega a la AEAT)";
+  return isProduction() ? "AEAT, entorno de producción" : "AEAT, portal de pruebas externas";
+}

@@ -1,6 +1,6 @@
 // Respuesta de la AEAT a un envío (RespuestaSuministro.xsd 1.0; descripción de los servicios web v1.0.3,
 // apartados 5.1 y 6.4.4): o la respuesta con el estado de cada registro, o un SOAP Fault.
-import { XMLParser } from "fast-xml-parser";
+import { xmlNode as node, xmlReader, type XmlNode as Node } from "./xml-reader";
 
 export type RecordState = "Correcto" | "AceptadoConErrores" | "Incorrecto";
 export type DuplicateState = "Correcta" | "AceptadaConErrores" | "Anulada";
@@ -31,17 +31,7 @@ export type ParsedEnvelope =
   | { readonly kind: "fault"; readonly code: string; readonly message: string }
   | { readonly kind: "unreadable" };
 
-const parser = new XMLParser({
-  removeNSPrefix: true,
-  ignoreAttributes: true,
-  parseTagValue: false,
-  trimValues: true,
-  isArray: (name) => name === "RespuestaLinea",
-});
-
-type Node = Readonly<Record<string, unknown>>;
-
-const node = (value: unknown): Node => (value instanceof Object ? (value as Node) : {});
+const parser = xmlReader("RespuestaLinea");
 const text = (value: unknown): string | null => (typeof value === "string" && value !== "" ? value : null);
 const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 

@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@facturalibre/aeat-client": "workspace:*",
     "@facturalibre/database": "workspace:*",
     "@facturalibre/domain": "workspace:*",
     "@facturalibre/fiscal-core": "workspace:*",

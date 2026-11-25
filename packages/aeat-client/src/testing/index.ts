@@ -1,4 +1,5 @@
-// Certificados autofirmados FICTICIOS generados en memoria para las pruebas (nunca certificados reales).
+// Utilidades SOLO para pruebas (nunca se importan desde código de producción): certificados autofirmados
+// FICTICIOS generados en memoria. node-forge es dependencia de desarrollo.
 import forge from "node-forge";
 
 export interface FictitiousCertificate {

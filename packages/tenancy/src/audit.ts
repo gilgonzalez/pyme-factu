@@ -14,7 +14,9 @@ export type AuditAction =
   | "invoice.issued"
   | "invoice.draft_deleted"
   | "invoice.rectification_created"
-  | "invoice.annulled";
+  | "invoice.annulled"
+  | "certificate.saved"
+  | "certificate.deleted";
 
 /**
  * Registra un evento de auditoría en la MISMA transacción que el cambio (o ambos o ninguno).

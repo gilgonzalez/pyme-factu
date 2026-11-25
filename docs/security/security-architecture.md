@@ -18,7 +18,7 @@
 | Redirecciones abiertas (`?volver=`): solo rutas internas (`safeReturnPath`) | ✅ probado (unitario + E2E) |
 | Tokens de invitación: 32 bytes aleatorios, solo su SHA-256 en BD, 7 días, un solo uso, ligados al email; página con `Referrer-Policy: no-referrer` | ✅ probado |
 | CSP con nonces | ⏳ Pendiente: los nonces obligan a renderizar dinámicamente todas las páginas y anulan el prerender parcial (`cacheComponents`). Evaluar CSP con hashes en la fase de endurecimiento (Fase 7) |
-| Cifrado de certificados | 📄 Fase 6 |
+| Cifrado de certificados | ✅ Fase 6: cifrado por sobre (DEK AES-256-GCM por certificado envuelta con `CERTIFICATE_KEK`, que nunca está en la BD); validado al subirlo; solo se descifra en memoria en el worker; nunca vuelve al navegador ([integration-architecture](../aeat/integration-architecture.md)) |
 
 ## Modelo de amenazas (resumen)
 
@@ -32,7 +32,7 @@
 | XSS | Datos de clientes en la UI | Escapado de React; HTML de correos escapado (`escapeHtml`, probado); sin `dangerouslySetInnerHTML`; CSP pendiente (Fase 7) |
 | CSRF | Server Actions | Comprobación de Origin (Better Auth en `/api/auth/*`, Next.js en Server Actions) + cookies `SameSite=Lax` ✅ |
 | Fuerza bruta | Login | Rate limiting persistente en PostgreSQL ✅; contraseñas ≥ 12 caracteres |
-| Robo de certificados | Volcado de BD | Cifrado por sobre con KEK fuera de la BD (Fase 6) |
+| Robo de certificados | Volcado de BD | Cifrado por sobre con KEK fuera de la BD ✅ (`certificates.test.ts`: sin la KEK no se abre; una manipulación se detecta) |
 | Manipulación de auditoría | UPDATE/DELETE | Sin GRANT + trigger (incluso para el propietario) |
 | Acceso del personal de plataforma | Soporte | Sin bypass; acceso temporal autorizado y auditado |
 
@@ -40,7 +40,7 @@
 
 `.env` local generado con `pnpm env:init` (ignorado por git); en producción, variables del orquestador o gestor de secretos. Contraseñas de roles de BD ≥ 16 caracteres (validado). Nunca secretos en logs, auditoría ni repositorio.
 
-## Certificados digitales (diseño, Fase 6)
+## Certificados digitales (✅ Fase 6; el diseño original se mantiene)
 
 Cifrado por sobre: cada certificado PKCS#12 se cifra con una DEK aleatoria (AES-256-GCM); la DEK se cifra con una KEK que **no** está en la base de datos (gestor de secretos/KMS; en local, variable de entorno). Metadatos (titular, NIF, caducidad, huella) en claro para alertas de caducidad. Descifrado solo en el worker, en memoria, durante el envío. Gestión con permiso `certificates.manage`, auditada; rotación y revocación = nuevo certificado + desactivación del anterior. Alternativas (HSM/PKCS#11, certificado custodiado por el cliente) en un ADR propio en Fase 6.
 
