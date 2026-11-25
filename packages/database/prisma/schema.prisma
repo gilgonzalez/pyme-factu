@@ -93,12 +93,12 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profile              UserProfile?
-  sessions             Session[]
-  accounts             Account[]
-  tenantMemberships    TenantMembership[]
-  invitationsSent      TenantInvitation[] @relation("InvitationInvitedBy")
-  invitationsAccepted  TenantInvitation[] @relation("InvitationAcceptedBy")
+  profile             UserProfile?
+  sessions            Session[]
+  accounts            Account[]
+  tenantMemberships   TenantMembership[]
+  invitationsSent     TenantInvitation[] @relation("InvitationInvitedBy")
+  invitationsAccepted TenantInvitation[] @relation("InvitationAcceptedBy")
 
   @@map("users")
 }
@@ -235,21 +235,21 @@ model TenantMembership {
 }
 
 model TenantInvitation {
-  id               String              @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  tenantId         String              @map("tenant_id") @db.Uuid
+  id               String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
   /// Siempre en minúsculas (CHECK en SQL).
   email            String
   /// Nunca OWNER: la propiedad solo se transfiere (CHECK en SQL).
   role             TenantRole
-  taxpayerScope    TaxpayerScope       @default(ASSIGNED_TAXPAYERS) @map("taxpayer_scope")
+  taxpayerScope    TaxpayerScope @default(ASSIGNED_TAXPAYERS) @map("taxpayer_scope")
   /// SHA-256 del token enviado por correo. El token en claro no se almacena.
-  tokenHash        String              @unique @map("token_hash")
-  invitedByUserId  String              @map("invited_by_user_id") @db.Uuid
-  expiresAt        DateTime            @map("expires_at") @db.Timestamptz(6)
-  acceptedAt       DateTime?           @map("accepted_at") @db.Timestamptz(6)
-  acceptedByUserId String?             @map("accepted_by_user_id") @db.Uuid
-  revokedAt        DateTime?           @map("revoked_at") @db.Timestamptz(6)
-  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  tokenHash        String        @unique @map("token_hash")
+  invitedByUserId  String        @map("invited_by_user_id") @db.Uuid
+  expiresAt        DateTime      @map("expires_at") @db.Timestamptz(6)
+  acceptedAt       DateTime?     @map("accepted_at") @db.Timestamptz(6)
+  acceptedByUserId String?       @map("accepted_by_user_id") @db.Uuid
+  revokedAt        DateTime?     @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   invitedBy  User   @relation("InvitationInvitedBy", fields: [invitedByUserId], references: [id], onDelete: Restrict)
@@ -264,35 +264,36 @@ model TenantInvitation {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Taxpayer {
-  id           String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  tenantId     String             @map("tenant_id") @db.Uuid
-  personType   TaxpayerPersonType @map("person_type")
+  id          String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId    String             @map("tenant_id") @db.Uuid
+  personType  TaxpayerPersonType @map("person_type")
   /// NIF del obligado tributario (9 caracteres alfanuméricos en mayúsculas; CHECK en SQL).
   /// La validación del dígito de control vive en el dominio (Fase 3).
-  nif          String
+  nif         String
   /// Nombre y apellidos o razón social.
-  legalName    String             @map("legal_name")
-  tradeName    String?            @map("trade_name")
-  addressLine  String?            @map("address_line")
-  postalCode   String?            @map("postal_code")
-  city         String?
-  province     String?
-  countryCode  String             @default("ES") @map("country_code") @db.Char(2)
-  email        String?
-  status       TaxpayerStatus     @default(ACTIVE)
-  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  legalName   String             @map("legal_name")
+  tradeName   String?            @map("trade_name")
+  addressLine String?            @map("address_line")
+  postalCode  String?            @map("postal_code")
+  city        String?
+  province    String?
+  countryCode String             @default("ES") @map("country_code") @db.Char(2)
+  email       String?
+  status      TaxpayerStatus     @default(ACTIVE)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  settings    TaxpayerSettings?
-  memberships TaxpayerMembership[]
-  customers     Customer[]
-  products      Product[]
-  invoiceSeries InvoiceSeries[]
-  invoices      Invoice[]
-  invoiceLines  InvoiceLine[]
+  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  settings       TaxpayerSettings?
+  memberships    TaxpayerMembership[]
+  customers      Customer[]
+  products       Product[]
+  invoiceSeries  InvoiceSeries[]
+  invoices       Invoice[]
+  invoiceLines   InvoiceLine[]
   billingSystem  BillingSystem?
   billingRecords BillingRecord[]
+  certificate    TaxpayerCertificate?
 
   /// Destino de las claves foráneas compuestas (tenant_id, taxpayer_id).
   @@unique([tenantId, id])
@@ -500,10 +501,10 @@ model Invoice {
   createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  taxpayer Taxpayer      @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
-  series   InvoiceSeries @relation(fields: [taxpayerId, seriesId], references: [taxpayerId, id], onDelete: Restrict)
-  customer Customer      @relation(fields: [taxpayerId, customerId], references: [taxpayerId, id], onDelete: Restrict)
-  lines    InvoiceLine[]
+  taxpayer       Taxpayer        @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  series         InvoiceSeries   @relation(fields: [taxpayerId, seriesId], references: [taxpayerId, id], onDelete: Restrict)
+  customer       Customer        @relation(fields: [taxpayerId, customerId], references: [taxpayerId, id], onDelete: Restrict)
+  lines          InvoiceLine[]
   billingRecords BillingRecord[]
 
   @@unique([taxpayerId, id])
@@ -533,12 +534,20 @@ enum BillingRecordStatus {
 
 model BillingSystem {
   /// También es el NumeroInstalacion: un UUID nunca se repite para ningún NIF.
-  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  taxpayerId   String   @map("taxpayer_id") @db.Uuid
+  id                  String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  taxpayerId          String    @map("taxpayer_id") @db.Uuid
   /// Secuencia del último registro de la cadena (0 = aún sin registros). Solo avanza.
-  lastSequence Int      @default(0) @map("last_sequence")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSequence        Int       @default(0) @map("last_sequence")
+  /// Remisión a la AEAT (Fase 6, OM art. 16): no se envía antes de next_send_at (control de flujo o reintento).
+  nextSendAt          DateTime? @map("next_send_at") @db.Timestamptz(6)
+  /// TiempoEsperaEnvio devuelto por la AEAT en la última respuesta (60 s al principio).
+  waitSeconds         Int       @default(60) @map("wait_seconds")
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  /// Desde cuándo una incidencia impide remitir (null = sin incidencia). Mientras dure se avisa (art. 16.4).
+  failingSince        DateTime? @map("failing_since") @db.Timestamptz(6)
+  lastError           String?   @map("last_error")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   taxpayer Taxpayer        @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
   records  BillingRecord[]
@@ -551,33 +560,39 @@ model BillingSystem {
 }
 
 model BillingRecord {
-  id              String              @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  tenantId        String              @map("tenant_id") @db.Uuid
-  taxpayerId      String              @map("taxpayer_id") @db.Uuid
-  billingSystemId String              @map("billing_system_id") @db.Uuid
+  id                   String              @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  taxpayerId           String              @map("taxpayer_id") @db.Uuid
+  billingSystemId      String              @map("billing_system_id") @db.Uuid
   /// Posición en la cadena: 1, 2, 3… sin huecos.
-  sequence        Int
-  kind            BillingRecordKind
-  invoiceId       String              @map("invoice_id") @db.Uuid
+  sequence             Int
+  kind                 BillingRecordKind
+  invoiceId            String              @map("invoice_id") @db.Uuid
   /// Identificador de la factura tal como figura en el registro (NIF + serie y número + fecha).
-  issuerNif       String              @map("issuer_nif")
-  invoiceNumber   String              @map("invoice_number")
-  issueDate       DateTime            @map("issue_date") @db.Date
+  issuerNif            String              @map("issuer_nif")
+  invoiceNumber        String              @map("invoice_number")
+  issueDate            DateTime            @map("issue_date") @db.Date
   /// TipoFactura (F1, R1…R4); null en las anulaciones.
-  invoiceType     String?             @map("invoice_type")
+  invoiceType          String?             @map("invoice_type")
   /// CuotaTotal e ImporteTotal exactos del registro de alta (el ImporteTotal también va en el QR); null en las
   /// anulaciones. Con ellos se recalcula la huella al comprobar la cadena.
-  cuotaTotal      String?             @map("cuota_total")
-  importeTotal    String?             @map("importe_total")
-  previousHash    String?             @map("previous_hash") @db.Char(64)
-  hash            String              @db.Char(64)
+  cuotaTotal           String?             @map("cuota_total")
+  importeTotal         String?             @map("importe_total")
+  previousHash         String?             @map("previous_hash") @db.Char(64)
+  hash                 String              @db.Char(64)
   /// FechaHoraHusoGenRegistro: el texto exacto con el que se calculó la huella.
-  generatedAt     String              @map("generated_at")
+  generatedAt          String              @map("generated_at")
   /// XML del registro (RegistroAlta o RegistroAnulacion) tal como se generó: es lo que se remite y se conserva.
-  xml             String
-  status          BillingRecordStatus @default(PENDING)
-  createdByUserId String?             @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  xml                  String
+  status               BillingRecordStatus @default(PENDING)
+  /// Resultado de la remisión (únicas columnas modificables, por el worker).
+  attempts             Int                 @default(0)
+  submittedAt          DateTime?           @map("submitted_at") @db.Timestamptz(6)
+  aeatCsv              String?             @map("aeat_csv")
+  aeatErrorCode        String?             @map("aeat_error_code")
+  aeatErrorDescription String?             @map("aeat_error_description")
+  createdByUserId      String?             @map("created_by_user_id") @db.Uuid
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
 
   taxpayer      Taxpayer      @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
   billingSystem BillingSystem @relation(fields: [taxpayerId, billingSystemId], references: [taxpayerId, id], onDelete: Restrict)
@@ -609,4 +624,22 @@ model InvoiceLine {
 
   @@unique([invoiceId, position])
   @@map("invoice_lines")
+}
+
+/// Certificado electrónico del contribuyente para remitir a la AEAT (Fase 6), cifrado por sobre: la clave que lo
+/// descifra (CERTIFICATE_KEK) nunca está en la base de datos. Ver @facturalibre/aeat-client › certificates.
+model TaxpayerCertificate {
+  id               String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  taxpayerId       String   @map("taxpayer_id") @db.Uuid
+  sealed           String
+  uploadedByUserId String?  @map("uploaded_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  taxpayer Taxpayer @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, taxpayerId])
+  @@unique([taxpayerId])
+  @@map("taxpayer_certificates")
 }

@@ -127,7 +127,9 @@ describe("los registros son inalterables para todos los roles", () => {
     await expect(db.owner().query("UPDATE billing_records SET hash = $2 WHERE id = $1", [id, HASH("9")])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
     await expect(db.owner().query("UPDATE billing_records SET xml = '<y/>' WHERE id = $1", [id])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
     await expect(db.owner().query("DELETE FROM billing_records WHERE id = $1", [id])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
-    await expect(db.owner().query("UPDATE billing_records SET status = 'ACCEPTED' WHERE id = $1", [id])).resolves.toMatchObject({ rowCount: 1 });
+    await expect(db.owner().query("UPDATE billing_records SET status = 'ACCEPTED', submitted_at = now(), attempts = 1, aeat_csv = 'CSV' WHERE id = $1", [id])).resolves.toMatchObject({ rowCount: 1 });
+    // Con respuesta de la AEAT, siempre consta cuándo se envió.
+    await expect(db.owner().query("UPDATE billing_records SET submitted_at = NULL WHERE id = $1", [id])).rejects.toThrow(/billing_records_submitted_when_answered/);
   });
 
   it("la aplicación no tiene permiso para modificar ni borrar registros", async () => {

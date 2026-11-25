@@ -252,10 +252,20 @@ describe("worker", () => {
     expect(ids(result)).toEqual([tenants.a.id, tenants.b.id].sort());
   });
 
-  it("no tiene acceso a datos de dominio de los tenants", async () => {
-    await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query("SELECT * FROM taxpayers"))).rejects.toThrow(
-      /permission denied/,
-    );
+  it("no tiene acceso a datos de dominio de los tenants, salvo lo justo para remitir a la AEAT (Fase 6)", async () => {
+    for (const table of ["invoices", "invoice_lines", "customers", "products", "users", "tenant_memberships"]) {
+      await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query(`SELECT 1 FROM ${table} LIMIT 1`)), table).rejects.toThrow(/permission denied/);
+    }
+    // Lee el NIF y el nombre del obligado (cabecera del envío), pero no puede cambiarlos.
+    await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query("SELECT nif FROM taxpayers LIMIT 1"))).resolves.toMatchObject({ command: "SELECT" });
+    await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query("UPDATE taxpayers SET legal_name = 'x'"))).rejects.toThrow(/permission denied/);
+  });
+
+  it("de un registro de facturación solo puede cambiar el resultado de su remisión", async () => {
+    await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query("UPDATE billing_records SET xml = '<x/>'"))).rejects.toThrow(/permission denied/);
+    await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query("UPDATE billing_systems SET last_sequence = 0"))).rejects.toThrow(/permission denied/);
+    await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query("INSERT INTO billing_records (id) VALUES (uuidv7())"))).rejects.toThrow(/permission denied/);
+    await expect(inContext(worker, { tenant: tenants.a.id }, () => worker.query("UPDATE billing_records SET attempts = attempts WHERE false"))).resolves.toMatchObject({ command: "UPDATE" });
   });
 
   it("solo audita dentro del tenant fijado en su contexto", async () => {
