@@ -1,6 +1,6 @@
 # Documentación de FacturaLibre
 
-Estado a **25/11/2026** (fin de Fase 6: remisión a la AEAT — worker con control de flujo, reintentos e incidencias, certificados cifrados y simulador local; Fase 5: registros VERI*FACTU encadenados, XML oficial y QR). Leyenda usada en todos los documentos:
+Estado a **25/11/2026** (fin de Fase 7, última fase planificada: CSP, exportación de datos personales y desactivación de cuenta, configuración de producción; Fase 6: remisión a la AEAT con control de flujo, reintentos, certificados cifrados y simulador; Fase 5: registros VERI*FACTU encadenados, XML oficial y QR). Lo que falta antes de producción real está en [docker](deployment/docker.md) › Producción. Leyenda usada en todos los documentos:
 
 | Etiqueta | Significado |
 |---|---|

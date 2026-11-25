@@ -1,0 +1,37 @@
+# FacturaLibre — ajustes de PRODUCCIÓN sobre docker-compose.yml (Fase 7):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Sin un secreto o dato obligatorio, Compose se niega a arrancar (${VAR:?}). Los secretos vienen del entorno del
+# orquestador, nunca de un fichero en el repositorio. HTTPS lo pone un proxy inverso delante de `web`.
+# Con FACTURALIBRE_ENV=production el worker remite a la AEAT REAL: ver docs/deployment/docker.md.
+
+x-production: &production
+  FACTURALIBRE_ENV: production
+  CERTIFICATE_KEK: ${CERTIFICATE_KEK:?Falta CERTIFICATE_KEK (32 bytes en base64)}
+
+services:
+  postgres:
+    # En producción, PostgreSQL gestionado (copias PITR); si se usa este contenedor, su puerto no se publica.
+    ports: !reset []
+
+  # El SMTP de pruebas no existe en producción.
+  mailpit:
+    profiles: ["solo-desarrollo"]
+
+  web:
+    environment:
+      <<: *production
+      APP_BASE_URL: ${APP_BASE_URL:?Falta APP_BASE_URL (https://…)}
+      AUTH_SECRET: ${AUTH_SECRET:?Falta AUTH_SECRET}
+      SMTP_URL: ${SMTP_URL:?Falta SMTP_URL (servidor de correo real)}
+      MAIL_FROM: ${MAIL_FROM:?Falta MAIL_FROM}
+      SIF_PRODUCER_NAME: ${SIF_PRODUCER_NAME:?Falta SIF_PRODUCER_NAME (productor del sistema informático)}
+      SIF_PRODUCER_NIF: ${SIF_PRODUCER_NIF:?Falta SIF_PRODUCER_NIF}
+      SIF_ID: ${SIF_ID:-FL}
+      SIF_VERSION: ${SIF_VERSION:?Falta SIF_VERSION (versión que cubre la declaración responsable)}
+      SIF_DECLARATION_URL: ${SIF_DECLARATION_URL:?Falta SIF_DECLARATION_URL (declaración responsable suscrita)}
+    depends_on: !override
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    environment:
+      <<: *production
