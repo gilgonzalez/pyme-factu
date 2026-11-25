@@ -67,6 +67,14 @@ describe("comprobación de la cadena", () => {
     const [, second] = official as [StoredRecord, StoredRecord];
     expect(checkChain([second])).toEqual([{ sequence: 2, hashOk: true, linkOk: false }]);
     expect(checkChain([{ ...second, sequence: 1 }])).toEqual([{ sequence: 1, hashOk: true, linkOk: false }]);
+    expect(checkChain([{ ...second, previousHash: null }])).toEqual([{ sequence: 2, hashOk: false, linkOk: false }]);
+  });
+
+  it("un alta sin tipo, cuota o importe guardados es un dato corrupto: su huella no coincide", () => {
+    const [first] = official as [StoredRecord];
+    for (const missing of ["invoiceType", "cuotaTotal", "importeTotal"] as const) {
+      expect(checkChain([{ ...first, [missing]: null }])).toEqual([{ sequence: 1, hashOk: false, linkOk: true }]);
+    }
   });
 
   it("una cadena vacía no tiene nada que comprobar", () => {

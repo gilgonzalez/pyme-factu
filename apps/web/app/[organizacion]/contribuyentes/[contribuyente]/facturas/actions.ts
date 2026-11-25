@@ -1,16 +1,20 @@
 "use server";
 // Acciones de facturas del contribuyente activo: guardar borrador, emitir, borrar borrador y rectificar.
-import { createDraftInvoice, deleteDraftInvoice, issueInvoice, rectifyInvoice, updateDraftInvoice } from "@facturalibre/tenancy";
+import { annulInvoice, createDraftInvoice, deleteDraftInvoice, issueInvoice, rectifyInvoice, updateDraftInvoice } from "@facturalibre/tenancy";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/action-form";
 import { fieldsFromFormData, linesFromFormData } from "@/lib/invoicing";
 import { getDatabase } from "@/lib/server/db";
 import { reasonMessage, tenantAction } from "@/lib/server/tenant-action";
+import { verifactuSettings } from "@/lib/server/verifactu";
 
 const REASONS: Readonly<Record<string, string>> = {
   NOT_FOUND: "Esa factura ya no existe. Recarga la página.",
   NOT_DRAFT: "La factura ya está emitida: no se puede cambiar. Si hay un error, rectifícala.",
-  NOT_ISSUED: "Solo se rectifican facturas emitidas. Un borrador se corrige editándolo.",
+  NOT_ISSUED: "Solo se rectifican o anulan facturas emitidas. Un borrador se corrige editándolo.",
+  ANNULLED: "Esta factura está anulada: no se puede rectificar.",
+  ALREADY_ANNULLED: "Esta factura ya estaba anulada.",
+  NOT_REGISTERED: "Esta factura se emitió antes de VERI*FACTU y no tiene registro que anular.",
 };
 
 const base = (slug: string, taxpayerId: string): string => `/${slug}/contribuyentes/${taxpayerId}/facturas`;
@@ -46,10 +50,14 @@ export async function issueAction(slug: string, taxpayerId: string, invoiceId: s
   const detail = `${base(slug, taxpayerId)}/${invoiceId}`;
   let issued: string | null = null;
   const result = await tenantAction(target(slug, taxpayerId, detail), async ({ context }) => {
-    const outcome = await issueInvoice(getDatabase(), context, invoiceId);
-    if (!outcome.ok) return reasonMessage(REASONS, outcome.reason);
-    issued = outcome.number;
-    return { ok: true, message: "" };
+    const outcome = await issueInvoice(getDatabase(), context, invoiceId, verifactuSettings());
+    if (outcome.ok) {
+      issued = outcome.number;
+      return { ok: true, message: "" };
+    }
+    if (outcome.reason !== "NOT_REGISTRABLE") return reasonMessage(REASONS, outcome.reason);
+    // La AEAT rechazaría el registro: no se emite. Se explica qué corregir antes.
+    return { ok: false, message: `No se puede emitir todavía: ${Object.values(outcome.errors).join(" ")}` };
   });
   if (issued !== null) redirect(`${detail}?emitida=${encodeURIComponent(issued)}`);
   return result;
@@ -69,7 +77,7 @@ export async function deleteDraftAction(slug: string, taxpayerId: string, invoic
 export async function rectifyAction(slug: string, taxpayerId: string, invoiceId: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
   let draftId: string | null = null;
   const result = await tenantAction(target(slug, taxpayerId, `${base(slug, taxpayerId)}/${invoiceId}`), async ({ context }) => {
-    const outcome = await rectifyInvoice(getDatabase(), context, invoiceId, { reason: data.get("reason") });
+    const outcome = await rectifyInvoice(getDatabase(), context, invoiceId, { reason: data.get("reason"), code: data.get("code") });
     if (outcome.ok) {
       draftId = outcome.invoiceId;
       return { ok: true, message: "" };
@@ -77,5 +85,21 @@ export async function rectifyAction(slug: string, taxpayerId: string, invoiceId:
     return outcome.reason === "INVALID" ? invalid(outcome.errors) : reasonMessage(REASONS, outcome.reason);
   });
   if (draftId !== null) redirect(`${base(slug, taxpayerId)}/${draftId}/editar`);
+  return result;
+}
+
+/** Anula una factura expedida por error: genera su registro de anulación VERI*FACTU (ADR-008). */
+export async function annulAction(slug: string, taxpayerId: string, invoiceId: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
+  const detail = `${base(slug, taxpayerId)}/${invoiceId}`;
+  let annulled = false;
+  const result = await tenantAction(target(slug, taxpayerId, detail), async ({ context }) => {
+    const outcome = await annulInvoice(getDatabase(), context, invoiceId, { reason: data.get("reason") }, verifactuSettings());
+    if (outcome.ok) {
+      annulled = true;
+      return { ok: true, message: "" };
+    }
+    return outcome.reason === "INVALID" ? invalid(outcome.errors) : reasonMessage(REASONS, outcome.reason);
+  });
+  if (annulled) redirect(`${detail}?anulada=1`);
   return result;
 }

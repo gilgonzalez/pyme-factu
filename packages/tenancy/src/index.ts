@@ -55,6 +55,14 @@ export {
   type TaxpayerSummary,
 } from "./taxpayers";
 export {
+  annulInvoice,
+  listBillingRecords,
+  type AnnulResult,
+  type BillingRecordView,
+  type InvoiceRecords,
+  type VerifactuSettings,
+} from "./verifactu";
+export {
   resolveTenantContext,
   type ResolveTenantContextInput,
   type ResolveTenantContextResult,

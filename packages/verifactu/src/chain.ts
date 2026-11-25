@@ -27,10 +27,13 @@ export interface RecordCheck {
   readonly linkOk: boolean;
 }
 
-function recomputedHash(record: StoredRecord): string {
+/** Huella recalculada; null si a un alta le faltan sus campos (dato corrupto: nunca puede coincidir). */
+function recomputedHash(record: StoredRecord): string | null {
   const common = { issuerNif: record.issuerNif, invoiceNumber: record.invoiceNumber, issueDate: aeatDate(record.issueDate), previousHash: record.previousHash ?? "", generatedAt: record.generatedAt };
   if (record.kind === "ANULACION") return fingerprint(anulacionHashInput(common));
-  return fingerprint(altaHashInput({ ...common, invoiceType: record.invoiceType ?? "", cuotaTotal: record.cuotaTotal ?? "", importeTotal: record.importeTotal ?? "" }));
+  const { invoiceType, cuotaTotal, importeTotal } = record;
+  if (invoiceType === null || cuotaTotal === null || importeTotal === null) return null;
+  return fingerprint(altaHashInput({ ...common, invoiceType, cuotaTotal, importeTotal }));
 }
 
 function linksTo(record: StoredRecord, previous: StoredRecord | undefined): boolean {

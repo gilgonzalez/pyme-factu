@@ -1,6 +1,6 @@
 # VERI*FACTU — visión técnica (Fase 0)
 
-> Este documento recoge **solo** lo verificado en fuentes oficiales el 24/11/2026 y el diseño derivado. Nada aquí está implementado. Los formatos exactos (huella, QR, XML) **no** se han implementado ni resumido de memoria: deben leerse íntegros de las especificaciones oficiales en la Fase 5 (⛔ bloqueante).
+> Lo verificado en fuentes oficiales y el diseño derivado. **Fase 5 (25/11/2026): ✅ implementado** — registros de alta y anulación, huella encadenada, XML conforme a los XSD 1.0 y QR, siguiendo los documentos oficiales copiados en [`packages/verifactu/specs/1.0`](../../packages/verifactu/specs/README.md). Las decisiones y lo pendiente de confirmar están en [ADR-008](../decisions/ADR-008-verifactu-records.md). La remisión a la AEAT es la Fase 6.
 
 ## 1. Calendario (⛔ situación cambiante)
 
@@ -43,19 +43,17 @@ erDiagram
 - **Instantáneas**: cada registro guarda los datos usados para la huella; es la fuente de verdad (el PDF no).
 - `IndicadorMultiplesOT`: ⛔ falta decidir qué es «usuario del SIF SaaS» en nuestro modelo (¿tenant? ¿persona?) — requiere validación profesional.
 
-## 3. Registros, huella, QR y XML (⛔ pendiente de lectura íntegra)
+## 3. Registros, huella, QR y XML (✅ Fase 5)
 
-| Tema | Documento oficial | Estado |
+| Tema | Documento oficial (copia versionada) | Implementación |
 |---|---|---|
-| Diseños de registro | AEAT Desarrolladores › «Documento Diseño de registro de facturación» | No leído íntegro |
-| Huella (hash) | `Veri-Factu_especificaciones_huella_hash_registros.pdf` | No leído íntegro. Confirmado solo (FAQ): SHA-256 para todos los tipos de registro y la huella de cada registro se incluye en el siguiente |
-| Firma electrónica de registros y eventos | Sede › «Especificaciones técnicas de la firma electrónica…» | No leído. La FAQ la asocia a la modalidad NO VERI*FACTU; ⛔ confirmar en la OM si aplica a VERI*FACTU |
-| QR y servicio de cotejo | `DetalleEspecificacTecnCodigoQRfactura.pdf` | No leído |
-| Servicios web | `Veri-Factu_Descripcion_SWeb.pdf`; WSDL `SistemaFacturacion.wsdl` | No leído; endpoints **no confirmados** |
-| Esquemas XSD | `SuministroLR.xsd`, `SuministroInformacion.xsd`, `RespuestaSuministro.xsd`, `ConsultaLR.xsd`, `RespuestaConsultaLR.xsd`, `EventosSIF.xsd`, `RespuestaValRegistNoVeriFactu.xsd` | Listados; no descargados (marcados «Con certificado» en el portal) |
-| Validaciones y errores | AEAT Desarrolladores › «Validaciones y errores» | No leído |
-
-URLs en [legal-references](../compliance/legal-references.md). En Fase 5: descargar, versionar (`packages/verifactu/specs/<versión>/` con fecha y SHA-256 del fichero) y construir vectores de prueba desde los ejemplos oficiales.
+| Diseños de registro | XSD `SuministroLR.xsd` / `SuministroInformacion.xsd` 1.0; `DsRegistroVeriFactu.xlsx` | `packages/verifactu/src/record.ts` y `xml.ts`: XML en el orden del XSD, validado contra él en los tests |
+| Huella | Especificación de la huella v0.1.2 | `hash.ts`: SHA-256 en mayúsculas sobre «campo=valor&…»; los 3 ejemplos oficiales son tests |
+| Firma electrónica | OM art. 14 | No aplica: la OM (art. 3) la excluye para los sistemas VERI*FACTU |
+| QR y cotejo | Especificación del QR v0.5.0 | `qr.ts` y ficha de la factura: URL de cotejo, nivel M, 35 mm, «QR tributario:» y «VERI*FACTU» |
+| Servicios web | Descripción de los servicios web v1.0.3; `SistemaFacturacion.wsdl` | `submissionXml` y `soapEnvelope` preparados; el envío es la Fase 6 |
+| Validaciones y errores | Validaciones v1.2.2; `errores.properties` | `validateAlta`: lo que la AEAT rechazaría no se emite (destinatario sin NIF, exención sin causa…) |
+| Registro de eventos | `EventosSIF.xsd` | No aplica: solo para NO VERI*FACTU (OM arts. 3 y 9) |
 
 ## 4. VERI*FACTU vs NO VERI*FACTU
 

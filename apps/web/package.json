@@ -18,6 +18,7 @@
     "@facturalibre/fiscal-core": "workspace:*",
     "@facturalibre/security": "workspace:*",
     "@facturalibre/tenancy": "workspace:*",
+    "@facturalibre/verifactu": "workspace:*",
     "better-auth": "1.7.27",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",

@@ -1,6 +1,6 @@
 # ADR-004 — Encadenamiento por «facturación» (SIF virtual), no por tenant
 
-- **Estado:** Propuesta (24/11/2026) — pendiente de leer íntegras las especificaciones (Fase 5)
+- **Estado:** Aceptada (24/11/2026), implementada en la Fase 5 (ver [ADR-008](ADR-008-verifactu-records.md)): una facturación por contribuyente; NºInstalación = UUID de la facturación. ⛔ «Usuario del SIF SaaS» interpretado como la organización, pendiente de validación profesional.
 
 **Contexto.** La FAQ de desarrolladores de la AEAT (v1.3, apdo. 4) establece que en un SIF que gestiona varias facturaciones (distintos OEF o centros independientes del mismo OEF, incluido SaaS), cada una es un «SIF virtual» con número de instalación propio, nunca repetido para ese OEF, y encadenamiento independiente.
 

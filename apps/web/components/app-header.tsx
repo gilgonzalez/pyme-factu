@@ -12,6 +12,9 @@ export function AppHeader({ userName, organization }: { readonly userName: strin
         </Link>
         {organization}
         <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/acerca" className="underline-offset-4 hover:underline">
+            Acerca de
+          </Link>
           <span aria-label="Usuario conectado">{userName}</span>
           <SignOutButton />
         </div>

@@ -3,44 +3,30 @@
 // por contribuyente con RLS. Roles reales; datos ficticios.
 import { randomUUID } from "node:crypto";
 import type pg from "pg";
-import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { FIXTURE, testClients } from "../src/testing";
-import { draftFor, inContext, issue, type Ctx } from "./support";
+import { describe, expect, it } from "vitest";
+import { FIXTURE } from "../src/testing";
+import { CONTEXTS, draftFor, inContext, issue, roleClients, type Ctx } from "./support";
 
-const { users, tenants, taxpayers } = FIXTURE;
-const urls = inject("dbUrls");
-const clients = testClients();
-let app: pg.Client;
-let owner: pg.Client;
-
-const ana: Ctx = { user: users.ana, tenant: tenants.a.id };
-const carl: Ctx = { user: users.carl, tenant: tenants.a.id }; // solo lectura en a1, sin acceso a a2
-const bea: Ctx = { user: users.bea, tenant: tenants.b.id };
+const { tenants, taxpayers } = FIXTURE;
+const db = roleClients();
+const { ana, carl, bea } = CONTEXTS;
 
 const HASH = (char: string): string => char.repeat(64);
 let nextNumber = 1000;
 
-beforeAll(async () => {
-  app = await clients.connect(urls.app);
-  owner = await clients.connect(urls.owner);
-});
-afterAll(async () => {
-  await clients.closeAll();
-});
-
 /** La facturación del contribuyente (una por contribuyente), creándola la primera vez, como propietario. */
 async function billingSystem(tenantId: string, taxpayerId: string): Promise<string> {
-  const existing = await owner.query<{ id: string }>("SELECT id FROM billing_systems WHERE taxpayer_id = $1", [taxpayerId]);
+  const existing = await db.owner().query<{ id: string }>("SELECT id FROM billing_systems WHERE taxpayer_id = $1", [taxpayerId]);
   if (existing.rows[0] !== undefined) return existing.rows[0].id;
-  const created = await owner.query<{ id: string }>("INSERT INTO billing_systems (tenant_id, taxpayer_id) VALUES ($1, $2) RETURNING id", [tenantId, taxpayerId]);
+  const created = await db.owner().query<{ id: string }>("INSERT INTO billing_systems (tenant_id, taxpayer_id) VALUES ($1, $2) RETURNING id", [tenantId, taxpayerId]);
   return created.rows[0]?.id ?? "";
 }
 
 /** Factura emitida del contribuyente, lista para registrar. */
 async function issuedInvoice(tenantId: string, taxpayerId: string): Promise<string> {
-  const { invoice } = await draftFor(owner, tenantId, taxpayerId);
+  const { invoice } = await draftFor(db.owner(), tenantId, taxpayerId);
   nextNumber += 1;
-  await issue(owner, invoice, nextNumber);
+  await issue(db.owner(), invoice, nextNumber);
   return invoice;
 }
 
@@ -66,7 +52,7 @@ const insertRecord = (client: pg.Client, row: RecordRow) =>
 /** Cadena de `length` registros válidos en una facturación nueva de a1; devuelve sus ids. */
 async function chainOf(length: number): Promise<{ systemId: string; ids: string[] }> {
   const systemId = await billingSystem(tenants.a.id, taxpayers.a1);
-  const last = await owner.query<{ sequence: number; hash: string }>(
+  const last = await db.owner().query<{ sequence: number; hash: string }>(
     "SELECT sequence, hash FROM billing_records WHERE billing_system_id = $1 ORDER BY sequence DESC LIMIT 1",
     [systemId],
   );
@@ -77,7 +63,7 @@ async function chainOf(length: number): Promise<{ systemId: string; ids: string[
     sequence += 1;
     const hash = randomUUID().replace(/-/g, "").toUpperCase().padEnd(64, "A");
     const invoiceId = await issuedInvoice(tenants.a.id, taxpayers.a1);
-    const inserted = await insertRecord(owner, { tenantId: tenants.a.id, taxpayerId: taxpayers.a1, systemId, invoiceId, sequence, previousHash, hash });
+    const inserted = await insertRecord(db.owner(), { tenantId: tenants.a.id, taxpayerId: taxpayers.a1, systemId, invoiceId, sequence, previousHash, hash });
     ids.push(inserted.rows[0]?.id ?? "");
     previousHash = hash;
   }
@@ -87,45 +73,45 @@ async function chainOf(length: number): Promise<{ systemId: string; ids: string[
 describe("la cadena la comprueba la base de datos al insertar", () => {
   it("cada registro debe enlazar la huella del inmediatamente anterior de su facturación", async () => {
     const { systemId } = await chainOf(2);
-    const last = await owner.query<{ sequence: number; hash: string }>("SELECT sequence, hash FROM billing_records WHERE billing_system_id = $1 ORDER BY sequence DESC LIMIT 1", [systemId]);
+    const last = await db.owner().query<{ sequence: number; hash: string }>("SELECT sequence, hash FROM billing_records WHERE billing_system_id = $1 ORDER BY sequence DESC LIMIT 1", [systemId]);
     const tip = last.rows[0];
     const invoiceId = await issuedInvoice(tenants.a.id, taxpayers.a1);
     const base = { tenantId: tenants.a.id, taxpayerId: taxpayers.a1, systemId, invoiceId, hash: HASH("C") };
     // Huella anterior equivocada.
-    await expect(insertRecord(owner, { ...base, sequence: (tip?.sequence ?? 0) + 1, previousHash: HASH("D") })).rejects.toThrow(/BILLING_CHAIN_BROKEN/);
+    await expect(insertRecord(db.owner(), { ...base, sequence: (tip?.sequence ?? 0) + 1, previousHash: HASH("D") })).rejects.toThrow(/BILLING_CHAIN_BROKEN/);
     // Salto en la secuencia.
-    await expect(insertRecord(owner, { ...base, sequence: (tip?.sequence ?? 0) + 2, previousHash: tip?.hash ?? null })).rejects.toThrow(/BILLING_CHAIN_BROKEN/);
+    await expect(insertRecord(db.owner(), { ...base, sequence: (tip?.sequence ?? 0) + 2, previousHash: tip?.hash ?? null })).rejects.toThrow(/BILLING_CHAIN_BROKEN/);
     // Correcto.
-    await expect(insertRecord(owner, { ...base, sequence: (tip?.sequence ?? 0) + 1, previousHash: tip?.hash ?? null })).resolves.toMatchObject({ rowCount: 1 });
+    await expect(insertRecord(db.owner(), { ...base, sequence: (tip?.sequence ?? 0) + 1, previousHash: tip?.hash ?? null })).resolves.toMatchObject({ rowCount: 1 });
   });
 
   it("el primer registro no lleva huella anterior y los siguientes sí (art. 7.b)", async () => {
     const systemId = await billingSystem(tenants.b.id, taxpayers.b1);
     const invoiceId = await issuedInvoice(tenants.b.id, taxpayers.b1);
     const base = { tenantId: tenants.b.id, taxpayerId: taxpayers.b1, systemId, invoiceId, hash: HASH("E") };
-    await expect(insertRecord(owner, { ...base, sequence: 1, previousHash: HASH("F") })).rejects.toThrow(/billing_records_first_has_no_previous/);
+    await expect(insertRecord(db.owner(), { ...base, sequence: 1, previousHash: HASH("F") })).rejects.toThrow(/billing_records_first_has_no_previous/);
     // Sin huella anterior más allá del primero: lo frena el trigger de la cadena (se ejecuta antes que el CHECK).
-    await expect(insertRecord(owner, { ...base, sequence: 2, previousHash: null })).rejects.toThrow(/BILLING_CHAIN_BROKEN/);
+    await expect(insertRecord(db.owner(), { ...base, sequence: 2, previousHash: null })).rejects.toThrow(/BILLING_CHAIN_BROKEN/);
   });
 
   it("solo se registran facturas emitidas, de su mismo contribuyente", async () => {
     const systemId = await billingSystem(tenants.a.id, taxpayers.a1);
-    const { invoice: draft } = await draftFor(owner, tenants.a.id, taxpayers.a1);
+    const { invoice: draft } = await draftFor(db.owner(), tenants.a.id, taxpayers.a1);
     const row = { tenantId: tenants.a.id, taxpayerId: taxpayers.a1, systemId, invoiceId: draft, sequence: 1, previousHash: null, hash: HASH("A") };
-    await expect(insertRecord(owner, row)).rejects.toThrow(/BILLING_RECORD_INVALID/);
+    await expect(insertRecord(db.owner(), row)).rejects.toThrow(/BILLING_RECORD_INVALID/);
     const foreign = await issuedInvoice(tenants.a.id, taxpayers.a2);
-    await expect(insertRecord(owner, { ...row, invoiceId: foreign })).rejects.toThrow(/foreign key|BILLING_RECORD_INVALID/);
+    await expect(insertRecord(db.owner(), { ...row, invoiceId: foreign })).rejects.toThrow(/foreign key|BILLING_RECORD_INVALID/);
   });
 
   it("formato de las huellas y campos según el tipo de registro", async () => {
     const { systemId } = await chainOf(1);
-    const tip = (await owner.query<{ sequence: number; hash: string }>("SELECT sequence, hash FROM billing_records WHERE billing_system_id = $1 ORDER BY sequence DESC LIMIT 1", [systemId])).rows[0];
+    const tip = (await db.owner().query<{ sequence: number; hash: string }>("SELECT sequence, hash FROM billing_records WHERE billing_system_id = $1 ORDER BY sequence DESC LIMIT 1", [systemId])).rows[0];
     const invoiceId = await issuedInvoice(tenants.a.id, taxpayers.a1);
     const next = { tenantId: tenants.a.id, taxpayerId: taxpayers.a1, systemId, invoiceId, sequence: (tip?.sequence ?? 0) + 1, previousHash: tip?.hash ?? null };
-    await expect(insertRecord(owner, { ...next, hash: "abc" })).rejects.toThrow(/billing_records_hash_format/);
-    await expect(insertRecord(owner, { ...next, hash: HASH("a") })).rejects.toThrow(/billing_records_hash_format/);
+    await expect(insertRecord(db.owner(), { ...next, hash: "abc" })).rejects.toThrow(/billing_records_hash_format/);
+    await expect(insertRecord(db.owner(), { ...next, hash: HASH("a") })).rejects.toThrow(/billing_records_hash_format/);
     await expect(
-      owner.query(
+      db.owner().query(
         `INSERT INTO billing_records (tenant_id, taxpayer_id, billing_system_id, sequence, kind, invoice_id, issuer_nif, invoice_number, issue_date, invoice_type, importe_total, previous_hash, hash, generated_at, xml)
          VALUES ($1, $2, $3, 1, 'ANULACION', $4, '12345678Z', 'F-1', current_date, 'F1', NULL, NULL, $5, 'x', '<x/>')`,
         [tenants.a.id, taxpayers.a1, systemId, invoiceId, HASH("B")],
@@ -138,19 +124,19 @@ describe("los registros son inalterables para todos los roles", () => {
   it("ni el propietario los modifica ni los borra; solo cambia el estado de la remisión", async () => {
     const { ids } = await chainOf(1);
     const id = ids[0] ?? "";
-    await expect(owner.query("UPDATE billing_records SET hash = $2 WHERE id = $1", [id, HASH("9")])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
-    await expect(owner.query("UPDATE billing_records SET xml = '<y/>' WHERE id = $1", [id])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
-    await expect(owner.query("DELETE FROM billing_records WHERE id = $1", [id])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
-    await expect(owner.query("UPDATE billing_records SET status = 'ACCEPTED' WHERE id = $1", [id])).resolves.toMatchObject({ rowCount: 1 });
+    await expect(db.owner().query("UPDATE billing_records SET hash = $2 WHERE id = $1", [id, HASH("9")])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
+    await expect(db.owner().query("UPDATE billing_records SET xml = '<y/>' WHERE id = $1", [id])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
+    await expect(db.owner().query("DELETE FROM billing_records WHERE id = $1", [id])).rejects.toThrow(/BILLING_RECORD_IMMUTABLE/);
+    await expect(db.owner().query("UPDATE billing_records SET status = 'ACCEPTED' WHERE id = $1", [id])).resolves.toMatchObject({ rowCount: 1 });
   });
 
   it("la aplicación no tiene permiso para modificar ni borrar registros", async () => {
     const { ids } = await chainOf(1);
-    await inContext(app, ana, async () => {
-      await expect(app.query("UPDATE billing_records SET status = 'ACCEPTED' WHERE id = $1", [ids[0]])).rejects.toThrow(/permission denied/);
+    await inContext(db.app(), ana, async () => {
+      await expect(db.app().query("UPDATE billing_records SET status = 'ACCEPTED' WHERE id = $1", [ids[0]])).rejects.toThrow(/permission denied/);
     });
-    await inContext(app, ana, async () => {
-      await expect(app.query("DELETE FROM billing_records WHERE id = $1", [ids[0]])).rejects.toThrow(/permission denied/);
+    await inContext(db.app(), ana, async () => {
+      await expect(db.app().query("DELETE FROM billing_records WHERE id = $1", [ids[0]])).rejects.toThrow(/permission denied/);
     });
   });
 });
@@ -158,47 +144,47 @@ describe("los registros son inalterables para todos los roles", () => {
 describe("RLS por contribuyente", () => {
   it("solo lectura: ve los registros pero no puede crear facturaciones ni registros", async () => {
     const { ids } = await chainOf(1);
-    await inContext(app, carl, async () => {
-      expect((await app.query("SELECT 1 FROM billing_records WHERE id = $1", [ids[0]])).rowCount).toBe(1);
-      await expect(app.query("INSERT INTO billing_systems (tenant_id, taxpayer_id) VALUES ($1, $2)", [tenants.a.id, taxpayers.a1])).rejects.toThrow(/row-level security|duplicate key/);
+    await inContext(db.app(), carl, async () => {
+      expect((await db.app().query("SELECT 1 FROM billing_records WHERE id = $1", [ids[0]])).rowCount).toBe(1);
+      await expect(db.app().query("INSERT INTO billing_systems (tenant_id, taxpayer_id) VALUES ($1, $2)", [tenants.a.id, taxpayers.a1])).rejects.toThrow(/row-level security|duplicate key/);
     });
   });
 
   it("sin acceso al contribuyente u otra organización: no ve nada", async () => {
     await chainOf(1);
-    await inContext(app, carl, async () => {
-      expect((await app.query("SELECT 1 FROM billing_records WHERE taxpayer_id = $1", [taxpayers.a2])).rowCount).toBe(0);
+    await inContext(db.app(), carl, async () => {
+      expect((await db.app().query("SELECT 1 FROM billing_records WHERE taxpayer_id = $1", [taxpayers.a2])).rowCount).toBe(0);
     });
-    await inContext(app, bea, async () => {
-      expect((await app.query("SELECT 1 FROM billing_records WHERE taxpayer_id = $1", [taxpayers.a1])).rowCount).toBe(0);
-      expect((await app.query("SELECT 1 FROM billing_systems WHERE taxpayer_id = $1", [taxpayers.a1])).rowCount).toBe(0);
+    await inContext(db.app(), bea, async () => {
+      expect((await db.app().query("SELECT 1 FROM billing_records WHERE taxpayer_id = $1", [taxpayers.a1])).rowCount).toBe(0);
+      expect((await db.app().query("SELECT 1 FROM billing_systems WHERE taxpayer_id = $1", [taxpayers.a1])).rowCount).toBe(0);
     });
   });
 });
 
 describe("otras restricciones de la Fase 5", () => {
   it("causas de exención admitidas: E1, E4 y E6 (y la antigua sin causa)", async () => {
-    const { invoice } = await draftFor(owner, tenants.a.id, taxpayers.a1);
+    const { invoice } = await draftFor(db.owner(), tenants.a.id, taxpayers.a1);
     for (const key of ["EXEMPT:E1", "EXEMPT:E4", "EXEMPT:E6", "EXEMPT"]) {
-      await expect(owner.query("UPDATE invoice_lines SET tax_key = $2 WHERE invoice_id = $1", [invoice, key])).resolves.toMatchObject({ rowCount: 1 });
+      await expect(db.owner().query("UPDATE invoice_lines SET tax_key = $2 WHERE invoice_id = $1", [invoice, key])).resolves.toMatchObject({ rowCount: 1 });
     }
     for (const key of ["EXEMPT:E2", "EXEMPT:E5"]) {
-      await expect(owner.query("UPDATE invoice_lines SET tax_key = $2 WHERE invoice_id = $1", [invoice, key])).rejects.toThrow(/invoice_lines_tax_key/);
+      await expect(db.owner().query("UPDATE invoice_lines SET tax_key = $2 WHERE invoice_id = $1", [invoice, key])).rejects.toThrow(/invoice_lines_tax_key/);
     }
   });
 
   it("una rectificativa nueva lleva su clave R1–R4; una ordinaria no", async () => {
     const original = await issuedInvoice(tenants.a.id, taxpayers.a1);
-    const { invoice } = await draftFor(owner, tenants.a.id, taxpayers.a1);
+    const { invoice } = await draftFor(db.owner(), tenants.a.id, taxpayers.a1);
     const rectify = (code: string | null) =>
-      owner.query("UPDATE invoices SET kind = 'RECTIFYING', rectifies_invoice_id = $2, rectification_reason = 'x', rectification_code = $3 WHERE id = $1", [invoice, original, code]);
+      db.owner().query("UPDATE invoices SET kind = 'RECTIFYING', rectifies_invoice_id = $2, rectification_reason = 'x', rectification_code = $3 WHERE id = $1", [invoice, original, code]);
     await expect(rectify(null)).rejects.toThrow(/invoices_rectification_code_consistent|invoices_series_kind_fkey/);
     await expect(rectify("R5")).rejects.toThrow(/invoices_rectification_code_value/);
-    await expect(owner.query("UPDATE invoices SET rectification_code = 'R1' WHERE id = $1", [invoice])).rejects.toThrow(/invoices_rectification_code_consistent/);
+    await expect(db.owner().query("UPDATE invoices SET rectification_code = 'R1' WHERE id = $1", [invoice])).rejects.toThrow(/invoices_rectification_code_consistent/);
   });
 
   it("IndicadorMultiplesOT: la organización a lleva dos contribuyentes y la b uno", async () => {
-    const multiple = async (ctx: Ctx) => inContext(app, ctx, async () => (await app.query<{ m: boolean }>("SELECT app.tenant_has_multiple_taxpayers() AS m")).rows[0]?.m);
+    const multiple = async (ctx: Ctx) => inContext(db.app(), ctx, async () => (await db.app().query<{ m: boolean }>("SELECT app.tenant_has_multiple_taxpayers() AS m")).rows[0]?.m);
     expect(await multiple(ana)).toBe(true);
     // Carl solo ve a1, pero el indicador es de la organización.
     expect(await multiple(carl)).toBe(true);

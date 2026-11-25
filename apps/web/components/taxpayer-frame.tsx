@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { TenantFrame } from "@/components/tenant-frame";
 import type { SessionUser } from "@/lib/server/session";
 
-export type TaxpayerSection = "datos" | "facturas" | "clientes" | "productos";
+export type TaxpayerSection = "datos" | "facturas" | "clientes" | "productos" | "registros";
 
 /**
  * Marco de toda pantalla que actúa sobre un contribuyente: el contribuyente activo SIEMPRE visible (R-05)
@@ -29,6 +29,7 @@ export function TaxpayerFrame({
     { id: "facturas", href: `${base}/facturas`, label: "Facturas", visible: context.permissions.has("invoices.read") },
     { id: "clientes", href: `${base}/clientes`, label: "Clientes", visible: context.permissions.has("customers.read") },
     { id: "productos", href: `${base}/productos`, label: "Productos", visible: context.permissions.has("products.read") },
+    { id: "registros", href: `${base}/registros`, label: "Registros VERI*FACTU", visible: context.permissions.has("verifactu.read") },
   ];
   return (
     <TenantFrame user={user} context={context} current="contribuyentes" activeTaxpayer={taxpayer}>

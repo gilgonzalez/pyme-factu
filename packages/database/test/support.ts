@@ -1,12 +1,41 @@
 // Ayudantes compartidos por las pruebas de facturación y VERI*FACTU a nivel de PostgreSQL. Datos ficticios.
 import { randomUUID } from "node:crypto";
 import type pg from "pg";
-import { FIXTURE } from "../src/testing";
+import { afterAll, beforeAll, inject } from "vitest";
+import { FIXTURE, testClients } from "../src/testing";
 
 export interface Ctx {
   readonly user: string;
   readonly tenant: string;
 }
+
+/** Conexiones con el rol de aplicación (RLS) y el propietario, abiertas y cerradas por los hooks del fichero. */
+export function roleClients(): { readonly app: () => pg.Client; readonly owner: () => pg.Client } {
+  const clients = testClients();
+  let app: pg.Client | undefined;
+  let owner: pg.Client | undefined;
+  beforeAll(async () => {
+    const urls = inject("dbUrls");
+    app = await clients.connect(urls.app);
+    owner = await clients.connect(urls.owner);
+  });
+  afterAll(async () => {
+    await clients.closeAll();
+  });
+  const ready = (client: pg.Client | undefined): pg.Client => {
+    if (client === undefined) throw new Error("Conexiones de prueba no inicializadas (beforeAll)");
+    return client;
+  };
+  return { app: () => ready(app), owner: () => ready(owner) };
+}
+
+const { users, tenants } = FIXTURE;
+/** OWNER de la organización a; Carl: EMPLOYEE con solo lectura en a1 y sin acceso a a2; Bea: organización b. */
+export const CONTEXTS = {
+  ana: { user: users.ana, tenant: tenants.a.id },
+  carl: { user: users.carl, tenant: tenants.a.id },
+  bea: { user: users.bea, tenant: tenants.b.id },
+} as const satisfies Record<string, Ctx>;
 
 /** Ejecuta `work` en `app` con el contexto indicado y revierte SIEMPRE. */
 export async function inContext<T>(app: pg.Client, ctx: Ctx, work: () => Promise<T>): Promise<T> {

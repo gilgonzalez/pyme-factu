@@ -13,21 +13,21 @@ import {
   type ParsedLine,
   type TaxBreakdown,
 } from "@facturalibre/fiscal-core";
+import { RECTIFICATION_TYPES } from "@facturalibre/verifactu";
 import { recordAudit } from "./audit";
 import { activeTaxpayerId } from "./catalog";
+import { formatInvoiceNumber, isoDate, lockInvoice, totalsOfStored, UUID, type Kind } from "./invoice-shared";
 import { runInTenant } from "./run-in-tenant";
 import type { TenantContext } from "./tenant-context";
+import { altaDataFor, invoiceRecords, registerAlta, type InvoiceRecords, type VerifactuSettings } from "./verifactu";
+
+export { formatInvoiceNumber } from "./invoice-shared";
 
 type Raw = Readonly<Record<string, unknown>>;
-type Kind = "STANDARD" | "RECTIFYING";
 type Invalid = { readonly ok: false; readonly reason: "INVALID"; readonly errors: Readonly<Record<string, string>> };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HUNDRED_PERCENT = 10_000n;
 const NOTES_MAX = 1000;
-
-/** "F2026" + 7 → "F2026-0007". */
-export const formatInvoiceNumber = (seriesCode: string, number: number): string => `${seriesCode}-${String(number).padStart(4, "0")}`;
 
 // ─── Series automáticas por año: F{año} ordinarias, R{año} rectificativas ──────
 
@@ -132,14 +132,6 @@ async function writeLines(tx: Tx, context: TenantContext, taxpayerId: string, in
   });
 }
 
-/** Bloquea la factura (FOR UPDATE) y devuelve su estado, o null si no existe o no se ve. */
-async function lockInvoice(tx: Tx, taxpayerId: string, invoiceId: string): Promise<{ status: string; kind: Kind } | null> {
-  if (!UUID.test(invoiceId)) return null;
-  const [row] = await tx.$queryRaw<{ status: string; kind: Kind }[]>`
-    SELECT status::text, kind::text AS kind FROM invoices WHERE id = ${invoiceId}::uuid AND taxpayer_id = ${taxpayerId}::uuid FOR UPDATE`;
-  return row ?? null;
-}
-
 // ─── Borradores ──────────────────────────────────────────────────────────────
 
 export async function createDraftInvoice(db: Database, context: TenantContext, raw: Raw): Promise<{ readonly ok: true; readonly invoiceId: string } | Invalid> {
@@ -199,21 +191,29 @@ export async function deleteDraftInvoice(db: Database, context: TenantContext, i
 
 const PARTY_FIELDS = { nif: true, legalName: true, addressLine: true, postalCode: true, city: true, province: true, countryCode: true } as const;
 
+/** La AEAT rechazaría el registro de alta: no se emite y se explica por qué (ADR-008). */
+type NotRegistrable = { readonly ok: false; readonly reason: "NOT_REGISTRABLE"; readonly errors: Readonly<Record<string, string>> };
+
 /**
  * Emite un borrador: le asigna el siguiente número de la serie del año (bloqueando la serie, así que dos
  * emisiones simultáneas nunca comparten número y una transacción fallida no deja huecos), fija la fecha de
- * expedición (hoy en España) y guarda emisor y destinatario tal como son ahora. Después es inalterable.
+ * expedición (hoy en España), guarda emisor y destinatario tal como son ahora y genera su registro de alta
+ * VERI*FACTU encadenado, todo en la misma transacción. Después es inalterable.
  */
 export async function issueInvoice(
   db: Database,
   context: TenantContext,
   invoiceId: string,
-): Promise<{ readonly ok: true; readonly number: string } | NotDraft> {
-  return withLockedDraft(db, context, "invoices.issue", invoiceId, async (tx, taxpayerId, kind): Promise<{ readonly ok: true; readonly number: string }> => {
+  settings: VerifactuSettings,
+): Promise<{ readonly ok: true; readonly number: string } | NotDraft | NotRegistrable> {
+  return withLockedDraft(db, context, "invoices.issue", invoiceId, async (tx, taxpayerId, kind): Promise<{ readonly ok: true; readonly number: string } | NotRegistrable> => {
     const today = await todayInSpain(tx);
     const series = await seriesFor(tx, context, taxpayerId, kind, today.slice(0, 4));
     const [locked] = await tx.$queryRaw<{ next_number: number }[]>`SELECT next_number FROM invoice_series WHERE id = ${series.id}::uuid FOR UPDATE`;
     const number = locked?.next_number ?? 1;
+    const formatted = formatInvoiceNumber(series.code, number);
+    const alta = await altaDataFor(tx, taxpayerId, invoiceId, formatted, today);
+    if (!alta.ok) return { ok: false, reason: "NOT_REGISTRABLE", errors: alta.errors };
     const invoice = await tx.invoice.findFirstOrThrow({ where: { id: invoiceId, taxpayerId }, select: { customer: { select: PARTY_FIELDS } } });
     const issuer = await tx.taxpayer.findFirstOrThrow({ where: { id: taxpayerId }, select: PARTY_FIELDS });
 
@@ -231,7 +231,7 @@ export async function issueInvoice(
       },
     });
     await tx.invoiceSeries.updateMany({ where: { id: series.id }, data: { nextNumber: number + 1 } });
-    const formatted = formatInvoiceNumber(series.code, number);
+    await registerAlta(tx, context, taxpayerId, invoiceId, alta.data, settings);
     await recordAudit(tx, context, "invoice.issued", { type: "invoice", id: invoiceId }, { number: formatted });
     return { ok: true, number: formatted };
   });
@@ -245,12 +245,22 @@ const REASON_MAX = 500;
  * Crea un BORRADOR de rectificativa por diferencias: mismas líneas con la cantidad cambiada de signo
  * (anulación total), que se puede ajustar antes de emitirla en la serie de rectificativas del año.
  */
+/** Motivo (1–500 caracteres) y clave de rectificación (lista L2: R1–R4), o sus errores. */
+function parseRectification(raw: { readonly reason?: unknown; readonly code?: unknown }): { ok: true; reason: string; code: string } | Invalid {
+  const reason = typeof raw.reason === "string" ? raw.reason.trim() : "";
+  const code = RECTIFICATION_TYPES.find((candidate) => candidate === raw.code);
+  const errors: Record<string, string> = {};
+  if (reason === "" || reason.length > REASON_MAX) errors["reason"] = "Explica el motivo de la rectificación.";
+  if (code === undefined) errors["code"] = "Elige el tipo de rectificación.";
+  return code === undefined || "reason" in errors ? { ok: false, reason: "INVALID", errors } : { ok: true, reason, code };
+}
+
 export async function rectifyInvoice(
   db: Database,
   context: TenantContext,
   invoiceId: string,
-  raw: { readonly reason?: unknown },
-): Promise<{ readonly ok: true; readonly invoiceId: string } | Invalid | { readonly ok: false; readonly reason: "NOT_FOUND" | "NOT_ISSUED" }> {
+  raw: { readonly reason?: unknown; readonly code?: unknown },
+): Promise<{ readonly ok: true; readonly invoiceId: string } | Invalid | { readonly ok: false; readonly reason: "NOT_FOUND" | "NOT_ISSUED" | "ANNULLED" }> {
   return runInTenant(db, context, "invoices.rectify", async (tx) => {
     const taxpayerId = activeTaxpayerId(context, "invoices.rectify");
     const original = UUID.test(invoiceId)
@@ -261,8 +271,9 @@ export async function rectifyInvoice(
       : null;
     if (original === null) return { ok: false, reason: "NOT_FOUND" };
     if (original.status !== "ISSUED") return { ok: false, reason: "NOT_ISSUED" };
-    const reason = typeof raw.reason === "string" ? raw.reason.trim() : "";
-    if (reason === "" || reason.length > REASON_MAX) return { ok: false, reason: "INVALID", errors: { reason: "Explica el motivo de la rectificación." } };
+    if ((await invoiceRecords(tx, taxpayerId, invoiceId)).anulacion !== null) return { ok: false, reason: "ANNULLED" };
+    const parsed = parseRectification(raw);
+    if (!parsed.ok) return parsed;
 
     const input: DraftInput = {
       customer: { id: original.customerId, equivalenceSurcharge: original.equivalenceSurcharge },
@@ -273,7 +284,7 @@ export async function rectifyInvoice(
         quantity: -line.quantity,
         unitPrice: line.unitPrice,
         discountPercent: BigInt(line.discountPercent),
-        tax: parseTaxCategory(line.taxKey) ?? { kind: "EXEMPT" },
+        tax: parseTaxCategory(line.taxKey) ?? { kind: "EXEMPT", cause: null },
       })),
     };
     const series = await seriesFor(tx, context, taxpayerId, "RECTIFYING", (await todayInSpain(tx)).slice(0, 4));
@@ -287,7 +298,8 @@ export async function rectifyInvoice(
           seriesId: series.id,
           kind: "RECTIFYING",
           rectifiesInvoiceId: invoiceId,
-          rectificationReason: reason,
+          rectificationReason: parsed.reason,
+          rectificationCode: parsed.code,
           createdByUserId: context.user.id,
           ...invoiceAmounts(input),
         },
@@ -301,7 +313,7 @@ export async function rectifyInvoice(
 
 // ─── Consulta ────────────────────────────────────────────────────────────────
 
-const dateText = (date: Date | null): string | null => (date === null ? null : date.toISOString().slice(0, 10));
+const dateText = (date: Date | null): string | null => (date === null ? null : isoDate(date));
 
 export interface InvoiceSummary {
   readonly id: string;
@@ -369,8 +381,11 @@ export interface InvoiceDetail extends InvoiceSummary {
   readonly rectifiesInvoiceId: string | null;
   readonly rectifiesNumber: string | null;
   readonly rectificationReason: string | null;
+  readonly rectificationCode: string | null;
   readonly notes: string | null;
   readonly lines: readonly InvoiceLineView[];
+  /** Registros VERI*FACTU de la factura (alta al emitir; anulación si se anuló). */
+  readonly verifactu: InvoiceRecords;
 }
 
 async function numberOf(tx: Tx, taxpayerId: string, invoiceId: string | null): Promise<string | null> {
@@ -389,11 +404,7 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
     });
     if (row === null) return null;
     const lines = row.lines.map((line) => ({ ...line, discountPercent: BigInt(line.discountPercent) }));
-    const breakdown = calculateInvoice({
-      lines: lines.map((line) => ({ ...line, tax: parseTaxCategory(line.taxKey) ?? { kind: "EXEMPT" } })),
-      equivalenceSurcharge: row.equivalenceSurcharge,
-      withholdingPercent: BigInt(row.withholdingPercent),
-    }).breakdown;
+    const breakdown = totalsOfStored(row.lines, row.equivalenceSurcharge, row.withholdingPercent).breakdown;
     return {
       ...summaryOf(row),
       customerId: row.customerId,
@@ -409,6 +420,7 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
       rectifiesInvoiceId: row.rectifiesInvoiceId,
       rectifiesNumber: await numberOf(tx, taxpayerId, row.rectifiesInvoiceId),
       rectificationReason: row.rectificationReason,
+      rectificationCode: row.rectificationCode,
       notes: row.notes,
       lines: lines.map(({ position, description, quantity, unitPrice, discountPercent, taxKey, lineBase }) => ({
         position,
@@ -419,6 +431,7 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
         taxKey,
         lineBase,
       })),
+      verifactu: await invoiceRecords(tx, taxpayerId, invoiceId),
     };
   });
 }

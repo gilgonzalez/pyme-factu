@@ -1,17 +1,19 @@
 import { formatAmount, formatDecimal, SCALE } from "@facturalibre/fiscal-core";
-import { getInvoice, type InvoiceDetail } from "@facturalibre/tenancy";
+import { getInvoice, type BillingRecordView, type InvoiceDetail } from "@facturalibre/tenancy";
+import { qrSvg, qrUrl } from "@facturalibre/verifactu";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FormAlert, streamedPage } from "@/components/form";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { buttonVariants } from "@/components/ui/button";
-import { taxLabel } from "@/lib/invoicing";
+import { rectificationLabel, taxLabel } from "@/lib/invoicing";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
-import { deleteDraftAction, issueAction, rectifyAction } from "../actions";
+import { qrEnvironment } from "@/lib/server/verifactu";
+import { annulAction, deleteDraftAction, issueAction, rectifyAction } from "../actions";
 import { invoicesPath } from "../editor-data";
-import { DeleteDraftForm, IssueForm, RectifyForm } from "./invoice-actions";
+import { AnnulForm, DeleteDraftForm, IssueForm, RectifyForm } from "./invoice-actions";
 
 export const metadata: Metadata = { title: "Factura" };
 
@@ -122,9 +124,71 @@ function Totals({ invoice }: { readonly invoice: InvoiceDetail }) {
   );
 }
 
+const STATUS_TEXT: Readonly<Record<BillingRecordView["status"], string>> = {
+  PENDING: "Pendiente de remitir a la AEAT",
+  ACCEPTED: "Aceptado por la AEAT",
+  ACCEPTED_WITH_ERRORS: "Aceptado por la AEAT con errores: hay que revisarlo",
+  REJECTED: "Rechazado por la AEAT: hay que revisarlo",
+};
+
+/**
+ * QR tributario (OM HAC/1177/2024, arts. 20 y 21; especificación del QR v0.5.0, apartado 3): al principio de la
+ * factura, centrado, precedido de «QR tributario:» y seguido de «VERI*FACTU»; entre 30 y 40 mm y con margen
+ * blanco de al menos 2 mm (6 mm recomendados). Imagen con texto alternativo, sin HTML inyectado.
+ */
+async function TaxQr({ record }: { readonly record: BillingRecordView }) {
+  const url = qrUrl(qrEnvironment(), { issuerNif: record.issuerNif, number: record.invoiceNumber, issueDate: record.issueDate }, record.importeTotal ?? "");
+  const svg = await qrSvg(url);
+  return (
+    <section aria-label="QR tributario" className="mx-auto grid justify-items-center gap-1 text-center text-base font-medium">
+      <p>QR tributario:</p>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="bg-white" style={{ padding: "6mm" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- SVG generado en el servidor como data URI */}
+        <img
+          src={`data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`}
+          alt={`Código QR tributario de la factura ${record.invoiceNumber}: abre su cotejo en la sede electrónica de la AEAT`}
+          style={{ width: "35mm", height: "35mm" }}
+        />
+      </a>
+      <p>VERI*FACTU</p>
+    </section>
+  );
+}
+
+function RecordInfo({ title, record }: { readonly title: string; readonly record: BillingRecordView }) {
+  return (
+    <div className="grid gap-0.5">
+      <h3 className="font-medium">{title}</h3>
+      <p>
+        Nº {record.sequence} de la cadena · generado {record.generatedAt} · {STATUS_TEXT[record.status]}
+      </p>
+      <p className="text-muted-foreground">
+        Huella: <code className="break-all">{record.hash}</code>
+      </p>
+    </div>
+  );
+}
+
+function VerifactuInfo({ invoice }: { readonly invoice: InvoiceDetail }) {
+  const { alta, anulacion } = invoice.verifactu;
+  return (
+    <section aria-labelledby="verifactu" className="grid gap-2 rounded-xl border p-4 text-sm">
+      <h2 id="verifactu" className="font-medium">
+        Registro VERI*FACTU
+      </h2>
+      {alta === null ? (
+        <p className="text-muted-foreground">Esta factura se emitió antes de activar VERI*FACTU en FacturaLibre: no tiene registro de facturación.</p>
+      ) : (
+        <RecordInfo title="Registro de alta" record={alta} />
+      )}
+      {anulacion === null ? null : <RecordInfo title="Registro de anulación" record={anulacion} />}
+    </section>
+  );
+}
+
 async function Invoice({ params, searchParams }: { readonly params: Props["params"]; readonly searchParams: Props["searchParams"] }) {
   const { organizacion, contribuyente, factura } = await params;
-  const { emitida } = await searchParams;
+  const { emitida, anulada } = await searchParams;
   const path = `${invoicesPath(organizacion, contribuyente)}/${factura}`;
   const { user, context, taxpayer } = await requireTaxpayer(organizacion, contribuyente, path);
   const invoice = await getInvoice(getDatabase(), context, factura);
@@ -134,6 +198,8 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
   const draft = invoice.status === "DRAFT";
   const issuer = partyFrom(invoice.issuerSnapshot) ?? { legalName: taxpayer.legalName, nif: taxpayer.nif, address: "" };
   const recipient = partyFrom(invoice.customerSnapshot) ?? { legalName: invoice.customerName, nif: null, address: "" };
+  const { alta, anulacion } = invoice.verifactu;
+  const canAnnul = can("invoices.rectify") && alta !== null && anulacion === null;
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
@@ -150,6 +216,14 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
         </p>
       </div>
 
+      {alta === null || anulacion !== null ? null : <TaxQr record={alta} />}
+
+      {anulacion === null ? null : (
+        <FormAlert tone="error">
+          <strong>Factura anulada</strong>{anulada === undefined ? "" : " ahora"}: se expidió por error y tiene registro de anulación VERI*FACTU.
+        </FormAlert>
+      )}
+
       {!draft && emitida === invoice.number ? (
         <FormAlert tone="success">
           Factura <strong>{invoice.number}</strong> emitida. Ya no se puede modificar.
@@ -158,7 +232,8 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
 
       {invoice.kind === "RECTIFYING" ? (
         <FormAlert tone="success">
-          Rectifica la factura <strong>{invoice.rectifiesNumber ?? ""}</strong>. Motivo: {invoice.rectificationReason ?? ""}
+          Rectifica la factura <strong>{invoice.rectifiesNumber ?? ""}</strong> ({rectificationLabel(invoice.rectificationCode)}). Motivo:{" "}
+          {invoice.rectificationReason ?? ""}
         </FormAlert>
       ) : null}
 
@@ -169,11 +244,7 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
       <Lines invoice={invoice} />
       <Totals invoice={invoice} />
       {invoice.notes === null ? null : <p className="text-sm">Observaciones: {invoice.notes}</p>}
-      {draft ? null : (
-        <p className="text-sm text-muted-foreground">
-          Esta factura todavía no genera el registro de facturación VERI*FACTU ni el código QR: llegarán en una fase posterior.
-        </p>
-      )}
+      {draft ? null : <VerifactuInfo invoice={invoice} />}
 
       {draft ? (
         <section aria-labelledby="acciones" className="grid gap-4 rounded-xl border p-4">
@@ -194,7 +265,7 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
             <p className="text-sm text-muted-foreground">Tu rol puede preparar borradores; emitirlos corresponde a un contable o administrador.</p>
           )}
         </section>
-      ) : can("invoices.rectify") ? (
+      ) : can("invoices.rectify") && anulacion === null ? (
         <section aria-labelledby="rectificar" className="grid gap-3 rounded-xl border p-4">
           <h2 id="rectificar" className="font-medium">
             ¿Hay un error?
@@ -203,6 +274,18 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
             Una factura emitida no se modifica: se corrige con una factura rectificativa, que se numera en su propia serie.
           </p>
           <RectifyForm action={rectifyAction.bind(null, slug, taxpayer.id, invoice.id)} />
+        </section>
+      ) : null}
+
+      {canAnnul ? (
+        <section aria-labelledby="anular" className="grid gap-3 rounded-xl border border-destructive/40 p-4">
+          <h2 id="anular" className="font-medium">
+            ¿Se expidió por error?
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Solo si no hubo ninguna operación real (por ejemplo, una factura duplicada). Si la operación existió y algo está mal, rectifícala.
+          </p>
+          <AnnulForm action={annulAction.bind(null, slug, taxpayer.id, invoice.id)} />
         </section>
       ) : null}
     </TaxpayerFrame>

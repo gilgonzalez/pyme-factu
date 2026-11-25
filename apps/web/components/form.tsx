@@ -1,7 +1,7 @@
 // Piezas de formulario accesibles: cada campo tiene etiqueta visible, el error se asocia con
 // aria-describedby y los avisos se anuncian a lectores de pantalla (role="alert" / "status").
 import Link from "next/link";
-import { Suspense, type ComponentProps, type ReactNode } from "react";
+import { Suspense, useId, type ComponentProps, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -13,7 +13,8 @@ interface FieldProps extends Omit<ComponentProps<typeof Input>, "id" | "name"> {
 }
 
 export function Field({ name, label, hint, error, ...input }: FieldProps) {
-  const id = `campo-${name}`;
+  // Único en la página aunque dos formularios tengan un campo con el mismo nombre (p. ej. «reason»).
+  const id = `campo-${name}-${useId()}`;
   const describedBy = [hint === undefined ? null : `${id}-ayuda`, error === undefined ? null : `${id}-error`].filter(Boolean).join(" ");
   return (
     <div className="grid gap-1.5">

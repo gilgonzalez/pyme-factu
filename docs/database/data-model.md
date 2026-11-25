@@ -41,7 +41,9 @@ erDiagram
 | `products` | Contribuyente | Productos y servicios guardados: precio sin IVA (diezmilésimas) y tipo de IVA (CHECK de tipos admitidos). |
 | `invoice_series` | Contribuyente | Series por año y tipo (`F{año}` ordinarias, `R{año}` rectificativas); `next_number` solo avanza al emitir. Sin DELETE. |
 | `invoices` | Contribuyente | Borrador (sin número) o emitida (número, fecha, instantáneas de emisor y destinatario). Importes en céntimos calculados por fiscal-core. Inalterable una vez emitida (trigger). FKs compuestas por contribuyente a cliente, serie (y tipo de serie) y factura rectificada. |
-| `invoice_lines` | Contribuyente | Líneas con cantidad (3 dec.), precio (4 dec.), descuento y tipo de IVA; base calculada por fiscal-core. Inalterables si la factura está emitida. |
+| `invoice_lines` | Contribuyente | Líneas con cantidad (3 dec.), precio (4 dec.), descuento y tipo de IVA (las exentas con su causa E1/E4/E6); base calculada por fiscal-core. Inalterables si la factura está emitida. |
+| `billing_systems` | Contribuyente | «Facturación» VERI*FACTU (SIF virtual): una por contribuyente; su `id` es el NumeroInstalacion. `last_sequence` = último registro de su cadena (se bloquea con `FOR UPDATE` al añadir). |
+| `billing_records` | Contribuyente | Registros de alta y anulación encadenados: secuencia, huella, huella anterior, FechaHoraHusoGenRegistro exacta, campos de la huella y XML exacto del registro. Un trigger comprueba el enlace con el anterior al insertar y otro los hace inalterables (solo cambia el estado de la remisión). Ver [ADR-008](../decisions/ADR-008-verifactu-records.md). |
 
 Identificadores: `uuid` generados por `uuidv7()` de PostgreSQL 18. Fechas: `timestamptz(6)`.
 

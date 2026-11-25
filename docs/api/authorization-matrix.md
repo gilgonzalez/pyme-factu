@@ -27,6 +27,8 @@ Toda operación sobre datos de un tenant se ejecuta con `runInTenant(db, ctx, <p
 | Facturas: listar y ver | Server Component | Sesión + acceso al contribuyente | `invoices.read` | ✅ `invoices.test.ts`, E2E |
 | Crear / editar / borrar borrador | Server Action | Sesión + acceso FULL | `invoices.draft` (EMPLOYEE incluido) | ✅ `invoices.test.ts`, E2E |
 | Emitir factura (número correlativo; inalterable después) | Server Action | Sesión + acceso FULL + confirmación explícita | `invoices.issue` (no EMPLOYEE) | ✅ `invoices.test.ts`, E2E |
-| Preparar rectificativa (borrador por diferencias, serie propia) | Server Action | Sesión + acceso FULL + motivo | `invoices.rectify` | ✅ `invoices.test.ts`, E2E |
+| Preparar rectificativa (borrador por diferencias, serie propia) | Server Action | Sesión + acceso FULL + motivo + tipo R1–R4 | `invoices.rectify` | ✅ `invoices.test.ts`, `verifactu.test.ts`, E2E |
+| Anular factura expedida por error (registro de anulación VERI*FACTU) | Server Action | Sesión + acceso FULL + motivo + confirmación | `invoices.rectify` (no EMPLOYEE) | ✅ `tenancy/test/verifactu.test.ts`, E2E |
+| Ver la cadena de registros VERI*FACTU y su comprobación | Página | Sesión + acceso al contribuyente | `verifactu.read` | ✅ `tenancy/test/verifactu.test.ts`, E2E |
 
 Matriz rol → permiso: [roles-and-permissions](../tenancy/roles-and-permissions.md).

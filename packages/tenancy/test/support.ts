@@ -5,9 +5,14 @@ import type {} from "@facturalibre/database/testing";
 import type { Role } from "@facturalibre/security";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, inject } from "vitest";
-import { acceptInvitation, createOrganization, inviteMember, resolveTenantContext, type TenantContext } from "../src";
+import { acceptInvitation, createCustomer, createDraftInvoice, createOrganization, createTaxpayer, inviteMember, resolveTenantContext, type TenantContext } from "../src";
 
 export const unique = (): string => randomUUID().slice(0, 8);
+
+/** Identidad del sistema informático en las pruebas (productor ficticio). */
+export const VERIFACTU = {
+  software: { producerName: "Productor Ficticio SL", producerNif: "B12345674", name: "FacturaLibre", id: "FL", version: "0.5.0-test" },
+} as const;
 
 export interface Member {
   readonly id: string;
@@ -88,4 +93,45 @@ export function testWorld(): World {
     },
   };
   return world;
+}
+
+// ─── Facturación ─────────────────────────────────────────────────────────────
+
+export interface Billing {
+  readonly team: Team;
+  readonly taxpayerId: string;
+  readonly customerId: string;
+  readonly ctx: () => Promise<TenantContext>;
+}
+
+/** Organización + contribuyente + cliente, listos para facturar como OWNER. */
+export async function billingFor(world: World, customer: Record<string, unknown> = { legalName: "Cliente Ficticio SL", nif: "B12345674" }): Promise<Billing> {
+  const team = await world.newTeam();
+  const taxpayer = await createTaxpayer(world.db, await team.ownerCtx(), { nif: "12345678Z", legalName: "Ana Ficticia Pérez", city: "Madrid" });
+  if (!taxpayer.ok) throw new Error(taxpayer.reason);
+  const ctx = () => team.ownerCtx(taxpayer.taxpayer.id);
+  const created = await createCustomer(world.db, await ctx(), customer);
+  if (!created.ok) throw new Error(created.reason);
+  return { team, taxpayerId: taxpayer.taxpayer.id, customerId: created.customer.id, ctx };
+}
+
+export const LINE = { description: "Reparación ficticia", quantity: "2", unitPrice: "50", discountPercent: "", tax: "VAT:2100" };
+
+export async function draftInvoice(world: World, b: Billing, extra: Record<string, unknown> = {}): Promise<string> {
+  const result = await createDraftInvoice(world.db, await b.ctx(), { customerId: b.customerId, lines: [LINE], ...extra });
+  if (!result.ok) throw new Error(JSON.stringify(result));
+  return result.invoiceId;
+}
+
+/** Año en curso en España (las series se numeran por año: F2026, R2026…). */
+export const YEAR = new Date().toLocaleString("en-CA", { timeZone: "Europe/Madrid", year: "numeric" });
+
+/** Mundo de pruebas de facturación: registra los hooks de conexión y da atajos para preparar datos. */
+export function invoicingWorld(): {
+  readonly world: World;
+  readonly billing: (customer?: Record<string, unknown>) => Promise<Billing>;
+  readonly draft: (b: Billing, extra?: Record<string, unknown>) => Promise<string>;
+} {
+  const world = testWorld();
+  return { world, billing: (customer) => billingFor(world, customer), draft: (b, extra = {}) => draftInvoice(world, b, extra) };
 }

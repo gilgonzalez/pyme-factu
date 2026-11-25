@@ -6,7 +6,6 @@ import {
   createCustomer,
   createDraftInvoice,
   createProduct,
-  createTaxpayer,
   deleteDraftInvoice,
   getInvoice,
   issueInvoice,
@@ -16,38 +15,10 @@ import {
   rectifyInvoice,
   setTaxpayerAccess,
   updateDraftInvoice,
-  type TenantContext,
 } from "../src";
-import { testWorld, type Team } from "./support";
+import { invoicingWorld, LINE, VERIFACTU, YEAR } from "./support";
 
-const world = testWorld();
-const YEAR = new Date().toLocaleString("en-CA", { timeZone: "Europe/Madrid", year: "numeric" });
-
-interface Billing {
-  readonly team: Team;
-  readonly taxpayerId: string;
-  readonly customerId: string;
-  readonly ctx: () => Promise<TenantContext>;
-}
-
-/** Organización + contribuyente + cliente, listos para facturar como OWNER. */
-async function billing(customer: Record<string, unknown> = { legalName: "Cliente Ficticio SL", nif: "B12345674" }): Promise<Billing> {
-  const team = await world.newTeam();
-  const taxpayer = await createTaxpayer(world.db, await team.ownerCtx(), { nif: "12345678Z", legalName: "Ana Ficticia Pérez", city: "Madrid" });
-  if (!taxpayer.ok) throw new Error(taxpayer.reason);
-  const ctx = () => team.ownerCtx(taxpayer.taxpayer.id);
-  const created = await createCustomer(world.db, await ctx(), customer);
-  if (!created.ok) throw new Error(created.reason);
-  return { team, taxpayerId: taxpayer.taxpayer.id, customerId: created.customer.id, ctx };
-}
-
-const LINE = { description: "Reparación ficticia", quantity: "2", unitPrice: "50", discountPercent: "", tax: "VAT:2100" };
-
-async function draft(b: Billing, extra: Record<string, unknown> = {}): Promise<string> {
-  const result = await createDraftInvoice(world.db, await b.ctx(), { customerId: b.customerId, lines: [LINE], ...extra });
-  if (!result.ok) throw new Error(JSON.stringify(result));
-  return result.invoiceId;
-}
+const { world, billing, draft } = invoicingWorld();
 
 describe("clientes y productos", () => {
   it("se dan de alta por contribuyente, con NIF opcional pero válido", async () => {
@@ -122,8 +93,8 @@ describe("borradores", () => {
 describe("emisión y numeración", () => {
   it("numera de forma correlativa en la serie del año y fija emisor y destinatario", async () => {
     const b = await billing();
-    const first = await issueInvoice(world.db, await b.ctx(), await draft(b));
-    const second = await issueInvoice(world.db, await b.ctx(), await draft(b));
+    const first = await issueInvoice(world.db, await b.ctx(), await draft(b), VERIFACTU);
+    const second = await issueInvoice(world.db, await b.ctx(), await draft(b), VERIFACTU);
     expect(first).toEqual({ ok: true, number: `F${YEAR}-0001` });
     expect(second).toEqual({ ok: true, number: `F${YEAR}-0002` });
 
@@ -138,7 +109,7 @@ describe("emisión y numeración", () => {
   it("emitir a la vez varios borradores nunca repite número", async () => {
     const b = await billing();
     const ids = await Promise.all([draft(b), draft(b), draft(b)]);
-    const results = await Promise.all(ids.map(async (id) => issueInvoice(world.db, await b.ctx(), id)));
+    const results = await Promise.all(ids.map(async (id) => issueInvoice(world.db, await b.ctx(), id, VERIFACTU)));
     const numbers = results.map((result) => (result.ok ? result.number : result.reason)).sort();
     expect(numbers).toEqual([`F${YEAR}-0001`, `F${YEAR}-0002`, `F${YEAR}-0003`]);
   });
@@ -146,11 +117,11 @@ describe("emisión y numeración", () => {
   it("una factura emitida no se edita, no se borra ni se vuelve a emitir", async () => {
     const b = await billing();
     const id = await draft(b);
-    await issueInvoice(world.db, await b.ctx(), id);
+    await issueInvoice(world.db, await b.ctx(), id, VERIFACTU);
     const ctx = await b.ctx();
     expect(await updateDraftInvoice(world.db, ctx, id, { customerId: b.customerId, lines: [LINE] })).toEqual({ ok: false, reason: "NOT_DRAFT" });
     expect(await deleteDraftInvoice(world.db, ctx, id)).toEqual({ ok: false, reason: "NOT_DRAFT" });
-    expect(await issueInvoice(world.db, ctx, id)).toEqual({ ok: false, reason: "NOT_DRAFT" });
+    expect(await issueInvoice(world.db, ctx, id, VERIFACTU)).toEqual({ ok: false, reason: "NOT_DRAFT" });
   });
 
   it("un EMPLOYEE prepara borradores pero no emite; con solo lectura no prepara nada", async () => {
@@ -160,7 +131,7 @@ describe("emisión y numeración", () => {
     const result = await createDraftInvoice(world.db, employeeCtx, { customerId: b.customerId, lines: [LINE] });
     expect(result).toMatchObject({ ok: true });
     if (!result.ok) return;
-    await expect(issueInvoice(world.db, employeeCtx, result.invoiceId)).rejects.toBeInstanceOf(AuthorizationError);
+    await expect(issueInvoice(world.db, employeeCtx, result.invoiceId, VERIFACTU)).rejects.toBeInstanceOf(AuthorizationError);
 
     const viewer = await b.team.add("ACCOUNTANT", "ASSIGNED_TAXPAYERS");
     await setTaxpayerAccess(world.db, await b.team.ownerCtx(), { taxpayerId: b.taxpayerId, membershipId: viewer.membershipId, access: "READ_ONLY" });
@@ -174,9 +145,9 @@ describe("rectificativas", () => {
   it("rectificar crea un borrador por diferencias en la serie de rectificativas, que se numera aparte", async () => {
     const b = await billing();
     const original = await draft(b);
-    await issueInvoice(world.db, await b.ctx(), original);
+    await issueInvoice(world.db, await b.ctx(), original, VERIFACTU);
 
-    const rectified = await rectifyInvoice(world.db, await b.ctx(), original, { reason: "Importe facturado por error" });
+    const rectified = await rectifyInvoice(world.db, await b.ctx(), original, { reason: "Importe facturado por error", code: "R1" });
     expect(rectified).toMatchObject({ ok: true });
     if (!rectified.ok) return;
     const correction = await getInvoice(world.db, await b.ctx(), rectified.invoiceId);
@@ -189,15 +160,15 @@ describe("rectificativas", () => {
       taxableBase: -10000n,
       total: -12100n,
     });
-    expect(await issueInvoice(world.db, await b.ctx(), rectified.invoiceId)).toEqual({ ok: true, number: `R${YEAR}-0001` });
+    expect(await issueInvoice(world.db, await b.ctx(), rectified.invoiceId, VERIFACTU)).toEqual({ ok: true, number: `R${YEAR}-0001` });
   });
 
   it("solo se rectifican facturas emitidas y con un motivo", async () => {
     const b = await billing();
     const id = await draft(b);
-    expect(await rectifyInvoice(world.db, await b.ctx(), id, { reason: "x" })).toEqual({ ok: false, reason: "NOT_ISSUED" });
-    await issueInvoice(world.db, await b.ctx(), id);
-    expect(await rectifyInvoice(world.db, await b.ctx(), id, { reason: "  " })).toEqual({
+    expect(await rectifyInvoice(world.db, await b.ctx(), id, { reason: "x", code: "R1" })).toEqual({ ok: false, reason: "NOT_ISSUED" });
+    await issueInvoice(world.db, await b.ctx(), id, VERIFACTU);
+    expect(await rectifyInvoice(world.db, await b.ctx(), id, { reason: "  ", code: "R1" })).toEqual({
       ok: false,
       reason: "INVALID",
       errors: { reason: "Explica el motivo de la rectificación." },
