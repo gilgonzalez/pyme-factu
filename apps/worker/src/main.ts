@@ -7,7 +7,7 @@ import { runSubmissionCycle, transportResolver } from "./submitter";
 
 const db = createDatabaseClient(requireEnv("WORKER_DATABASE_URL"), { maxConnections: 5 });
 const environment = process.env["FACTURALIBRE_ENV"];
-const kekValue = process.env["CERTIFICATE_KEK"]?.trim();
+const kekValue = environment === "production" ? requireEnv("CERTIFICATE_KEK").trim() : process.env["CERTIFICATE_KEK"]?.trim();
 // Si se configura, debe ser válida: mejor no arrancar que fallar en cada envío.
 const kek = kekValue === undefined || kekValue === "" ? null : parseKek(kekValue);
 const resolveTransport = transportResolver(db, environment, kek, simulatorTransport(createSimulator()));
@@ -18,7 +18,8 @@ const log = (level: "info" | "error", msg: string, extra: Record<string, unknown
 };
 
 const health = await startHealthServer({
-  port: Number(process.env["WORKER_HEALTH_PORT"] ?? "8081"),
+  // PORT: el que asignan plataformas como Railway, donde se comprueba el health check.
+  port: Number(process.env["WORKER_HEALTH_PORT"] ?? process.env["PORT"] ?? "8081"),
   host: process.env["WORKER_HEALTH_HOST"] ?? "0.0.0.0",
   isDatabaseReachable: () => isDatabaseReachable(db),
 });

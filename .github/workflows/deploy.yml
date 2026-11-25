@@ -1,0 +1,66 @@
+name: Despliegue (Railway)
+
+# Tras un CI correcto en main (o a mano): primero las migraciones, con el rol propietario, y después web y worker.
+# La URL del propietario solo existe aquí (secreto de GitHub); los servicios de Railway nunca la reciben.
+# Ver docs/deployment/railway.md.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    # Solo pushes a main (no pull requests, aunque vengan de una rama llamada main en un fork).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Entorno de GitHub con los secretos de producción (y, si se quiere, aprobación manual).
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Crea/actualiza los roles de ejecución con estas contraseñas (deben coincidir con las de Railway)
+      # y aplica las migraciones pendientes.
+      - run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
+          AUTH_DB_PASSWORD: ${{ secrets.AUTH_DB_PASSWORD }}
+          WORKER_DB_PASSWORD: ${{ secrets.WORKER_DB_PASSWORD }}
+
+  deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    strategy:
+      matrix:
+        service: [web, worker]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - run: npm install -g @railway/cli@4
+      # RAILWAY_TOKEN es un token de PROYECTO: fija el proyecto y el entorno de Railway.
+      - run: railway up --ci --service "${{ matrix.service }}"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

@@ -52,3 +52,5 @@ Antes del primer despliegue real:
 5. **Migraciones.** Se ejecutan como paso previo y separado (servicio `migrate`, con el rol propietario).
 
 Con `FACTURALIBRE_ENV=production` **el worker remite a la AEAT real**: ese valor solo debe existir en producción.
+
+Para desplegar en Railway, ver [railway.md](railway.md).
