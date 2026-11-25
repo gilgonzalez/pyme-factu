@@ -25,6 +25,10 @@ export async function ensureDatabaseRoles(adminUrl: string, passwords: RolePassw
   const client = new pg.Client({ connectionString: adminUrl });
   await client.connect();
   try {
+    // Los roles son globales del servidor: se serializan las ejecuciones concurrentes (p. ej. varios
+    // paquetes de pruebas contra el mismo servidor) para que no compitan al comprobar y crear cada rol.
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('facturalibre:ensure_database_roles'))");
     for (const key of Object.keys(DB_ROLES) as RuntimeRole[]) {
       const role = DB_ROLES[key];
       const exists = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [role]);
@@ -33,6 +37,10 @@ export async function ensureDatabaseRoles(adminUrl: string, passwords: RolePassw
         `${verb} ROLE ${client.escapeIdentifier(role)} WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD ${client.escapeLiteral(passwords[key])}`,
       );
     }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
   } finally {
     await client.end();
   }

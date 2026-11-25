@@ -29,8 +29,11 @@ describe("ensureDatabaseRoles", () => {
     // Reutiliza las contraseñas del arnés para no alterar el estado que usan otras suites en paralelo.
     const password = (role: "app" | "auth" | "worker"): string => decodeURIComponent(new URL(urls[role]).password);
     const passwords = { app: password("app"), auth: password("auth"), worker: password("worker") };
-    await ensureDatabaseRoles(urls.owner, passwords);
-    await ensureDatabaseRoles(urls.owner, passwords);
+    // Contra la base de datos `postgres`, como el arnés, para compartir su bloqueo (los bloqueos consultivos son por base de datos).
+    const serverUrl = new URL(urls.owner);
+    serverUrl.pathname = "/postgres";
+    await ensureDatabaseRoles(serverUrl.toString(), passwords);
+    await ensureDatabaseRoles(serverUrl.toString(), passwords);
 
     expect(await canConnect(roleConnectionUrl(urls.owner, "app", passwords.app))).toBe(true);
     expect(await canConnect(roleConnectionUrl(urls.owner, "worker", "contraseña-equivocada-123"))).toBe(false);

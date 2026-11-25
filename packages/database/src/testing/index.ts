@@ -1,7 +1,7 @@
 // Arnés de base de datos para pruebas de integración. NUNCA se importa desde código de producción.
 // Si existe TEST_DATABASE_URL (p. ej. servicio PostgreSQL en CI o Docker) se usa ese servidor;
 // si no, se arranca un PostgreSQL 18 real y efímero con embedded-postgres.
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -76,11 +76,25 @@ async function createFreshDatabase(adminUrl: string): Promise<string> {
   return url.toString();
 }
 
-async function prepare(adminServerUrl: string, stopServer: () => Promise<void>): Promise<TestDatabase> {
+/**
+ * Los roles son globales del servidor. Con un servidor compartido (TEST_DATABASE_URL), varios paquetes
+ * preparan su base de datos en paralelo: todos deben usar las mismas contraseñas o se las pisarían.
+ * Se toman del entorno (en CI, las efímeras de la ejecución) o, en su defecto, se derivan de la URL del servidor.
+ */
+function sharedServerPasswords(adminServerUrl: string): RolePasswords {
+  const pick = (role: RuntimeRole, envName: string): string => {
+    const value = process.env[envName];
+    if (value !== undefined && value.length >= 16) return value;
+    return createHash("sha256").update(`facturalibre-test:${role}:${adminServerUrl}`).digest("hex");
+  };
+  return { app: pick("app", "APP_DB_PASSWORD"), auth: pick("auth", "AUTH_DB_PASSWORD"), worker: pick("worker", "WORKER_DB_PASSWORD") };
+}
+
+async function prepare(adminServerUrl: string, passwords: RolePasswords, stopServer: () => Promise<void>): Promise<TestDatabase> {
   try {
     const owner = await createFreshDatabase(adminServerUrl);
-    const passwords: RolePasswords = { app: randomSecret(), auth: randomSecret(), worker: randomSecret() };
-    await ensureDatabaseRoles(owner, passwords);
+    // Contra la base de datos del servidor (no la recién creada) para que el bloqueo de ensureDatabaseRoles sea común.
+    await ensureDatabaseRoles(adminServerUrl, passwords);
     deployMigrations(owner);
     const urlFor = (role: RuntimeRole): string => roleConnectionUrl(owner, role, passwords[role]);
     return { urls: { owner, app: urlFor("app"), auth: urlFor("auth"), worker: urlFor("worker") }, stop: stopServer };
@@ -93,7 +107,7 @@ async function prepare(adminServerUrl: string, stopServer: () => Promise<void>):
 export async function startTestDatabase(): Promise<TestDatabase> {
   const external = process.env["TEST_DATABASE_URL"];
   if (external !== undefined && external !== "") {
-    return prepare(external, () => Promise.resolve());
+    return prepare(external, sharedServerPasswords(external), () => Promise.resolve());
   }
   const { default: EmbeddedPostgres } = await import("embedded-postgres");
   const port = await freePort();
@@ -110,5 +124,6 @@ export async function startTestDatabase(): Promise<TestDatabase> {
   });
   await server.initialise();
   await server.start();
-  return prepare(`postgres://postgres:${password}@127.0.0.1:${port}/postgres`, () => server.stop());
+  const passwords: RolePasswords = { app: randomSecret(), auth: randomSecret(), worker: randomSecret() };
+  return prepare(`postgres://postgres:${password}@127.0.0.1:${port}/postgres`, passwords, () => server.stop());
 }
