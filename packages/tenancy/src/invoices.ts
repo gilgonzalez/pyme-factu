@@ -323,7 +323,12 @@ export interface InvoiceSummary {
   readonly issueDate: string | null;
   readonly customerName: string;
   readonly total: bigint;
+  /** Tiene registro de anulación VERI*FACTU (se expidió por error). */
+  readonly annulled: boolean;
 }
+
+/** Cuenta solo los registros de anulación: con uno, la factura está anulada. */
+const ANNULMENTS = { _count: { select: { billingRecords: { where: { kind: "ANULACION" as const } } } } };
 
 type SummaryRow = {
   readonly id: string;
@@ -334,6 +339,7 @@ type SummaryRow = {
   readonly total: bigint;
   readonly series: { readonly code: string };
   readonly customer: { readonly legalName: string };
+  readonly _count: { readonly billingRecords: number };
 };
 
 const summaryOf = (row: SummaryRow): InvoiceSummary => ({
@@ -344,13 +350,14 @@ const summaryOf = (row: SummaryRow): InvoiceSummary => ({
   issueDate: dateText(row.issueDate),
   customerName: row.customer.legalName,
   total: row.total,
+  annulled: row._count.billingRecords > 0,
 });
 
 export function listInvoices(db: Database, context: TenantContext): Promise<InvoiceSummary[]> {
   return runInTenant(db, context, "invoices.read", async (tx) => {
     const rows = await tx.invoice.findMany({
       where: { taxpayerId: activeTaxpayerId(context, "invoices.read") },
-      select: { id: true, kind: true, status: true, number: true, issueDate: true, total: true, series: { select: { code: true } }, customer: { select: { legalName: true } } },
+      select: { id: true, kind: true, status: true, number: true, issueDate: true, total: true, series: { select: { code: true } }, customer: { select: { legalName: true } }, ...ANNULMENTS },
       orderBy: [{ createdAt: "desc" }],
     });
     return rows.map(summaryOf);
@@ -400,7 +407,7 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
     if (!UUID.test(invoiceId)) return null;
     const row = await tx.invoice.findFirst({
       where: { id: invoiceId, taxpayerId },
-      include: { series: { select: { code: true } }, customer: { select: { legalName: true } }, lines: { orderBy: { position: "asc" } } },
+      include: { series: { select: { code: true } }, customer: { select: { legalName: true } }, lines: { orderBy: { position: "asc" } }, ...ANNULMENTS },
     });
     if (row === null) return null;
     const lines = row.lines.map((line) => ({ ...line, discountPercent: BigInt(line.discountPercent) }));

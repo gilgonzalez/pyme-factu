@@ -9,6 +9,7 @@ import {
   getInvoice,
   issueInvoice,
   listBillingRecords,
+  listInvoices,
   rectifyInvoice,
 } from "../src";
 import { invoicingWorld, LINE, VERIFACTU, YEAR, type Billing } from "./support";
@@ -137,7 +138,10 @@ describe("anulación (factura expedida por error)", () => {
   it("encadena un registro de anulación; no se anula dos veces ni se rectifica lo anulado", async () => {
     const b = await billing();
     const id = await issued(b);
+    expect((await listInvoices(world.db, await b.ctx())).map((invoice) => invoice.annulled)).toEqual([false]);
     expect(await annulInvoice(world.db, await b.ctx(), id, { reason: "Expedida por error: no hubo venta" }, VERIFACTU)).toEqual({ ok: true });
+    // El listado la marca como anulada (sin abrirla).
+    expect((await listInvoices(world.db, await b.ctx())).map((invoice) => invoice.annulled)).toEqual([true]);
 
     const detail = await getInvoice(world.db, await b.ctx(), id);
     expect(detail?.verifactu.anulacion).toMatchObject({ sequence: 2 });
