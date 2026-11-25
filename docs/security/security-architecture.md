@@ -31,7 +31,7 @@
 | Inyección SQL | Parámetros | Prisma/pg parametrizados; identificadores dinámicos con `escapeIdentifier` |
 | XSS | Datos de clientes en la UI | Escapado de React; HTML de correos escapado (`escapeHtml`, probado); sin `dangerouslySetInnerHTML`; CSP (Fase 7, con `'unsafe-inline'` en scripts: ver arriba) |
 | CSRF | Server Actions | Comprobación de Origin (Better Auth en `/api/auth/*`, Next.js en Server Actions) + cookies `SameSite=Lax` ✅ |
-| Fuerza bruta | Login | Rate limiting persistente en PostgreSQL ✅; contraseñas ≥ 12 caracteres |
+| Fuerza bruta | Login | Rate limiting persistente en PostgreSQL ✅; contraseñas ≥ 8 caracteres (bajado de 12 a petición del usuario el 25/11/2026; NIST SP 800-63B admite 8 como mínimo) |
 | Robo de certificados | Volcado de BD | Cifrado por sobre con KEK fuera de la BD ✅ (`certificates.test.ts`: sin la KEK no se abre; una manipulación se detecta) |
 | Manipulación de auditoría | UPDATE/DELETE | Sin GRANT + trigger (incluso para el propietario) |
 | Acceso del personal de plataforma | Soporte | Sin bypass; acceso temporal autorizado y auditado |

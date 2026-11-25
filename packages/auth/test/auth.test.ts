@@ -115,9 +115,9 @@ describe("registro y verificación de email", () => {
     expect(row.rows).toEqual([{ email }]);
   });
 
-  it("rechaza contraseñas de menos de 12 caracteres", async () => {
-    const response = await post("/sign-up/email", { name: "Persona Ficticia", email: newEmail(), password: "corta-123" });
-    expect(response.status).toBe(400);
+  it("rechaza contraseñas de menos de 8 caracteres y acepta las de 8", async () => {
+    expect((await post("/sign-up/email", { name: "Persona Ficticia", email: newEmail(), password: "corta12" })).status).toBe(400);
+    expect((await post("/sign-up/email", { name: "Persona Ficticia", email: newEmail(), password: "test1234" })).status).toBe(200);
   });
 
   it("la contraseña se guarda como hash, nunca en claro", async () => {

@@ -16,7 +16,7 @@ export function authErrorMessage(code: string | undefined, status: number): stri
     case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
       return "Ya existe una cuenta con ese email. Inicia sesión o recupera tu contraseña.";
     case "PASSWORD_TOO_SHORT":
-      return "La contraseña debe tener al menos 12 caracteres.";
+      return "La contraseña debe tener al menos 8 caracteres.";
     case "PASSWORD_TOO_LONG":
       return "La contraseña no puede superar los 128 caracteres.";
     case "ACCOUNT_DEACTIVATED":

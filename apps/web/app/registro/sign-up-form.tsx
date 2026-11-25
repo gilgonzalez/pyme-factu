@@ -48,9 +48,9 @@ export function SignUpForm() {
         type="password"
         autoComplete="new-password"
         required
-        minLength={12}
+        minLength={8}
         maxLength={128}
-        hint="Mínimo 12 caracteres. Una frase fácil de recordar es más segura que una palabra corta."
+        hint="Mínimo 8 caracteres. Una frase fácil de recordar es más segura que una palabra corta."
       />
     </AuthForm>
   );
