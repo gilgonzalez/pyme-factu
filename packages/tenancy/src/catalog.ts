@@ -45,7 +45,7 @@ function parseCustomer(raw: Raw) {
 }
 
 export type CreateCustomerResult =
-  | { readonly ok: true; readonly customer: { readonly id: string; readonly legalName: string } }
+  | { readonly ok: true; readonly customer: Pick<CustomerSummary, "id" | "legalName" | "nif" | "equivalenceSurcharge"> }
   | Invalid
   | { readonly ok: false; readonly reason: "NIF_TAKEN" };
 
@@ -57,7 +57,8 @@ export async function createCustomer(db: Database, context: TenantContext, raw: 
       if (!parsed.ok) return { ok: false, reason: "INVALID", errors: parsed.errors };
       const id = randomUUID();
       await tx.customer.createMany({ data: [{ id, tenantId: context.tenant.id, taxpayerId, ...parsed.value }] });
-      return { ok: true, customer: { id, legalName: parsed.value.legalName } };
+      const { legalName, nif, equivalenceSurcharge } = parsed.value;
+      return { ok: true, customer: { id, legalName, nif, equivalenceSurcharge } };
     });
   } catch (error) {
     if (databaseErrorCode(error) === "23505") return { ok: false, reason: "NIF_TAKEN" };
@@ -101,14 +102,15 @@ function parseProduct(raw: Raw) {
   return { ok: true as const, value: { name, unitPrice: unitPrice.value, taxKey: taxCategoryKey(tax) } };
 }
 
-export async function createProduct(db: Database, context: TenantContext, raw: Raw): Promise<{ readonly ok: true; readonly productId: string } | Invalid> {
+export async function createProduct(db: Database, context: TenantContext, raw: Raw): Promise<{ readonly ok: true; readonly product: ProductSummary } | Invalid> {
   return runInTenant(db, context, "products.write", async (tx) => {
     const taxpayerId = activeTaxpayerId(context, "products.write");
     const parsed = parseProduct(raw);
     if (!parsed.ok) return { ok: false, reason: "INVALID", errors: parsed.errors };
     const id = randomUUID();
     await tx.product.createMany({ data: [{ id, tenantId: context.tenant.id, taxpayerId, ...parsed.value }] });
-    return { ok: true, productId: id };
+    const { name, unitPrice, taxKey } = parsed.value;
+    return { ok: true, product: { id, name, unitPrice, taxKey } };
   });
 }
 

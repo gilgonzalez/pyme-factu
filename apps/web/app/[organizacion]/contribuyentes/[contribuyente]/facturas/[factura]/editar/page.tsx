@@ -3,6 +3,7 @@ import { getInvoice } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { streamedPage } from "@/components/form";
+import { createCustomerFromEditorAction, createProductFromEditorAction } from "../../../catalog-actions";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
@@ -33,6 +34,8 @@ async function EditInvoice({ params }: { readonly params: Params }) {
         action={saveDraftAction.bind(null, context.tenant.slug, taxpayer.id, invoice.id)}
         customers={customers}
         products={products}
+        createCustomer={context.permissions.has("customers.write") ? createCustomerFromEditorAction.bind(null, context.tenant.slug, taxpayer.id) : undefined}
+        createProduct={context.permissions.has("products.write") ? createProductFromEditorAction.bind(null, context.tenant.slug, taxpayer.id) : undefined}
         newCustomerHref={`/${context.tenant.slug}/contribuyentes/${taxpayer.id}/clientes`}
         initial={{
           customerId: invoice.customerId,

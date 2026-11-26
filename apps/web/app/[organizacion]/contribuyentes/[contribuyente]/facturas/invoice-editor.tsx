@@ -1,14 +1,19 @@
 "use client";
-// Editor de borradores: líneas dinámicas, productos guardados con un clic y totales en vivo calculados
+// Editor de borradores: cliente y productos con buscador (y alta sin salir de la factura), líneas dinámicas y totales en vivo calculados
 // con el MISMO fiscal-core que usa el servidor (lo que se ve es exactamente lo que se guardará).
 import { calculateInvoice, formatAmount, parseDecimal, parseInvoiceLine, SCALE, type ParsedLine } from "@facturalibre/fiscal-core";
 import Link from "next/link";
 import { useId, useState, type ReactNode } from "react";
 import { ActionForm, type FormAction } from "@/components/action-form";
+import { EntityPicker } from "@/components/entity-picker";
+import { Modal } from "@/components/modal";
+import { PartyForm } from "@/components/party-form";
 import { Field, FormAlert } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { TAX_OPTIONS, taxLabel } from "@/lib/invoicing";
+import type { CreatedResult } from "../catalog-actions";
+import { ProductForm } from "../productos/product-form";
 
 export interface EditorLine {
   readonly description: string;
@@ -39,6 +44,9 @@ export interface InvoiceEditorProps {
   readonly products: readonly EditorProduct[];
   readonly initial: { readonly customerId: string; readonly withholdingPercent: string; readonly notes: string; readonly lines: readonly EditorLine[] };
   readonly newCustomerHref: string;
+  /** Alta de cliente / producto desde el buscador; ausente si el rol no puede darlos de alta. */
+  readonly createCustomer?: ((data: FormData) => Promise<CreatedResult<EditorCustomer>>) | undefined;
+  readonly createProduct?: ((data: FormData) => Promise<CreatedResult<EditorProduct>>) | undefined;
   readonly rectification?: { readonly number: string; readonly reason: string };
 }
 
@@ -55,6 +63,15 @@ function useLines(initial: readonly EditorLine[]) {
     lines,
     add(line: EditorLine) {
       setLines((current) => [...current, { ...line, key: nextKey }]);
+      setNextKey(nextKey + 1);
+    },
+    /** Añade la línea, o rellena la última si está sin empezar (la línea vacía con la que nace la factura). */
+    addOrFill(line: EditorLine) {
+      setLines((current) => {
+        const last = current.at(-1);
+        if (last !== undefined && last.description === "" && last.unitPrice === "") return [...current.slice(0, -1), { ...line, key: last.key }];
+        return [...current, { ...line, key: nextKey }];
+      });
       setNextKey(nextKey + 1);
     },
     update(key: number, patch: Partial<EditorLine>) {
@@ -115,11 +132,36 @@ function LiveTotals({
   );
 }
 
-export function InvoiceEditor({ action, customers, products, initial, newCustomerHref, rectification }: InvoiceEditorProps) {
-  const ids = { customer: useId(), product: useId(), notes: useId() };
-  const { lines, add, update, remove } = useLines(initial.lines);
+/** Lo recibido del servidor más lo dado de alta aquí (sin repetir: tras el alta, la página también lo trae). */
+const withCreated = <Item extends { readonly id: string }>(listed: readonly Item[], created: readonly Item[]): Item[] => [
+  ...listed,
+  ...created.filter((item) => !listed.some((candidate) => candidate.id === item.id)),
+];
+
+/** Convierte un alta desde el editor en la acción de un formulario: si va bien, entrega el elemento creado. */
+function creating<Item>(create: (data: FormData) => Promise<CreatedResult<Item>>, onCreated: (item: Item) => void): FormAction {
+  return async (_previous, data) => {
+    const result = await create(data);
+    if (!result.ok) return { ok: false, message: result.message, ...(result.errors === undefined ? {} : { errors: result.errors }) };
+    onCreated(result.item);
+    return null;
+  };
+}
+
+const productLine = (product: EditorProduct): EditorLine => ({ description: product.name, quantity: "1", unitPrice: product.unitPrice, discountPercent: "", tax: product.taxKey });
+
+type Creating = { readonly kind: "customer" | "product"; readonly query: string } | null;
+
+export function InvoiceEditor({ action, customers: listedCustomers, products: listedProducts, initial, newCustomerHref, createCustomer, createProduct, rectification }: InvoiceEditorProps) {
+  const ids = { notes: useId() };
+  const { lines, add, addOrFill, update, remove } = useLines(initial.lines);
   const [customerId, setCustomerId] = useState(initial.customerId);
   const [withholding, setWithholding] = useState(initial.withholdingPercent);
+  const [createdCustomers, setCreatedCustomers] = useState<EditorCustomer[]>([]);
+  const [createdProducts, setCreatedProducts] = useState<EditorProduct[]>([]);
+  const [creatingNew, setCreatingNew] = useState<Creating>(null);
+  const customers = withCreated(listedCustomers, createdCustomers);
+  const products = withCreated(listedProducts, createdProducts);
   const surcharge = customers.find((customer) => customer.id === customerId)?.equivalenceSurcharge ?? false;
 
   return (
@@ -136,39 +178,41 @@ export function InvoiceEditor({ action, customers, products, initial, newCustome
                 facturado; ajústalas si solo corriges una parte.
               </FormAlert>
             )}
-            <div className="grid gap-1.5">
-              <Label htmlFor={ids.customer}>Cliente</Label>
-              {customers.length === 0 ? (
+            <input type="hidden" name="customerId" value={customerId} />
+            {customers.length === 0 && createCustomer === undefined ? (
+              <div className="grid gap-1.5">
+                <p className="text-sm font-medium">Cliente</p>
                 <p className="text-sm">
                   Todavía no tienes clientes.{" "}
-                  <Link
-                    href={newCustomerHref}
-                    className="font-semibold text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary"
-                  >
+                  <Link href={newCustomerHref} className="font-semibold text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary">
                     Da de alta el primero
                   </Link>
                   .
                 </p>
-              ) : (
-                <select
-                  id={ids.customer}
-                  name="customerId"
-                  value={customerId}
-                  onChange={(event) => setCustomerId(event.target.value)}
-                  className={selectClass}
-                  aria-invalid={errors["customerId"] === undefined ? undefined : true}
-                >
-                  <option value="">Elige un cliente…</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.legalName}
-                      {customer.nif === null ? "" : ` (${customer.nif})`}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {errors["customerId"] === undefined ? null : <p className="text-sm text-destructive">{errors["customerId"]}</p>}
-            </div>
+                {errors["customerId"] === undefined ? null : <p className="text-sm text-destructive">{errors["customerId"]}</p>}
+              </div>
+            ) : (
+              <EntityPicker
+                label="Cliente"
+                items={customers}
+                itemKey={(customer) => customer.id}
+                itemLabel={(customer) => customer.legalName}
+                itemDetail={(customer) => customer.nif ?? ""}
+                selectedKey={customerId === "" ? null : customerId}
+                onSelect={(customer) => setCustomerId(customer.id)}
+                placeholder="Busca por nombre o NIF…"
+                noResults={customers.length === 0 ? "Todavía no tienes clientes." : "Ningún cliente coincide."}
+                error={errors["customerId"]}
+                {...(createCustomer === undefined
+                  ? {}
+                  : {
+                      create: {
+                        label: (query: string) => (query === "" ? "Nuevo cliente" : `Crear cliente «${query}»`),
+                        onCreate: (query: string) => setCreatingNew({ kind: "customer", query }),
+                      },
+                    })}
+              />
+            )}
 
             <fieldset className="grid gap-3">
               <legend className="mb-1 font-semibold">Líneas</legend>
@@ -245,26 +289,27 @@ export function InvoiceEditor({ action, customers, products, initial, newCustome
                 <Button type="button" variant="outline" onClick={() => add(EMPTY_LINE)}>
                   Añadir línea
                 </Button>
-                {products.length === 0 ? null : (
-                  <div className="grid gap-1.5">
-                    <Label htmlFor={ids.product}>Añadir un producto guardado</Label>
-                    <select
-                      id={ids.product}
-                      value=""
-                      className={selectClass}
-                      onChange={(event) => {
-                        const product = products.find((candidate) => candidate.id === event.target.value);
-                        if (product !== undefined)
-                          add({ description: product.name, quantity: "1", unitPrice: product.unitPrice, discountPercent: "", tax: product.taxKey });
-                      }}
-                    >
-                      <option value="">Elige un producto…</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} · {product.unitPrice} €
-                        </option>
-                      ))}
-                    </select>
+                {products.length === 0 && createProduct === undefined ? null : (
+                  <div className="w-full max-w-md">
+                    <EntityPicker
+                      label="Añadir producto"
+                      items={products}
+                      itemKey={(product) => product.id}
+                      itemLabel={(product) => product.name}
+                      itemDetail={(product) => `${product.unitPrice} € · ${taxLabel(product.taxKey)}`}
+                      selectedKey={null}
+                      onSelect={(product) => addOrFill(productLine(product))}
+                      placeholder="Busca un producto o servicio…"
+                      noResults={products.length === 0 ? "Todavía no tienes productos guardados." : "Ningún producto coincide."}
+                      {...(createProduct === undefined
+                        ? {}
+                        : {
+                            create: {
+                              label: (query: string) => (query === "" ? "Nuevo producto" : `Crear producto «${query}»`),
+                              onCreate: (query: string) => setCreatingNew({ kind: "product", query }),
+                            },
+                          })}
+                    />
                   </div>
                 )}
               </div>
@@ -292,6 +337,37 @@ export function InvoiceEditor({ action, customers, products, initial, newCustome
                 />
               </div>
             </div>
+
+            {creatingNew?.kind === "customer" && createCustomer !== undefined ? (
+              <Modal title="Nuevo cliente" description="Se guarda en tus clientes y queda elegido en esta factura." onClose={() => setCreatingNew(null)}>
+                <PartyForm
+                  action={creating(createCustomer, (customer) => {
+                    setCreatedCustomers((current) => [...current, customer]);
+                    setCustomerId(customer.id);
+                    setCreatingNew(null);
+                  })}
+                  label="Nuevo cliente"
+                  submitLabel="Guardar y elegir"
+                  pendingLabel="Guardando…"
+                  nif="optional"
+                  withSurcharge
+                  values={{ legalName: creatingNew.query }}
+                />
+              </Modal>
+            ) : null}
+            {creatingNew?.kind === "product" && createProduct !== undefined ? (
+              <Modal title="Nuevo producto" description="Se guarda en tus productos y se añade como línea de esta factura." onClose={() => setCreatingNew(null)}>
+                <ProductForm
+                  stacked
+                  defaultName={creatingNew.query}
+                  action={creating(createProduct, (product) => {
+                    setCreatedProducts((current) => [...current, product]);
+                    addOrFill(productLine(product));
+                    setCreatingNew(null);
+                  })}
+                />
+              </Modal>
+            ) : null}
 
             <LiveTotals lines={lines} surcharge={surcharge} withholding={withholding}>
               <Button type="submit" size="lg" disabled={pending}>

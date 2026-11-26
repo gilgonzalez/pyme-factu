@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { streamedPage } from "@/components/form";
+import { createCustomerFromEditorAction, createProductFromEditorAction } from "../../catalog-actions";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { requireTaxpayer } from "@/lib/server/session";
 import { saveDraftAction } from "../actions";
@@ -23,6 +24,8 @@ async function NewInvoice({ params }: { readonly params: PageProps<"/[organizaci
         customers={customers}
         products={products}
         initial={{ customerId: "", withholdingPercent: "", notes: "", lines: [] }}
+        createCustomer={context.permissions.has("customers.write") ? createCustomerFromEditorAction.bind(null, context.tenant.slug, taxpayer.id) : undefined}
+        createProduct={context.permissions.has("products.write") ? createProductFromEditorAction.bind(null, context.tenant.slug, taxpayer.id) : undefined}
         newCustomerHref={`/${context.tenant.slug}/contribuyentes/${taxpayer.id}/clientes`}
       />
     </TaxpayerFrame>

@@ -19,6 +19,13 @@ async function createTaxpayer(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { level: 1, name: "Ana Ficticia Pérez" })).toBeVisible();
 }
 
+/** Busca en un campo con buscador y elige la opción que coincida. */
+async function pick(page: Page, field: string, search: string, option: RegExp): Promise<void> {
+  const combobox = page.getByRole("combobox", { name: field, exact: true });
+  await combobox.fill(search);
+  await page.getByRole("listbox", { name: field }).getByRole("option", { name: option }).click();
+}
+
 test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y cadena", async ({ page }) => {
   // Recorrido largo (tres emisiones, una anulación y la cadena): más tiempo que el predeterminado de 30 s.
   test.setTimeout(120_000);
@@ -48,12 +55,12 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await expect(page.getByRole("heading", { level: 1, name: "Facturas" })).toBeVisible();
   await page.getByRole("link", { name: "Nueva factura" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Nueva factura" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Cliente", exact: true }).selectOption({ label: "Cliente Ficticio SL (B12345674)" });
+  await pick(page, "Cliente", "ficticio", /Cliente Ficticio SL/);
   const first = page.getByRole("group", { name: "Línea 1" });
   await first.getByLabel("Descripción").fill("Reparación de caldera");
   await first.getByLabel("Cantidad").fill("2");
   await first.getByLabel("Precio (€)").fill("50");
-  await page.getByLabel("Añadir un producto guardado").selectOption({ label: "Hora de trabajo · 35,5 €" });
+  await pick(page, "Añadir producto", "hora", /Hora de trabajo/);
   await expect(page.getByRole("group", { name: "Línea 2" }).getByLabel("Descripción")).toHaveValue("Hora de trabajo");
   // (100 + 35,50) × 1,21 = 163,955 → 163,96 €
   await expect(page.getByRole("region", { name: "Totales" })).toContainText("163,96 €");
@@ -134,7 +141,7 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
 
   // Una factura expedida por error se anula: registro de anulación, sin QR y sin poder rectificarla.
   await page.getByRole("link", { name: "Nueva factura" }).click();
-  await page.getByRole("combobox", { name: "Cliente", exact: true }).selectOption({ label: "Cliente Ficticio SL (B12345674)" });
+  await pick(page, "Cliente", "ficticio", /Cliente Ficticio SL/);
   const duplicate = page.getByRole("group", { name: "Línea 1" });
   await duplicate.getByLabel("Descripción").fill("Factura duplicada por error");
   await duplicate.getByLabel("Precio (€)").fill("10");
@@ -158,4 +165,57 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await expect(chain).toContainText("Alta (F1)");
   await expect(chain).toContainText("Alta (R1)");
   await expect(chain).toContainText("Anulación");
+});
+
+test("en la factura se buscan clientes y productos, y se dan de alta sin salir de ella", async ({ page }) => {
+  await signUpAndVerify(page, "Ana Ficticia", uniqueEmail("buscador"));
+  await createOrganization(page, `Buscador Ficticio ${uniqueSuffix()}`);
+  await createTaxpayer(page);
+  await page.getByRole("navigation", { name: "Secciones del contribuyente" }).getByRole("link", { name: "Borradores" }).click();
+  await page.getByRole("link", { name: "Nuevo borrador" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Nueva factura" })).toBeVisible();
+
+  // Cliente nuevo desde el buscador: la ventana trae escrito lo buscado y, al guardar, queda elegido.
+  const customer = page.getByRole("combobox", { name: "Cliente", exact: true });
+  await customer.fill("Fontanería Núñez");
+  await expect(page.getByRole("listbox", { name: "Cliente" })).toContainText("Todavía no tienes clientes.");
+  await page.getByRole("option", { name: "Crear cliente «Fontanería Núñez»" }).click();
+  const newCustomer = page.getByRole("dialog", { name: "Nuevo cliente" });
+  await expect(newCustomer.getByLabel("Nombre y apellidos o razón social")).toHaveValue("Fontanería Núñez");
+  await newCustomer.getByLabel("NIF (opcional)").fill("B12345674");
+  await newCustomer.getByRole("button", { name: "Guardar y elegir" }).click();
+  await expect(newCustomer).toBeHidden();
+  await expect(customer).toHaveValue("Fontanería Núñez");
+
+  // La búsqueda ignora tildes y mayúsculas, y también busca por NIF.
+  await customer.fill("NUNEZ fontaneria");
+  await expect(page.getByRole("option", { name: /Fontanería Núñez/ })).toBeVisible();
+  await customer.fill("b1234");
+  await expect(page.getByRole("option", { name: /Fontanería Núñez/ })).toBeVisible();
+  await customer.press("Escape");
+
+  // Producto nuevo con el teclado: rellena la línea vacía con la que empieza la factura.
+  const product = page.getByRole("combobox", { name: "Añadir producto", exact: true });
+  await product.fill("Revisión anual");
+  await product.press("ArrowDown");
+  await product.press("Enter");
+  const newProduct = page.getByRole("dialog", { name: "Nuevo producto" });
+  await expect(newProduct.getByLabel("Nombre")).toHaveValue("Revisión anual");
+  await newProduct.getByLabel("Precio sin IVA (€)").fill("80");
+  await newProduct.getByRole("button", { name: "Guardar y añadir a la factura" }).click();
+  await expect(newProduct).toBeHidden();
+  const first = page.getByRole("group", { name: "Línea 1" });
+  await expect(first.getByLabel("Descripción")).toHaveValue("Revisión anual");
+  await expect(first.getByLabel("Precio (€)")).toHaveValue("80");
+  await expect(page.getByRole("group", { name: "Línea 2" })).toHaveCount(0);
+
+  // Elegir un producto ya guardado añade otra línea.
+  await pick(page, "Añadir producto", "revision", /Revisión anual/);
+  await expect(page.getByRole("group", { name: "Línea 2" }).getByLabel("Descripción")).toHaveValue("Revisión anual");
+  // 2 × 80 × 1,21 = 193,60 €
+  await expect(page.getByRole("region", { name: "Totales" })).toContainText("193,60 €");
+
+  await page.getByRole("button", { name: "Guardar borrador" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Factura (borrador)" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Factura" })).toContainText("Fontanería Núñez");
 });

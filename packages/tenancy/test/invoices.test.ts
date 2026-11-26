@@ -25,7 +25,11 @@ describe("clientes y productos", () => {
   it("se dan de alta por contribuyente, con NIF opcional pero válido", async () => {
     const b = await billing();
     const ctx = await b.ctx();
-    expect(await createCustomer(world.db, ctx, { legalName: "Particular sin NIF" })).toMatchObject({ ok: true });
+    // El alta devuelve lo necesario para elegirlo enseguida en el editor de facturas.
+    expect(await createCustomer(world.db, ctx, { legalName: "Particular sin NIF", equivalenceSurcharge: "on" })).toEqual({
+      ok: true,
+      customer: { id: expect.any(String), legalName: "Particular sin NIF", nif: null, equivalenceSurcharge: true },
+    });
     expect(await createCustomer(world.db, ctx, { legalName: "Mal", nif: "B12345675" })).toEqual({
       ok: false,
       reason: "INVALID",
@@ -34,7 +38,10 @@ describe("clientes y productos", () => {
     expect(await createCustomer(world.db, ctx, { legalName: "Repetido", nif: "B12345674" })).toEqual({ ok: false, reason: "NIF_TAKEN" });
     expect((await listCustomers(world.db, ctx)).map((customer) => customer.legalName)).toEqual(["Cliente Ficticio SL", "Particular sin NIF"]);
 
-    expect(await createProduct(world.db, ctx, { name: "Hora de trabajo", unitPrice: "35,5", tax: "VAT:2100" })).toMatchObject({ ok: true });
+    expect(await createProduct(world.db, ctx, { name: "Hora de trabajo", unitPrice: "35,5", tax: "VAT:2100" })).toEqual({
+      ok: true,
+      product: { id: expect.any(String), name: "Hora de trabajo", unitPrice: 355_000n, taxKey: "VAT:2100" },
+    });
     expect(await createProduct(world.db, ctx, { name: "", unitPrice: "-1", tax: "X" })).toMatchObject({ ok: false, reason: "INVALID" });
     const products = await listProducts(world.db, ctx);
     expect(products.map(({ name, unitPrice, taxKey }) => ({ name, unitPrice, taxKey }))).toEqual([{ name: "Hora de trabajo", unitPrice: 355_000n, taxKey: "VAT:2100" }]);

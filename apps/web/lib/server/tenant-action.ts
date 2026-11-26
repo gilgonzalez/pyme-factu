@@ -16,10 +16,10 @@ export interface TenantActionTarget {
  * Envoltorio ÚNICO de las Server Actions de una organización: sesión → contexto verificado →
  * caso de uso → refresh() si fue bien. La falta de permiso se convierte en un mensaje.
  */
-export async function tenantAction(
+export async function tenantAction<Result extends ActionResult>(
   target: TenantActionTarget,
-  work: (input: { user: SessionUser; context: TenantContext }) => Promise<ActionResult>,
-): Promise<ActionResult> {
+  work: (input: { user: SessionUser; context: TenantContext }) => Promise<Result>,
+): Promise<Result | { readonly ok: false; readonly message: string }> {
   try {
     const result = await work(await requireTenant(target.slug, target.returnPath, target.taxpayerId ?? null));
     if (result?.ok === true) refresh();
