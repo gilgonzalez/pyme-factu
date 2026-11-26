@@ -6,7 +6,7 @@ import { recordAudit } from "./audit";
 import { databaseErrorCode } from "./database-errors";
 import { AuthorizationError, runInTenant } from "./run-in-tenant";
 import type { TenantContext } from "./tenant-context";
-import { parseTaxpayerDetails, type TaxpayerField } from "./validation";
+import { parseTaxpayerDetails, type TaxpayerDetails, type TaxpayerField } from "./validation";
 
 export type TaxpayerAccessLevel = "FULL" | "READ_ONLY";
 type Scope = "ALL_TAXPAYERS" | "ASSIGNED_TAXPAYERS";
@@ -97,16 +97,8 @@ export function listTaxpayers(db: Database, context: TenantContext): Promise<Tax
   });
 }
 
-export interface TaxpayerRecord extends TaxpayerSummary {
-  readonly addressLine: string | null;
-  readonly postalCode: string | null;
-  readonly city: string | null;
-  readonly province: string | null;
-  readonly email: string | null;
-  readonly phone: string | null;
-  readonly website: string | null;
-  readonly registryInfo: string | null;
-}
+/** Ficha completa: el resumen más todos los datos editables (contacto, domicilio, registro). */
+export type TaxpayerRecord = TaxpayerSummary & TaxpayerDetails;
 
 /** Ficha completa del contribuyente ACTIVO del contexto (el acceso ya se verificó al resolver el contexto). */
 export function getTaxpayer(db: Database, context: TenantContext): Promise<TaxpayerRecord> {
