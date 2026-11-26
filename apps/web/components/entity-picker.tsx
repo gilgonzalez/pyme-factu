@@ -4,6 +4,7 @@
 // elegir y Escape para cerrar. La búsqueda ignora mayúsculas y tildes y admite varias palabras en cualquier orden.
 import { Plus } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
+import { FieldError } from "@/components/form";
 import { cn } from "@/lib/utils";
 
 /** "Fontanería  Pérez" → "fontaneria perez". */
@@ -106,8 +107,8 @@ export function EntityPicker<Item>({
   };
 
   return (
-    <div className="relative grid gap-1.5">
-      <label htmlFor={id} className="text-sm leading-none font-medium select-none">
+    <div className="field-cell" data-invalid={error === undefined ? undefined : true}>
+      <label htmlFor={id} className="text-xs leading-none font-medium text-muted-foreground select-none">
         {label}
       </label>
       <input
@@ -136,14 +137,14 @@ export function EntityPicker<Item>({
         onClick={() => setOpen(true)}
         onBlur={close}
         onKeyDown={onKeyDown}
-        className="field h-10"
+        className="field-cell-input"
       />
       {open ? (
         <ul
           id={listId}
           role="listbox"
           aria-label={label}
-          className="absolute top-full right-0 left-0 z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border bg-card p-1 shadow-lg"
+          className="absolute top-full -right-px -left-px z-30 mt-1.5 max-h-72 overflow-y-auto rounded-xl border bg-card p-1 shadow-[0_12px_32px_-8px_rgb(16_16_32/0.18),0_2px_6px_rgb(16_16_32/0.06)]"
           // Que pulsar una opción no quite el foco del campo (si no, el blur cerraría la lista antes del clic).
           onMouseDown={(event) => event.preventDefault()}
         >
@@ -185,11 +186,7 @@ export function EntityPicker<Item>({
           })}
         </ul>
       ) : null}
-      {error === undefined ? null : (
-        <p id={errorId} className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <FieldError id={errorId} error={error} />
     </div>
   );
 }

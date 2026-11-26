@@ -105,11 +105,35 @@
   p {
     text-wrap: pretty;
   }
-  input[type="checkbox"],
   input[type="radio"] {
     accent-color: var(--primary);
     width: 1rem;
     height: 1rem;
+  }
+  /* Casilla propia: cuadrado suave como los campos; marcada, violeta con su marca blanca. */
+  input[type="checkbox"] {
+    appearance: none;
+    flex: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 5px;
+    border: 1px solid #c8c8d2;
+    background-color: var(--card);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 0.75rem;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+  input[type="checkbox"]:hover {
+    border-color: var(--ring);
+  }
+  input[type="checkbox"]:checked {
+    border-color: var(--primary);
+    background-color: var(--primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27 fill=%27none%27 stroke=%27white%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27M3.5 8.5l3 3 6-7%27/%3E%3C/svg%3E");
   }
   /* Foco siempre visible con teclado, también en enlaces y desplegables. */
   :where(a, summary, button, select, textarea, input, [tabindex]):focus-visible {
@@ -140,55 +164,59 @@
 }
 
 /*
- * Campo de formulario (input, select, textarea): borde con contraste ≥ 3:1, se oscurece al pasar por encima y,
- * con el foco, borde violeta y anillo suave. Inválido: borde y anillo rojos.
+ * Campo de formulario (input, select, textarea), estilo «suave»: relleno gris muy claro y borde fino; al pasar,
+ * el borde se intensifica; con el foco, fondo blanco, borde violeta y halo amplio. Inválido: borde y halo rojos.
+ * La etiqueta siempre visible encima identifica el campo además del relleno.
  */
 @utility field {
   width: 100%;
   min-width: 0;
   border-radius: 10px;
-  border: 1px solid var(--input);
-  background-color: var(--card);
-  padding-inline: 0.75rem;
+  border: 1px solid #e2e2e9;
+  background-color: #f6f6f9;
+  padding-inline: 0.875rem;
   font-size: 1rem;
   line-height: 1.5;
   color: var(--foreground);
-  box-shadow: 0 1px 2px rgb(16 16 32 / 0.04);
   transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
   outline: none;
   @media (width >= 48rem) {
     font-size: 0.875rem;
   }
   &::placeholder {
-    color: var(--muted-foreground);
+    color: #9b9ba8;
   }
-  &:hover:not(:disabled, :focus-visible) {
-    border-color: #5f5f6d;
+  &:hover:not(:disabled, :focus-visible, :focus) {
+    border-color: #c8c8d2;
+    background-color: #f2f2f6;
   }
+  &:focus,
   &:focus-visible {
     border-color: var(--ring);
+    background-color: var(--card);
     outline: none;
-    box-shadow:
-      0 0 0 3px rgb(90 63 242 / 0.18),
-      0 1px 2px rgb(16 16 32 / 0.04);
+    box-shadow: 0 0 0 4px rgb(90 63 242 / 0.12);
   }
   &[aria-invalid="true"] {
     border-color: var(--destructive);
-    box-shadow: 0 0 0 3px rgb(217 45 32 / 0.12);
+    background-color: #fffafa;
+  }
+  &[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 4px rgb(217 45 32 / 0.12);
   }
   &:disabled {
     cursor: not-allowed;
-    background-color: var(--muted);
-    opacity: 0.7;
+    opacity: 0.6;
   }
 }
 
 /* Desplegable con la misma flecha que el resto de la interfaz (la nativa cambia con cada navegador). */
 @utility field-select {
   appearance: none;
-  height: 2.5rem;
+  height: 2.75rem;
   padding-right: 2.25rem;
   text-overflow: ellipsis;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2362626f' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
@@ -198,8 +226,8 @@
 }
 
 @utility field-textarea {
-  min-height: 5.5rem;
-  padding-block: 0.55rem;
+  min-height: 6rem;
+  padding-block: 0.65rem;
   resize: vertical;
 }
 
@@ -243,5 +271,110 @@ form[aria-busy="true"] button[type="submit"]::before {
   mask-image: linear-gradient(90deg, transparent 0, #000 1rem, #000 calc(100% - 1.5rem), transparent 100%);
   @media (width >= 64rem) {
     mask-image: none;
+  }
+}
+
+/*
+ * Campos con la etiqueta DENTRO («celdas»): la etiqueta pequeña arriba y el valor debajo, sin caja interior. Una
+ * celda suelta lleva su borde; varias celdas relacionadas se unen en un bloque (.field-group > .field-row) con
+ * separadores de 1 px y solo las esquinas exteriores redondeadas. Foco: borde violeta (interior en un bloque).
+ */
+@layer components {
+  .field-cell {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
+    min-width: 0;
+    padding: 0.6rem 0.875rem 0.65rem;
+    border: 1px solid #dddde5;
+    border-radius: 12px;
+    background-color: var(--card);
+    transition:
+      border-color 140ms ease,
+      box-shadow 140ms ease,
+      background-color 140ms ease;
+  }
+  .field-cell:hover {
+    border-color: #c6c6d0;
+  }
+  .field-cell:focus-within {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 4px rgb(90 63 242 / 0.1);
+  }
+  .field-cell[data-invalid] {
+    border-color: var(--destructive);
+    background-color: #fffbfb;
+  }
+
+  /* Bloque de celdas: el fondo del bloque hace de separador entre celdas. */
+  .field-group {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #dddde5;
+    border-radius: 12px;
+    background-color: #dddde5;
+  }
+  .field-row {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+  .field-group .field-cell {
+    border: 0;
+    border-radius: 0;
+  }
+  .field-group .field-cell:hover {
+    background-color: #fcfcfd;
+  }
+  .field-group .field-cell:focus-within {
+    z-index: 1;
+    background-color: var(--card);
+    box-shadow: inset 0 0 0 2px var(--ring);
+  }
+  .field-group .field-cell[data-invalid] {
+    box-shadow: inset 0 0 0 2px var(--destructive);
+  }
+
+  /* El control dentro de la celda: sin borde ni fondo, a todo el ancho. */
+  .field-cell-input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    font-size: 1rem;
+    line-height: 1.5rem;
+    color: var(--foreground);
+    outline: none;
+  }
+  @media (width >= 48rem) {
+    .field-cell-input {
+      font-size: 0.9375rem;
+    }
+  }
+  .field-cell-input::placeholder {
+    color: #a3a3ae;
+  }
+  .field-cell-input:focus-visible {
+    outline: none;
+  }
+  select.field-cell-input {
+    appearance: none;
+    padding-right: 1.5rem;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2362626f' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 1rem;
+  }
+  textarea.field-cell-input {
+    min-height: 4.5rem;
+    resize: none;
+    field-sizing: content;
+    max-height: 16rem;
   }
 }

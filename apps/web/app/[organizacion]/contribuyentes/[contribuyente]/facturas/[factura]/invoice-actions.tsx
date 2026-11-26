@@ -1,8 +1,7 @@
 "use client";
 import { ActionButton } from "@/components/action-button";
 import { ActionForm, type FormAction } from "@/components/action-form";
-import { Field } from "@/components/form";
-import { Label } from "@/components/ui/label";
+import { Field, TextAreaField } from "@/components/form";
 import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { RECTIFICATION_OPTIONS } from "@/lib/invoicing";
@@ -59,24 +58,7 @@ export function SendForm({
             defaultValue={values["to"] ?? defaultTo}
             error={errors["to"]}
           />
-          <div className="grid gap-1.5">
-            <Label htmlFor="envio-mensaje">Mensaje (opcional)</Label>
-            <textarea
-              id="envio-mensaje"
-              name="note"
-              maxLength={2000}
-              rows={3}
-              defaultValue={values["note"] ?? defaultNote}
-              aria-invalid={errors["note"] === undefined ? undefined : true}
-              aria-describedby={errors["note"] === undefined ? undefined : "envio-mensaje-error"}
-              className="field field-textarea"
-            />
-            {errors["note"] === undefined ? null : (
-              <p id="envio-mensaje-error" className="text-sm text-destructive">
-                {errors["note"]}
-              </p>
-            )}
-          </div>
+          <TextAreaField name="note" label="Mensaje (opcional)" maxLength={2000} defaultValue={values["note"] ?? defaultNote} error={errors["note"]} />
           <Button type="submit" variant={draft ? "default" : "outline"} disabled={pending}>
             {pending ? "Enviando…" : draft ? "Enviar borrador" : "Enviar factura"}
           </Button>

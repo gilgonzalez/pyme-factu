@@ -4,7 +4,6 @@ import { CircleAlert, CircleCheck } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { FrameSkeleton, PageSkeleton } from "@/components/page-skeleton";
 import { Suspense, useId, type ComponentProps, type ReactNode } from "react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /** Error de un campo, con icono para encontrarlo de un vistazo; `id` es el que cita aria-describedby. */
@@ -41,7 +40,7 @@ export const FIELD_WIDTHS: Readonly<Record<FieldWidth, string>> = {
   full: "w-full",
 };
 
-interface FieldProps extends Omit<ComponentProps<typeof Input>, "id" | "name" | "width"> {
+interface FieldProps extends Omit<ComponentProps<"input">, "id" | "name" | "width"> {
   readonly name: string;
   readonly label: string;
   readonly hint?: string;
@@ -49,18 +48,106 @@ interface FieldProps extends Omit<ComponentProps<typeof Input>, "id" | "name" | 
   readonly width?: FieldWidth;
 }
 
-export function Field({ name, label, hint, error, width = "full", ...input }: FieldProps) {
-  // Único en la página aunque dos formularios tengan un campo con el mismo nombre (p. ej. «reason»).
-  const id = `campo-${name}-${useId()}`;
-  const describedBy = [hint === undefined ? null : `${id}-ayuda`, error === undefined ? null : `${id}-error`].filter(Boolean).join(" ");
+/** Etiqueta dentro de una celda: pequeña y gris, encima del valor. */
+const CELL_LABEL = "h-auto text-xs font-medium text-muted-foreground";
+
+/**
+ * Celda de un campo: la etiqueta DENTRO, arriba, y el control debajo; la pista y el error, también dentro.
+ * Suelta lleva su borde; dentro de un FieldGroup comparte bordes con sus vecinas.
+ */
+export function FieldCell({
+  id,
+  label,
+  hint,
+  error,
+  width = "full",
+  className = "",
+  children,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly hint?: string | undefined;
+  readonly error?: string | undefined;
+  readonly width?: FieldWidth;
+  readonly className?: string;
+  readonly children: ReactNode;
+}) {
   return (
-    <div className={`grid min-w-0 content-start gap-1.5 ${FIELD_WIDTHS[width]}`}>
-      <Label htmlFor={id}>{label}</Label>
-      <Input id={id} name={name} aria-invalid={error === undefined ? undefined : true} aria-describedby={describedBy || undefined} {...input} />
+    <div className={`field-cell ${FIELD_WIDTHS[width]} ${className}`} data-invalid={error === undefined ? undefined : true}>
+      <Label htmlFor={id} className={CELL_LABEL}>
+        {label}
+      </Label>
+      {children}
       {hint === undefined ? null : <FieldHint id={`${id}-ayuda`}>{hint}</FieldHint>}
       <FieldError id={`${id}-error`} error={error} />
     </div>
   );
+}
+
+/** aria-describedby de un campo con pista y/o error. */
+export const describedBy = (id: string, hint: string | undefined, error: string | undefined): string | undefined =>
+  [hint === undefined ? null : `${id}-ayuda`, error === undefined ? null : `${id}-error`].filter(Boolean).join(" ") || undefined;
+
+export function Field({ name, label, hint, error, width = "full", className, ...input }: FieldProps) {
+  // Único en la página aunque dos formularios tengan un campo con el mismo nombre (p. ej. «reason»).
+  const id = `campo-${name}-${useId()}`;
+  return (
+    <FieldCell id={id} label={label} hint={hint} error={error} width={width}>
+      <input
+        id={id}
+        name={name}
+        className={`field-cell-input ${className ?? ""}`}
+        aria-invalid={error === undefined ? undefined : true}
+        aria-describedby={describedBy(id, hint, error)}
+        {...input}
+      />
+    </FieldCell>
+  );
+}
+
+/** Texto largo (observaciones, mensajes…) con la etiqueta dentro. */
+export function TextAreaField({
+  name,
+  label,
+  hint,
+  error,
+  maxLength,
+  rows = 3,
+  defaultValue,
+}: {
+  readonly name: string;
+  readonly label: string;
+  readonly hint?: string | undefined;
+  readonly error?: string | undefined;
+  readonly maxLength: number;
+  readonly rows?: number;
+  readonly defaultValue?: string | undefined;
+}) {
+  const id = `campo-${name}-${useId()}`;
+  return (
+    <FieldCell id={id} label={label} hint={hint} error={error}>
+      <textarea
+        id={id}
+        name={name}
+        rows={rows}
+        maxLength={maxLength}
+        defaultValue={defaultValue}
+        aria-invalid={error === undefined ? undefined : true}
+        aria-describedby={describedBy(id, hint, error)}
+        className="field-cell-input"
+      />
+    </FieldCell>
+  );
+}
+
+/** Bloque de campos relacionados que comparten bordes (como una tarjeta con separadores). */
+export function FieldGroup({ children, className = "" }: { readonly children: ReactNode; readonly className?: string }) {
+  return <div className={`field-group ${className}`}>{children}</div>;
+}
+
+/** Fila de un bloque: `columns` da las columnas desde tablet (en móvil, una celda por fila). */
+export function FieldRow({ columns = "", children }: { readonly columns?: string; readonly children: ReactNode }) {
+  return <div className={`field-row ${columns}`}>{children}</div>;
 }
 
 export function FormAlert({ tone, children }: { readonly tone: "error" | "success"; readonly children: ReactNode }) {

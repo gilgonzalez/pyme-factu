@@ -1,7 +1,7 @@
 "use client";
 // Formulario de datos fiscales de una persona o entidad: contribuyentes (emisores) y clientes (destinatarios).
 import { ActionForm, type FormAction } from "@/components/action-form";
-import { Field } from "@/components/form";
+import { Field, FieldGroup, FieldRow } from "@/components/form";
 import { Button } from "@/components/ui/button";
 
 export interface PartyValues {
@@ -42,60 +42,71 @@ export function PartyForm({ action, label, submitLabel, pendingLabel, values, ni
         const initial = (name: keyof PartyValues): string => sent[name] ?? value(values?.[name]);
         return (
           <>
-            {nif === "none" ? null : (
-              <Field
-                name="nif"
-                label={nif === "required" ? "NIF" : "NIF (opcional)"}
-                hint="DNI, NIE o NIF de la empresa. Comprobamos la letra o el dígito de control."
-                required={nif === "required"}
-                maxLength={15}
-                autoComplete="off"
-                autoCapitalize="characters"
-                width="md"
-                defaultValue={sent["nif"]}
-                error={errors["nif"]}
-              />
-            )}
-            <div className={withTradeName ? "grid gap-4 sm:grid-cols-2" : "grid"}>
-              <Field name="legalName" label="Nombre y apellidos o razón social" required maxLength={120} defaultValue={initial("legalName")} error={errors["legalName"]} />
+            <FieldGroup>
+              <FieldRow columns={nif === "none" ? "" : "sm:grid-cols-[14rem_minmax(0,1fr)]"}>
+                {nif === "none" ? null : (
+                  <Field
+                    name="nif"
+                    label={nif === "required" ? "NIF" : "NIF (opcional)"}
+                    hint="Comprobamos la letra o el dígito de control."
+                    required={nif === "required"}
+                    maxLength={15}
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    placeholder="B12345674"
+                    defaultValue={sent["nif"]}
+                    error={errors["nif"]}
+                  />
+                )}
+                <Field name="legalName" label="Nombre y apellidos o razón social" required maxLength={120} defaultValue={initial("legalName")} error={errors["legalName"]} />
+              </FieldRow>
               {withTradeName ? (
-                <Field name="tradeName" label="Nombre comercial (opcional)" maxLength={120} defaultValue={initial("tradeName")} error={errors["tradeName"]} />
+                <FieldRow>
+                  <Field name="tradeName" label="Nombre comercial (opcional)" maxLength={120} defaultValue={initial("tradeName")} error={errors["tradeName"]} />
+                </FieldRow>
               ) : null}
-            </div>
-            <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-start">
-              <Field name="email" label="Email de facturación (opcional)" type="email" maxLength={254} width="lg" defaultValue={initial("email")} error={errors["email"]} />
+              <FieldRow columns={withContact ? "sm:grid-cols-[minmax(0,1fr)_15rem]" : ""}>
+                <Field name="email" label="Email de facturación (opcional)" type="email" maxLength={254} placeholder="facturas@empresa.es" defaultValue={initial("email")} error={errors["email"]} />
+                {withContact ? (
+                  <Field name="phone" label="Teléfono (opcional)" type="tel" maxLength={30} autoComplete="tel" placeholder="600 000 000" defaultValue={initial("phone")} error={errors["phone"]} />
+                ) : null}
+              </FieldRow>
+              <FieldRow>
+                <Field name="addressLine" label="Dirección (opcional)" maxLength={200} autoComplete="street-address" placeholder="Calle, número, piso" defaultValue={initial("addressLine")} error={errors["addressLine"]} />
+              </FieldRow>
+              <FieldRow columns="sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
+                <Field name="postalCode" label="Código postal (opcional)" inputMode="numeric" maxLength={5} autoComplete="postal-code" placeholder="28001" defaultValue={initial("postalCode")} error={errors["postalCode"]} />
+                <Field name="city" label="Municipio (opcional)" maxLength={100} autoComplete="address-level2" defaultValue={initial("city")} error={errors["city"]} />
+                <Field name="province" label="Provincia (opcional)" maxLength={100} autoComplete="address-level1" defaultValue={initial("province")} error={errors["province"]} />
+              </FieldRow>
               {withContact ? (
-                <Field name="phone" label="Teléfono (opcional)" type="tel" maxLength={30} autoComplete="tel" width="md" defaultValue={initial("phone")} error={errors["phone"]} />
+                <>
+                  <FieldRow>
+                    <Field name="website" label="Web (opcional)" maxLength={200} autoComplete="url" placeholder="www.tuempresa.es" defaultValue={initial("website")} error={errors["website"]} />
+                  </FieldRow>
+                  <FieldRow>
+                    <Field
+                      name="registryInfo"
+                      label="Datos registrales (opcional)"
+                      hint="Si eres una sociedad. Sale al pie de tus facturas."
+                      maxLength={300}
+                      placeholder="Inscrita en el Registro Mercantil de …, tomo …, folio …, hoja …"
+                      defaultValue={initial("registryInfo")}
+                      error={errors["registryInfo"]}
+                    />
+                  </FieldRow>
+                </>
               ) : null}
-            </div>
-            <Field name="addressLine" label="Dirección (opcional)" maxLength={200} autoComplete="street-address" defaultValue={initial("addressLine")} error={errors["addressLine"]} />
-            <div className="grid gap-4 sm:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)]">
-              <Field name="postalCode" label="Código postal (opcional)" inputMode="numeric" maxLength={5} autoComplete="postal-code" defaultValue={initial("postalCode")} error={errors["postalCode"]} />
-              <Field name="city" label="Municipio (opcional)" maxLength={100} autoComplete="address-level2" defaultValue={initial("city")} error={errors["city"]} />
-              <Field name="province" label="Provincia (opcional)" maxLength={100} autoComplete="address-level1" defaultValue={initial("province")} error={errors["province"]} />
-            </div>
-            {withContact ? (
-              <>
-                <Field name="website" label="Web (opcional)" maxLength={200} autoComplete="url" placeholder="www.tuempresa.es" width="lg" defaultValue={initial("website")} error={errors["website"]} />
-                <Field
-                  name="registryInfo"
-                  label="Datos registrales (opcional)"
-                  hint="Si eres una sociedad: «Inscrita en el Registro Mercantil de …, tomo …, folio …, hoja …». Sale al pie de tus facturas."
-                  maxLength={300}
-                  defaultValue={initial("registryInfo")}
-                  error={errors["registryInfo"]}
-                />
-              </>
-            ) : null}
+            </FieldGroup>
             {withSurcharge ? (
-              <label className="flex items-start gap-2 text-sm">
-                <input type="checkbox" name="equivalenceSurcharge" defaultChecked={sent["equivalenceSurcharge"] === "on"} className="mt-1" />
+              <label className="flex items-start gap-2.5 text-sm">
+                <input type="checkbox" name="equivalenceSurcharge" defaultChecked={sent["equivalenceSurcharge"] === "on"} className="mt-0.5" />
                 <span>
                   Está en el <strong>recargo de equivalencia</strong> (comercio minorista): sus facturas llevan el recargo además del IVA.
                 </span>
               </label>
             ) : null}
-            <div className="pt-1">
+            <div className="flex justify-end">
               <Button type="submit" size="lg" disabled={pending}>
                 {pending ? pendingLabel : submitLabel}
               </Button>

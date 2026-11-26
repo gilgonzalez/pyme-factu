@@ -1,7 +1,7 @@
 "use client";
 import type { Role } from "@facturalibre/security";
 import { ActionForm, type FormAction } from "@/components/action-form";
-import { Field } from "@/components/form";
+import { Field, FieldGroup, FieldRow } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/select-field";
 import { ASSIGNABLE_ROLES, ROLE_INFO } from "@/lib/roles";
@@ -26,8 +26,19 @@ export interface TeamManagerProps {
   readonly slug: string;
   readonly members: readonly TeamMemberView[];
   readonly invitations: readonly InvitationView[];
-  readonly can: { readonly invite: boolean; readonly changeRole: boolean; readonly remove: boolean; readonly transfer: boolean };
-  readonly actions: { readonly invite: FormAction; readonly revoke: FormAction; readonly changeRole: FormAction; readonly remove: FormAction; readonly transfer: FormAction };
+  readonly can: {
+    readonly invite: boolean;
+    readonly changeRole: boolean;
+    readonly remove: boolean;
+    readonly transfer: boolean;
+  };
+  readonly actions: {
+    readonly invite: FormAction;
+    readonly revoke: FormAction;
+    readonly changeRole: FormAction;
+    readonly remove: FormAction;
+    readonly transfer: FormAction;
+  };
 }
 
 function RoleSelect({ name, defaultValue, label }: { readonly name: string; readonly defaultValue?: Role; readonly label: string }) {
@@ -36,7 +47,10 @@ function RoleSelect({ name, defaultValue, label }: { readonly name: string; read
       name={name}
       label={label}
       defaultValue={defaultValue ?? "EMPLOYEE"}
-      options={ASSIGNABLE_ROLES.map((role) => ({ value: role, label: `${ROLE_INFO[role].label} — ${ROLE_INFO[role].description}` }))}
+      options={ASSIGNABLE_ROLES.map((role) => ({
+        value: role,
+        label: `${ROLE_INFO[role].label} — ${ROLE_INFO[role].description}`,
+      }))}
     />
   );
 }
@@ -47,21 +61,38 @@ function InviteSection({ action }: { readonly action: FormAction }) {
       <h2 id="invitar" className="font-semibold">
         Invitar a alguien
       </h2>
-      <ActionForm action={action} className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end" label="Invitar a alguien">
+      <ActionForm action={action} className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center" label="Invitar a alguien">
         {({ pending, errors, values }) => (
           <>
-            <Field name="email" label="Email" type="email" required maxLength={254} autoComplete="off" defaultValue={values["email"]} error={errors["email"]} />
-            <RoleSelect name="role" label="Rol" />
-            <SelectField
-              name="taxpayerScope"
-              label="Contribuyentes"
-              defaultValue="ALL_TAXPAYERS"
-              options={[
-                { value: "ALL_TAXPAYERS", label: "Todos" },
-                { value: "ASSIGNED_TAXPAYERS", label: "Solo los que se le asignen" },
-              ]}
-            />
-            <Button type="submit" disabled={pending}>
+            <FieldGroup>
+              <FieldRow columns="sm:grid-cols-[minmax(0,1fr)_11rem_14rem]">
+                <Field
+                  name="email"
+                  label="Email"
+                  type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="off"
+                  placeholder="nombre@empresa.es"
+                  defaultValue={values["email"]}
+                  error={errors["email"]}
+                />
+                <RoleSelect name="role" label="Rol" />
+                <SelectField
+                  name="taxpayerScope"
+                  label="Contribuyentes"
+                  defaultValue="ALL_TAXPAYERS"
+                  options={[
+                    { value: "ALL_TAXPAYERS", label: "Todos" },
+                    {
+                      value: "ASSIGNED_TAXPAYERS",
+                      label: "Solo los que se le asignen",
+                    },
+                  ]}
+                />
+              </FieldRow>
+            </FieldGroup>
+            <Button type="submit" size="lg" disabled={pending}>
               {pending ? "Enviando…" : "Enviar invitación"}
             </Button>
           </>

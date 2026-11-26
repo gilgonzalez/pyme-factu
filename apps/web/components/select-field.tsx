@@ -1,6 +1,5 @@
 import { useId } from "react";
-import { FIELD_WIDTHS, FieldError, type FieldWidth } from "@/components/form";
-import { Label } from "@/components/ui/label";
+import { FieldCell, type FieldWidth } from "@/components/form";
 
 /**
  * Desplegable nativo (accesible por teclado y lector de pantalla) con etiqueta visible. Con `placeholder`, la
@@ -26,8 +25,7 @@ export function SelectField<Value extends string>({
   const id = useId();
   const errorId = `${id}-error`;
   return (
-    <div className={`grid min-w-0 content-start gap-1.5 ${FIELD_WIDTHS[width]}`}>
-      <Label htmlFor={id}>{label}</Label>
+    <FieldCell id={id} label={label} error={error} width={width}>
       <select
         id={id}
         name={name}
@@ -35,7 +33,7 @@ export function SelectField<Value extends string>({
         required={placeholder !== undefined}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={error === undefined ? undefined : errorId}
-        className="field field-select"
+        className="field-cell-input"
       >
         {placeholder === undefined ? null : (
           <option value="" disabled>
@@ -48,7 +46,6 @@ export function SelectField<Value extends string>({
           </option>
         ))}
       </select>
-      <FieldError id={errorId} error={error} />
-    </div>
+    </FieldCell>
   );
 }

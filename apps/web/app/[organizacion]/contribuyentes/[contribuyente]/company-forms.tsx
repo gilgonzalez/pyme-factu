@@ -3,7 +3,8 @@
 import { useId, type ReactNode } from "react";
 import { ActionButton } from "@/components/action-button";
 import { ActionForm, type FormAction } from "@/components/action-form";
-import { Field } from "@/components/form";
+import { Field, FieldGroup, FieldRow, TextAreaField } from "@/components/form";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { TAX_OPTIONS } from "@/lib/invoicing";
@@ -19,56 +20,13 @@ export interface BillingSettingsValues {
   readonly emailMessage: string;
 }
 
-const inputClass = "field field-textarea";
-
-function TextArea({
-  name,
-  label,
-  hint,
-  maxLength,
-  defaultValue,
-  error,
-}: {
-  readonly name: string;
-  readonly label: string;
-  readonly hint: string;
-  readonly maxLength: number;
-  readonly defaultValue: string;
-  readonly error: string | undefined;
-}) {
-  const id = useId();
-  const describedBy = [`${id}-ayuda`, error === undefined ? null : `${id}-error`].filter(Boolean).join(" ");
-  return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <textarea
-        id={id}
-        name={name}
-        rows={3}
-        maxLength={maxLength}
-        defaultValue={defaultValue}
-        aria-invalid={error === undefined ? undefined : true}
-        aria-describedby={describedBy}
-        className={inputClass}
-      />
-      <p id={`${id}-ayuda`} className="text-sm text-muted-foreground">
-        {hint}
-      </p>
-      {error === undefined ? null : (
-        <p id={`${id}-error`} className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
+/** Bloque con su título y explicación encima de las celdas. */
 function Group({ title, description, children }: { readonly title: string; readonly description: string; readonly children: ReactNode }) {
   return (
-    <fieldset className="grid gap-4 border-t pt-5 first:border-t-0 first:pt-0">
+    <fieldset className="grid gap-3">
       <legend className="sr-only">{title}</legend>
       <div className="grid gap-0.5" aria-hidden="true">
-        <p className="font-semibold">{title}</p>
+        <p className="text-sm font-semibold">{title}</p>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       {children}
@@ -76,104 +34,106 @@ function Group({ title, description, children }: { readonly title: string; reado
   );
 }
 
+const TAX_DEFAULTS = [{ value: "", label: "IVA 21 % (el general)" }, ...TAX_OPTIONS.filter((option) => option.value !== "VAT:2100")];
+
 export function BillingSettingsForm({ action, values }: { readonly action: FormAction; readonly values: BillingSettingsValues }) {
-  const taxId = useId();
   return (
-    <ActionForm action={action} className="grid max-w-3xl gap-5" label="Cobro y facturas">
+    <ActionForm action={action} className="grid max-w-3xl gap-7" label="Cobro y facturas">
       {({ pending, errors, values: sent }) => {
         const initial = (name: keyof BillingSettingsValues): string => sent[name] ?? values[name];
         return (
           <>
             <Group title="Cobro" description="Cómo te pagan. Sale en la forma de pago de tus borradores y facturas.">
-              <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-start">
-                <Field
-                  width="lg"
-                  name="iban"
-                  label="IBAN para transferencias (opcional)"
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  maxLength={42}
-                  placeholder="ES00 0000 0000 0000 0000 0000"
-                  defaultValue={initial("iban")}
-                  error={errors["iban"]}
-                />
-                <Field
-                  width="sm"
-                  name="paymentTermsDays"
-                  label="Plazo de pago (días)"
-                  hint="Con 30, vence a los 30 días de la fecha."
-                  inputMode="numeric"
-                  maxLength={4}
-                  defaultValue={initial("paymentTermsDays")}
-                  error={errors["paymentTermsDays"]}
-                />
-              </div>
-              <TextArea
-                name="paymentInstructions"
-                label="Otras instrucciones de pago (opcional)"
-                hint="Por ejemplo: «También por Bizum al 600 000 000» o «Pago al contado»."
-                maxLength={500}
-                defaultValue={initial("paymentInstructions")}
-                error={errors["paymentInstructions"]}
-              />
+              <FieldGroup>
+                <FieldRow columns="sm:grid-cols-[minmax(0,1fr)_12rem]">
+                  <Field
+                    name="iban"
+                    label="IBAN para transferencias (opcional)"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    maxLength={42}
+                    placeholder="ES00 0000 0000 0000 0000 0000"
+                    defaultValue={initial("iban")}
+                    error={errors["iban"]}
+                  />
+                  <Field
+                    name="paymentTermsDays"
+                    label="Plazo de pago (días)"
+                    hint="Con 30, vence a los 30 días."
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="p. ej. 30"
+                    defaultValue={initial("paymentTermsDays")}
+                    error={errors["paymentTermsDays"]}
+                  />
+                </FieldRow>
+                <FieldRow>
+                  <TextAreaField
+                    name="paymentInstructions"
+                    label="Otras instrucciones de pago (opcional)"
+                    hint="Por ejemplo: «También por Bizum al 600 000 000» o «Pago al contado»."
+                    maxLength={500}
+                    rows={2}
+                    defaultValue={initial("paymentInstructions")}
+                    error={errors["paymentInstructions"]}
+                  />
+                </FieldRow>
+              </FieldGroup>
             </Group>
 
             <Group title="Valores por defecto" description="Con qué empieza cada factura nueva. Siempre puedes cambiarlos en la propia factura.">
-              <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-start">
-                <Field
-                  width="md"
-                  name="defaultWithholdingPercent"
-                  label="Retención IRPF % (opcional)"
-                  hint="Profesionales que facturan a empresas: normalmente 15 (7 los primeros años)."
-                  inputMode="decimal"
-                  maxLength={6}
-                  defaultValue={initial("defaultWithholdingPercent")}
-                  error={errors["defaultWithholdingPercent"]}
-                />
-                <div className="grid content-start gap-1.5 sm:w-72">
-                  <Label htmlFor={taxId}>IVA de las líneas nuevas</Label>
+              <FieldGroup>
+                <FieldRow columns="sm:grid-cols-2">
+                  <Field
+                    name="defaultWithholdingPercent"
+                    label="Retención IRPF % (opcional)"
+                    hint="Profesionales que facturan a empresas: normalmente 15."
+                    inputMode="decimal"
+                    maxLength={6}
+                    placeholder="p. ej. 15"
+                    defaultValue={initial("defaultWithholdingPercent")}
+                    error={errors["defaultWithholdingPercent"]}
+                  />
                   {/* key: tras un error, React reinicia el formulario; así el desplegable vuelve a lo elegido. */}
-                  <select
+                  <SelectField
                     key={initial("defaultTaxKey")}
-                    id={taxId}
                     name="defaultTaxKey"
+                    label="IVA de las líneas nuevas"
                     defaultValue={initial("defaultTaxKey")}
-                    aria-invalid={errors["defaultTaxKey"] === undefined ? undefined : true}
-                    className="field field-select"
-                  >
-                    <option value="">IVA 21 % (el general)</option>
-                    {TAX_OPTIONS.filter((option) => option.value !== "VAT:2100").map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors["defaultTaxKey"] === undefined ? null : <p className="text-sm text-destructive">{errors["defaultTaxKey"]}</p>}
-                </div>
-              </div>
+                    options={TAX_DEFAULTS}
+                    error={errors["defaultTaxKey"]}
+                  />
+                </FieldRow>
+              </FieldGroup>
             </Group>
 
             <Group title="Textos" description="Lo que acompaña a cada documento.">
-              <TextArea
-                name="footerNote"
-                label="Pie de factura (opcional)"
-                hint="Sale al final de cada borrador y factura: condiciones, agradecimiento, protección de datos…"
-                maxLength={1000}
-                defaultValue={initial("footerNote")}
-                error={errors["footerNote"]}
-              />
-              <TextArea
-                name="emailMessage"
-                label="Mensaje al enviar por email (opcional)"
-                hint="Aparece ya escrito al enviar un borrador o una factura; puedes cambiarlo en cada envío."
-                maxLength={2000}
-                defaultValue={initial("emailMessage")}
-                error={errors["emailMessage"]}
-              />
+              <FieldGroup>
+                <FieldRow>
+                  <TextAreaField
+                    name="footerNote"
+                    label="Pie de factura (opcional)"
+                    hint="Sale al final de cada borrador y factura: condiciones, agradecimiento, protección de datos…"
+                    maxLength={1000}
+                    defaultValue={initial("footerNote")}
+                    error={errors["footerNote"]}
+                  />
+                </FieldRow>
+                <FieldRow>
+                  <TextAreaField
+                    name="emailMessage"
+                    label="Mensaje al enviar por email (opcional)"
+                    hint="Aparece ya escrito al enviar un borrador o una factura; puedes cambiarlo en cada envío."
+                    maxLength={2000}
+                    defaultValue={initial("emailMessage")}
+                    error={errors["emailMessage"]}
+                  />
+                </FieldRow>
+              </FieldGroup>
             </Group>
 
-            <div>
+            <div className="flex justify-end">
               <Button type="submit" size="lg" disabled={pending}>
                 {pending ? "Guardando…" : "Guardar configuración"}
               </Button>
@@ -220,7 +180,7 @@ export function LogoForm({
                 accept="image/png,image/jpeg"
                 aria-invalid={errors["logo"] === undefined ? undefined : true}
                 aria-describedby={`${inputId}-ayuda`}
-                className="w-full max-w-full min-w-0 text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                className="w-full max-w-full min-w-0 cursor-pointer text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-card file:px-3.5 file:py-2 file:text-sm file:font-medium file:text-foreground file:shadow-[0_1px_2px_rgb(16_16_32/0.05)] hover:file:bg-subtle"
               />
               <p id={`${inputId}-ayuda`} className="text-sm text-muted-foreground">
                 PNG o JPEG de hasta 512 KB. Sale arriba a la derecha en tus borradores y facturas.
