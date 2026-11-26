@@ -1,6 +1,6 @@
 # Railway
 
-> ⏳ **Sin verificar todavía en Railway.** Configuración preparada el 25/11/2026; actualiza esta nota tras el primer despliegue.
+> Proyecto creado el 26/11/2026 (proyecto `facturalibre`, entorno `production`). Railway ha retirado la configuración por fichero (*config as code*): los ajustes que había en `railway/web.json` y `railway/worker.json` se fijan ahora en cada servicio (ver la tabla).
 
 Railway sustituye a `docker-compose.prod.yml`: pone HTTPS y dominio (sin proxy inverso propio) y ejecuta cada objetivo del `Dockerfile` como un servicio. Las migraciones **no** las ejecuta Railway sino el workflow [`deploy.yml`](../../.github/workflows/deploy.yml), para que la URL del rol propietario nunca llegue a `web` ni a `worker`.
 
@@ -12,9 +12,9 @@ push a main → CI ✅ → deploy.yml: pnpm db:migrate (propietario) → railway
 
 | Servicio | Origen | Ajustes |
 |---|---|---|
-| `Postgres` | Base de datos de Railway | **PostgreSQL 18 obligatorio** (las migraciones usan `uuidv7()`). Activa el *TCP proxy* público solo para que GitHub Actions ejecute las migraciones |
-| `web` | Servicio vacío (**sin** conectar el repositorio) | Config-as-code: `/railway/web.json`. Dominio público |
-| `worker` | Servicio vacío (**sin** conectar el repositorio) | Config-as-code: `/railway/worker.json`. Sin dominio público |
+| `Postgres` | Imagen `ghcr.io/railwayapp-templates/postgres-ssl:18` con volumen en `/var/lib/postgresql/data` | **PostgreSQL 18 obligatorio** (las migraciones usan `uuidv7()`; compruébalo con `SELECT version();`). *TCP proxy* público solo para que GitHub Actions ejecute las migraciones |
+| `web` | Servicio vacío (**sin** conectar el repositorio) | Dockerfile `Dockerfile`; health check `/api/health` (120 s); reinicio `ON_FAILURE` (5). Dominio público |
+| `worker` | Servicio vacío (**sin** conectar el repositorio) | Dockerfile `Dockerfile`; health check `/health` (120 s); reinicio `ON_FAILURE` (5). Sin dominio público |
 
 Los servicios no se conectan al repositorio: si lo estuvieran, Railway desplegaría cada push **antes** de que se apliquen las migraciones. Los despliega `railway up` desde GitHub Actions.
 
