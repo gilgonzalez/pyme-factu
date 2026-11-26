@@ -1,4 +1,4 @@
-import { listMyOrganizations } from "@facturalibre/tenancy";
+import { isPlatformAdmin, listMyOrganizations } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppFooter, AppHeader } from "@/components/app-header";
@@ -14,7 +14,7 @@ export default streamedPage("Cargando tus organizaciones…", Organizations);
 
 async function Organizations() {
   const user = await requireUser("/organizaciones");
-  const organizations = await listMyOrganizations(getDatabase(), user.id);
+  const [organizations, admin] = await Promise.all([listMyOrganizations(getDatabase(), user.id), isPlatformAdmin(getDatabase(), user.id)]);
 
   return (
     <>
@@ -29,9 +29,16 @@ async function Organizations() {
                 : "Elige con cuál quieres trabajar."}
             </p>
           </div>
-          <Link href="/nueva-organizacion" className={buttonVariants({ size: "lg" })}>
-            Crear organización
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {admin ? (
+              <Link href="/plataforma" className={buttonVariants({ size: "lg", variant: "outline" })}>
+                Administrar la plataforma
+              </Link>
+            ) : null}
+            <Link href="/nueva-organizacion" className={buttonVariants({ size: "lg" })}>
+              Crear organización
+            </Link>
+          </div>
         </div>
 
         {organizations.length === 0 ? null : (

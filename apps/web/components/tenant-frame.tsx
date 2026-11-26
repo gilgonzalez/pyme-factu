@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { Building2, House, Info, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { exitSupportAction } from "@/app/plataforma/actions";
+import { ActionButton } from "@/components/action-button";
 import { AccountLinks, AppFooter, NavLink } from "@/components/app-header";
 import { Brand } from "@/components/brand";
 import { NoTaxpayerSidebar, TaxpayerSidebar } from "@/components/taxpayer-sidebar";
@@ -122,6 +124,14 @@ export async function TenantFrame({
       </div>
 
       <div className="flex min-w-0 flex-col">
+        {context.support ? (
+          <div role="status" className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-danger-ink/20 bg-danger-soft px-4 py-2.5 text-sm text-danger-ink sm:px-8">
+            <p>
+              <strong>Modo soporte</strong>: estás viendo «{context.tenant.name}» en solo lectura. Este acceso queda en su auditoría.
+            </p>
+            <ActionButton action={exitSupportAction} label="Salir del modo soporte" idle="Salir del modo soporte" busy="Saliendo…" variant="outline" />
+          </div>
+        ) : null}
         <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-6 px-4 py-6 sm:px-8 lg:px-10 lg:py-10">{children}</main>
         <AppFooter className="lg:hidden" />
       </div>

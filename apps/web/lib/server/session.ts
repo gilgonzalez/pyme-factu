@@ -1,9 +1,10 @@
 import "server-only";
-import { getTaxpayer, resolveTenantContext, type TaxpayerRecord, type TenantContext } from "@facturalibre/tenancy";
-import { headers } from "next/headers";
+import { getTaxpayer, resolveSupportContext, resolveTenantContext, type TaxpayerRecord, type TenantContext } from "@facturalibre/tenancy";
+import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getAuth } from "./auth";
 import { getDatabase } from "./db";
+import { SUPPORT_COOKIE } from "./support";
 
 // Capa de acceso a datos de sesión (DAL): TODA lectura del usuario o del contexto de organización
 // pasa por aquí. Las páginas la llaman dentro de un <Suspense> (cacheComponents).
@@ -50,8 +51,14 @@ export async function requireTenant(
   const user = await requireUser(returnPath);
   const requestId = (await headers()).get("x-request-id") ?? crypto.randomUUID();
   const result = await resolveTenantContext(getDatabase(), { userId: user.id, tenantSlug: slug, taxpayerId, requestId });
-  if (!result.ok) notFound();
-  return { user, context: result.context };
+  if (result.ok) return { user, context: result.context };
+  if (result.reason === "TENANT_SUSPENDED") redirect("/organizacion-suspendida");
+  // Administrador de la plataforma con el soporte de ESTA organización abierto: contexto de solo lectura.
+  if ((await cookies()).get(SUPPORT_COOKIE)?.value === slug) {
+    const support = await resolveSupportContext(getDatabase(), { userId: user.id, tenantSlug: slug, taxpayerId, requestId });
+    if (support.ok) return { user, context: support.context };
+  }
+  notFound();
 }
 
 /** Contexto con el contribuyente activo verificado y su ficha (para el marco «Contribuyente activo»). */

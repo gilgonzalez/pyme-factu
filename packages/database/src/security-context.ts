@@ -12,6 +12,11 @@ export interface SecurityContext {
   readonly userId: string;
   readonly tenantId: string | null;
   readonly taxpayerId: string | null;
+  /**
+   * Soporte de la plataforma: un administrador consulta una organización ajena. La transacción se abre en SOLO
+   * LECTURA (antes de cualquier consulta) y PostgreSQL solo concede el acceso en transacciones de lectura.
+   */
+  readonly support?: boolean;
 }
 
 /**
@@ -22,10 +27,12 @@ export interface SecurityContext {
  */
 export async function withSecurityContext<T>(db: Database, context: SecurityContext, work: (tx: Tx) => Promise<T>): Promise<T> {
   return db.$transaction(async (tx) => {
+    if (context.support === true) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
     await tx.$executeRaw`SELECT
       set_config('app.user_id', ${context.userId}, true),
       set_config('app.tenant_id', ${context.tenantId ?? ""}, true),
-      set_config('app.taxpayer_id', ${context.taxpayerId ?? ""}, true)`;
+      set_config('app.taxpayer_id', ${context.taxpayerId ?? ""}, true),
+      set_config('app.support', ${context.support === true ? "on" : ""}, true)`;
     return work(tx);
   });
 }

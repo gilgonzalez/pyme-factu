@@ -21,7 +21,7 @@ export async function runInTenant<T>(db: Database, context: TenantContext, permi
   }
   return withSecurityContext(
     db,
-    { userId: context.user.id, tenantId: context.tenant.id, taxpayerId: context.taxpayer?.id ?? null },
+    { userId: context.user.id, tenantId: context.tenant.id, taxpayerId: context.taxpayer?.id ?? null, support: context.support },
     work,
   );
 }

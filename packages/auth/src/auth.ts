@@ -72,10 +72,11 @@ function buildAuth(options: CreateAuthOptions, db: ReturnType<typeof createDatab
     databaseHooks: {
       session: {
         create: {
-          /** Una cuenta desactivada por su titular (Fase 7) no abre sesiones nuevas. */
+          /** Una cuenta desactivada por su titular (Fase 7) o suspendida por la plataforma no abre sesiones nuevas. */
           before: async (session) => {
-            const user = await db.user.findUnique({ where: { id: session.userId }, select: { deactivatedAt: true } });
+            const user = await db.user.findUnique({ where: { id: session.userId }, select: { deactivatedAt: true, suspendedAt: true } });
             if (user?.deactivatedAt != null) throw new APIError("FORBIDDEN", { message: "Esta cuenta está desactivada.", code: "ACCOUNT_DEACTIVATED" });
+            if (user?.suspendedAt != null) throw new APIError("FORBIDDEN", { message: "Esta cuenta está suspendida. Escribe al soporte de FacturaLibre.", code: "ACCOUNT_SUSPENDED" });
           },
         },
       },

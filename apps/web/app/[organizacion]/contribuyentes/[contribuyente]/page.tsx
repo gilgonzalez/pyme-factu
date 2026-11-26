@@ -3,8 +3,8 @@ import { formatDecimal, SCALE } from "@facturalibre/fiscal-core";
 import { getBillingSettings, listTaxpayerAccess, type BillingSettingsView } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { streamedPage } from "@/components/form";
+import { PageSection } from "@/components/page-section";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { taxLabel } from "@/lib/invoicing";
 import { getDatabase } from "@/lib/server/db";
@@ -30,20 +30,6 @@ function settingsValues(settings: BillingSettingsView): BillingSettingsValues {
     footerNote: settings.footerNote ?? "",
     emailMessage: settings.emailMessage ?? "",
   };
-}
-
-function Section({ id, title, description, children }: { readonly id: string; readonly title: string; readonly description: string; readonly children: ReactNode }) {
-  return (
-    <section aria-labelledby={id} className="surface grid gap-4 p-5 sm:p-6">
-      <div className="grid gap-0.5">
-        <h2 id={id} className="font-semibold">
-          {title}
-        </h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      {children}
-    </section>
-  );
 }
 
 /** Para quien solo puede consultar: los datos en una lista. */
@@ -89,7 +75,7 @@ async function Company({ params }: { readonly params: Params }) {
         </p>
       </div>
 
-      <Section id="datos" title="Datos fiscales y de contacto" description="Emisor de tus facturas. El NIF no se puede cambiar: si es otro, da de alta otro contribuyente.">
+      <PageSection surface id="datos" title="Datos fiscales y de contacto" description="Emisor de tus facturas. El NIF no se puede cambiar: si es otro, da de alta otro contribuyente.">
         {canEdit ? (
           <TaxpayerForm action={updateTaxpayerAction.bind(null, slug, taxpayer.id)} values={taxpayer} withNif={false} />
         ) : (
@@ -104,9 +90,9 @@ async function Company({ params }: { readonly params: Params }) {
             ]}
           />
         )}
-      </Section>
+      </PageSection>
 
-      <Section id="logo" title="Logo" description="Da imagen a tus documentos.">
+      <PageSection surface id="logo" title="Logo" description="Da imagen a tus documentos.">
         {canEdit ? (
           <LogoForm upload={uploadLogoAction.bind(null, slug, taxpayer.id)} remove={deleteLogoAction.bind(null, slug, taxpayer.id)} logoUrl={logoUrl} />
         ) : logoUrl === null ? (
@@ -115,9 +101,9 @@ async function Company({ params }: { readonly params: Params }) {
           // eslint-disable-next-line @next/next/no-img-element -- imagen privada servida por la propia app
           <img src={logoUrl} alt="Logo de la empresa" className="max-h-24 w-fit object-contain" />
         )}
-      </Section>
+      </PageSection>
 
-      <Section id="facturacion" title="Cobro y facturas" description="Forma de pago, vencimiento y valores con los que empieza cada factura.">
+      <PageSection surface id="facturacion" title="Cobro y facturas" description="Forma de pago, vencimiento y valores con los que empieza cada factura.">
         {canEdit ? (
           <BillingSettingsForm action={updateBillingSettingsAction.bind(null, slug, taxpayer.id)} values={values} />
         ) : (
@@ -133,7 +119,7 @@ async function Company({ params }: { readonly params: Params }) {
             ]}
           />
         )}
-      </Section>
+      </PageSection>
 
       {canManageAccess ? (
         <section aria-labelledby="accesos" className="grid gap-3">
