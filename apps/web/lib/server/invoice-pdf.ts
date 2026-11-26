@@ -26,20 +26,37 @@ function amountsOf(invoice: InvoiceDetail): PdfAmount[] {
   ];
 }
 
+/** Hoy en España, "2026-11-26" (la fecha que lleva un borrador). */
+const todayInSpain = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+
+/** «Borrador de factura», «Factura F2026-0001», «Factura rectificativa R2026-0001»… */
+export function documentTitle(invoice: Pick<InvoiceDetail, "kind" | "status" | "number">): string {
+  const kind = invoice.kind === "RECTIFYING" ? "factura rectificativa" : "factura";
+  return invoice.status === "DRAFT" || invoice.number === null ? `Borrador de ${kind}` : `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ${invoice.number}`;
+}
+
+/** Nombre del fichero PDF: el número de la factura, o «borrador-» y el principio del id. */
+export const pdfFilename = (invoice: Pick<InvoiceDetail, "id" | "status" | "number">): string =>
+  invoice.status === "DRAFT" || invoice.number === null ? `borrador-${invoice.id.slice(-8)}.pdf` : `${invoice.number}.pdf`;
+
 async function verifactuOf(invoice: InvoiceDetail): Promise<InvoicePdfData["verifactu"]> {
+  if (invoice.status === "DRAFT") return null;
   const { alta, anulacion } = invoice.verifactu;
   if (alta === null || anulacion !== null) return null;
   const url = qrUrl(qrEnvironment(), { issuerNif: alta.issuerNif, number: alta.invoiceNumber, issueDate: alta.issueDate }, alta.importeTotal ?? "");
   return { qrPng: await qrPng(url) };
 }
 
-/** PDF de una factura EMITIDA, con el QR tributario de su registro de alta (si no está anulada). */
+/**
+ * PDF de una factura emitida, con el QR tributario de su registro de alta (si no está anulada), o de un
+ * borrador: con la fecha de hoy, sin número ni QR y marcado como «sin validez fiscal».
+ */
 export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecord): Promise<Uint8Array> {
   const issuer = partyFrom(invoice.issuerSnapshot) ?? { legalName: taxpayer.legalName, nif: taxpayer.nif, address: "" };
   const recipient = partyFrom(invoice.customerSnapshot) ?? { legalName: invoice.customerName, nif: null, address: "" };
   return renderInvoicePdf({
-    title: `${invoice.kind === "RECTIFYING" ? "Factura rectificativa" : "Factura"} ${invoice.number ?? ""}`,
-    issueDate: spanishDate(invoice.issueDate ?? ""),
+    title: documentTitle(invoice),
+    issueDate: spanishDate(invoice.issueDate ?? todayInSpain()),
     issuer: pdfParty(issuer),
     recipient: pdfParty(recipient),
     lines: invoice.lines.map((line) => ({
@@ -57,6 +74,7 @@ export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecor
         ? `Rectifica la factura ${invoice.rectifiesNumber ?? ""} (${rectificationLabel(invoice.rectificationCode)}). Motivo: ${invoice.rectificationReason ?? ""}`
         : null,
     annulled: invoice.verifactu.anulacion !== null,
+    draft: invoice.status === "DRAFT",
     verifactu: await verifactuOf(invoice),
   });
 }

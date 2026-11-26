@@ -1,10 +1,25 @@
 "use server";
-// Acciones de facturas del contribuyente activo: guardar borrador, emitir, borrar borrador y rectificar.
-import { annulInvoice, createDraftInvoice, deleteDraftInvoice, issueInvoice, rectifyInvoice, updateDraftInvoice } from "@facturalibre/tenancy";
+// Acciones de facturas del contribuyente activo: guardar borrador, emitir, borrar borrador, rectificar y enviar al cliente.
+import { documentMessage } from "@facturalibre/auth";
+import { formatAmount } from "@facturalibre/fiscal-core";
+import {
+  annulInvoice,
+  createDraftInvoice,
+  deleteDraftInvoice,
+  getInvoice,
+  getTaxpayer,
+  issueInvoice,
+  parseInvoiceSendInput,
+  recordInvoiceSent,
+  rectifyInvoice,
+  updateDraftInvoice,
+} from "@facturalibre/tenancy";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/action-form";
 import { fieldsFromFormData, linesFromFormData } from "@/lib/invoicing";
+import { getMailer } from "@/lib/server/auth";
 import { getDatabase } from "@/lib/server/db";
+import { documentTitle, invoicePdf, pdfFilename } from "@/lib/server/invoice-pdf";
 import { reasonMessage, tenantAction } from "@/lib/server/tenant-action";
 import { verifactuSettings } from "@/lib/server/verifactu";
 
@@ -70,7 +85,7 @@ export async function deleteDraftAction(slug: string, taxpayerId: string, invoic
     deleted = outcome.ok;
     return outcome.ok ? { ok: true, message: "" } : reasonMessage(REASONS, outcome.reason);
   });
-  if (deleted) redirect(base(slug, taxpayerId));
+  if (deleted) redirect(`/${slug}/contribuyentes/${taxpayerId}/borradores`);
   return result;
 }
 
@@ -102,4 +117,39 @@ export async function annulAction(slug: string, taxpayerId: string, invoiceId: s
   });
   if (annulled) redirect(`${detail}?anulada=1`);
   return result;
+}
+
+/**
+ * Envía por email al cliente el borrador o la factura, en PDF. Primero se envía y después se deja constancia
+ * (auditoría): un envío fallido no queda registrado como hecho.
+ */
+export async function sendInvoiceAction(slug: string, taxpayerId: string, invoiceId: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
+  return tenantAction(target(slug, taxpayerId, `${base(slug, taxpayerId)}/${invoiceId}`), async ({ context }) => {
+    if (!context.permissions.has("invoices.draft")) return { ok: false, message: "No tienes permiso para hacer esto." };
+    const input = parseInvoiceSendInput({ to: data.get("to"), note: data.get("note") });
+    if (!input.ok) return invalid(input.errors);
+    const db = getDatabase();
+    const invoice = await getInvoice(db, context, invoiceId);
+    if (invoice === null) return reasonMessage(REASONS, "NOT_FOUND");
+    const taxpayer = await getTaxpayer(db, context);
+    const title = documentTitle(invoice);
+    try {
+      await getMailer().send(
+        documentMessage({
+          to: input.value.to,
+          senderName: taxpayer.legalName,
+          title,
+          draft: invoice.status === "DRAFT",
+          total: formatAmount(invoice.total),
+          note: input.value.note,
+          replyTo: taxpayer.email,
+          pdf: { filename: pdfFilename(invoice), content: await invoicePdf(invoice, taxpayer) },
+        }),
+      );
+    } catch {
+      return { ok: false, message: "No hemos podido enviar el email. Inténtalo de nuevo en unos minutos." };
+    }
+    const recorded = await recordInvoiceSent(db, context, invoiceId, input.value.to);
+    return recorded.ok ? { ok: true, message: `${title} enviado a ${input.value.to}.` } : reasonMessage(REASONS, recorded.reason);
+  });
 }

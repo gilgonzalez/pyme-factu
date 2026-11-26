@@ -2,7 +2,7 @@
 // (arts. 20 y 21) y la especificación del QR v0.5.0 (apartado 3): al principio de la factura, centrado, de 35 mm,
 // con 6 mm de margen en blanco, precedido de «QR tributario:» y seguido de «VERI*FACTU», solo en la primera
 // página y con letra no menor que la del resto de datos. Recibe los datos ya formateados (importes, fechas).
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage, type RGB } from "pdf-lib";
+import { degrees, PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage, type RGB } from "pdf-lib";
 
 export interface PdfParty {
   readonly name: string;
@@ -26,7 +26,7 @@ export interface PdfAmount {
 }
 
 export interface InvoicePdfData {
-  /** «Factura F2026-0001» o «Factura rectificativa R2026-0001». */
+  /** «Factura F2026-0001», «Factura rectificativa R2026-0001» o «Borrador de factura». */
   readonly title: string;
   readonly issueDate: string;
   readonly issuer: PdfParty;
@@ -38,6 +38,8 @@ export interface InvoicePdfData {
   /** Frase que identifica la factura rectificada y el motivo, si es rectificativa. */
   readonly rectification: string | null;
   readonly annulled: boolean;
+  /** Borrador para enseñar al cliente: sin número ni validez fiscal; se avisa y lleva marca de agua. */
+  readonly draft: boolean;
   /** PNG del QR (nivel M); null si la factura no tiene registro VERI*FACTU. */
   readonly verifactu: { readonly qrPng: Uint8Array } | null;
 }
@@ -57,6 +59,8 @@ const CELL_GAP = 4;
 const GRAY = rgb(0.35, 0.35, 0.35);
 const RED = rgb(0.7, 0.1, 0.1);
 const BLACK = rgb(0, 0, 0);
+const WATERMARK = rgb(0.85, 0.85, 0.85);
+const DRAFT_NOTICE = "BORRADOR: documento sin validez fiscal. No es una factura: no tiene número ni registro VERI*FACTU.";
 
 type Align = "left" | "right" | "center";
 
@@ -183,6 +187,18 @@ class Layout {
     this.y -= size;
   }
 
+  /** «BORRADOR» en diagonal, de fondo, en cada página. */
+  watermark(text: string): void {
+    const size = 110;
+    const width = this.bold.widthOfTextAtSize(text, size);
+    const angle = 45;
+    const radians = (angle * Math.PI) / 180;
+    // Centrado en la página: se retrocede medio ancho a lo largo de la diagonal.
+    const x = PAGE[0] / 2 - (Math.cos(radians) * width) / 2 + (Math.sin(radians) * size) / 3;
+    const y = PAGE[1] / 2 - (Math.sin(radians) * width) / 2 - (Math.cos(radians) * size) / 3;
+    for (const page of this.pages) page.drawText(text, { x, y, size, font: this.bold, color: WATERMARK, rotate: degrees(angle), opacity: 0.5 });
+  }
+
   /** «Página i de n» al pie de cada página. */
   numberPages(): void {
     this.pages.forEach((page, index) => {
@@ -261,12 +277,16 @@ function drawAmounts(layout: Layout, amounts: readonly PdfAmount[]): void {
 }
 
 function drawHeading(layout: Layout, data: InvoicePdfData): void {
+  if (data.draft) {
+    layout.write(DRAFT_NOTICE, { bold: true, color: RED });
+    layout.gap(4);
+  }
   if (data.annulled) {
     layout.write("ANULADA: factura expedida por error; consta su registro de anulación VERI*FACTU.", { bold: true, color: RED });
     layout.gap(4);
   }
   layout.write(data.title, { bold: true, size: STRONG });
-  layout.write(`Fecha de expedición: ${data.issueDate}`);
+  layout.write(`${data.draft ? "Fecha" : "Fecha de expedición"}: ${data.issueDate}`);
   layout.gap(4 * MM);
 }
 
@@ -275,7 +295,7 @@ function drawClosing(layout: Layout, data: InvoicePdfData): void {
     layout.gap(4 * MM);
     layout.write(`Observaciones: ${data.notes}`);
   }
-  if (data.verifactu === null) {
+  if (data.verifactu === null && !data.draft) {
     layout.gap(4 * MM);
     layout.write("Factura emitida antes de VERI*FACTU: sin registro de facturación ni código QR.", { color: GRAY });
   }
@@ -302,6 +322,7 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Uint8Array
   layout.gap(3 * MM);
   drawAmounts(layout, data.amounts);
   drawClosing(layout, data);
+  if (data.draft) layout.watermark("BORRADOR");
   layout.numberPages();
   return document.save();
 }

@@ -15,6 +15,7 @@ export type AuditAction =
   | "invoice.draft_deleted"
   | "invoice.rectification_created"
   | "invoice.annulled"
+  | "invoice.sent"
   | "certificate.saved"
   | "certificate.deleted";
 

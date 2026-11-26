@@ -1,12 +1,12 @@
 import type { TaxpayerRecord, TenantContext } from "@facturalibre/tenancy";
-import { BookUser, FileText, KeyRound, Package, Settings2, ShieldCheck } from "lucide-react";
+import { BookUser, FilePen, FileText, KeyRound, Package, Settings2, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "@/components/app-header";
 import { SubmissionNotice } from "@/components/submission-notice";
 import { TenantFrame } from "@/components/tenant-frame";
 import type { SessionUser } from "@/lib/server/session";
 
-export type TaxpayerSection = "datos" | "facturas" | "clientes" | "productos" | "registros" | "certificado";
+export type TaxpayerSection = "datos" | "borradores" | "facturas" | "clientes" | "productos" | "registros" | "certificado";
 
 /**
  * Marco de toda pantalla que actúa sobre un contribuyente: el contribuyente activo SIEMPRE visible (R-05)
@@ -27,6 +27,7 @@ export function TaxpayerFrame({
 }) {
   const base = `/${context.tenant.slug}/contribuyentes/${taxpayer.id}`;
   const sections: { id: TaxpayerSection; href: string; label: string; icon: ReactNode; visible: boolean }[] = [
+    { id: "borradores", href: `${base}/borradores`, label: "Borradores", icon: <FilePen />, visible: context.permissions.has("invoices.read") },
     { id: "facturas", href: `${base}/facturas`, label: "Facturas", icon: <FileText />, visible: context.permissions.has("invoices.read") },
     { id: "clientes", href: `${base}/clientes`, label: "Clientes", icon: <BookUser />, visible: context.permissions.has("customers.read") },
     { id: "productos", href: `${base}/productos`, label: "Productos", icon: <Package />, visible: context.permissions.has("products.read") },

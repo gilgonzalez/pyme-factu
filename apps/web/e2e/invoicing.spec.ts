@@ -4,7 +4,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { createOrganization, requireFullStack, signUpAndVerify } from "./support/flows";
-import { uniqueEmail, uniqueSuffix } from "./support/mailpit";
+import { emailWithAttachments, uniqueEmail, uniqueSuffix } from "./support/mailpit";
 
 requireFullStack();
 
@@ -58,6 +58,31 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   // (100 + 35,50) × 1,21 = 163,955 → 163,96 €
   await expect(page.getByRole("region", { name: "Totales" })).toContainText("163,96 €");
   await page.getByRole("button", { name: "Guardar borrador" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Factura (borrador)" })).toBeVisible();
+
+  // El borrador: en su propia sección (no entre las facturas), en PDF y enviado al cliente para que lo revise.
+  const draftUrl = page.url();
+  const draftDownload = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Descargar borrador (PDF)" }).click();
+  expect((await draftDownload).suggestedFilename()).toMatch(/^borrador-[0-9a-f]{8}\.pdf$/);
+  const clientEmail = uniqueEmail("cliente");
+  const send = page.getByRole("form", { name: "Enviar el borrador al cliente" });
+  await send.getByLabel("Email del cliente").fill(clientEmail);
+  await send.getByLabel("Mensaje (opcional)").fill("Te paso el presupuesto para que lo revises.");
+  await send.getByRole("button", { name: "Enviar borrador" }).click();
+  await expect(send.getByRole("status")).toContainText(`Borrador de factura enviado a ${clientEmail}`);
+  const sent = await emailWithAttachments(clientEmail, /^Borrador de factura de Ana Ficticia Pérez$/);
+  expect(sent.text).toContain("Te paso el presupuesto para que lo revises.");
+  expect(sent.text).toContain("no tiene validez fiscal");
+  expect(sent.attachments).toEqual([expect.stringMatching(/^borrador-[0-9a-f]{8}\.pdf$/)]);
+
+  await sections.getByRole("link", { name: "Borradores" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Borradores" })).toBeVisible();
+  await expect(page.getByRole("table", { name: /Borradores de/ })).toContainText("Cliente Ficticio SL");
+  await sections.getByRole("link", { name: "Facturas" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Facturas" })).toBeVisible();
+  await expect(page.getByText("Aún no hay facturas emitidas")).toBeVisible();
+  await page.goto(draftUrl);
   await expect(page.getByRole("heading", { level: 1, name: "Factura (borrador)" })).toBeVisible();
 
   // Emisión: número correlativo de la serie del año; después, inalterable.

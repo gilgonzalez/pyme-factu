@@ -376,6 +376,8 @@ export interface InvoiceLineView {
 
 export interface InvoiceDetail extends InvoiceSummary {
   readonly customerId: string;
+  /** Email actual del cliente (para enviarle el borrador o la factura); null si no tiene. */
+  readonly customerEmail: string | null;
   readonly equivalenceSurcharge: boolean;
   readonly withholdingPercent: bigint;
   readonly taxableBase: bigint;
@@ -383,6 +385,7 @@ export interface InvoiceDetail extends InvoiceSummary {
   readonly surchargeTotal: bigint;
   readonly withholdingAmount: bigint;
   readonly breakdown: readonly TaxBreakdown[];
+  /** Emisor y destinatario: los guardados al emitir; en un borrador, los de ahora (aún pueden cambiar). */
   readonly issuerSnapshot: unknown;
   readonly customerSnapshot: unknown;
   readonly rectifiesInvoiceId: string | null;
@@ -407,14 +410,18 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
     if (!UUID.test(invoiceId)) return null;
     const row = await tx.invoice.findFirst({
       where: { id: invoiceId, taxpayerId },
-      include: { series: { select: { code: true } }, customer: { select: { legalName: true } }, lines: { orderBy: { position: "asc" } }, ...ANNULMENTS },
+      include: { series: { select: { code: true } }, customer: { select: { ...PARTY_FIELDS, email: true } }, lines: { orderBy: { position: "asc" } }, ...ANNULMENTS },
     });
     if (row === null) return null;
+    const { email: customerEmail, ...customer } = row.customer;
+    const draft = row.status === "DRAFT";
+    const issuer = draft ? await tx.taxpayer.findFirst({ where: { id: taxpayerId }, select: PARTY_FIELDS }) : row.issuerSnapshot;
     const lines = row.lines.map((line) => ({ ...line, discountPercent: BigInt(line.discountPercent) }));
     const breakdown = totalsOfStored(row.lines, row.equivalenceSurcharge, row.withholdingPercent).breakdown;
     return {
       ...summaryOf(row),
       customerId: row.customerId,
+      customerEmail,
       equivalenceSurcharge: row.equivalenceSurcharge,
       withholdingPercent: BigInt(row.withholdingPercent),
       taxableBase: row.taxableBase,
@@ -422,8 +429,8 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
       surchargeTotal: row.surchargeTotal,
       withholdingAmount: row.withholdingAmount,
       breakdown,
-      issuerSnapshot: row.issuerSnapshot,
-      customerSnapshot: row.customerSnapshot,
+      issuerSnapshot: issuer,
+      customerSnapshot: draft ? customer : row.customerSnapshot,
       rectifiesInvoiceId: row.rectifiesInvoiceId,
       rectifiesNumber: await numberOf(tx, taxpayerId, row.rectifiesInvoiceId),
       rectificationReason: row.rectificationReason,
@@ -440,5 +447,26 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
       })),
       verifactu: await invoiceRecords(tx, taxpayerId, invoiceId),
     };
+  });
+}
+
+// ─── Envío al cliente ────────────────────────────────────────────────────────
+
+/**
+ * Deja constancia (auditoría) de que se envió por email el borrador o la factura a `to`. El envío en sí lo
+ * hace quien llama; enviar es cosa de quien prepara facturas (invoices.draft), no de quien solo las lee.
+ */
+export function recordInvoiceSent(
+  db: Database,
+  context: TenantContext,
+  invoiceId: string,
+  to: string,
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: "NOT_FOUND" }> {
+  return runInTenant(db, context, "invoices.draft", async (tx) => {
+    const taxpayerId = activeTaxpayerId(context, "invoices.draft");
+    const row = UUID.test(invoiceId) ? await tx.invoice.findFirst({ where: { id: invoiceId, taxpayerId }, select: { status: true } }) : null;
+    if (row === null) return { ok: false, reason: "NOT_FOUND" };
+    await recordAudit(tx, context, "invoice.sent", { type: "invoice", id: invoiceId }, { to, status: row.status });
+    return { ok: true };
   });
 }

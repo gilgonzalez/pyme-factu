@@ -18,6 +18,7 @@ export {
   getInvoice,
   issueInvoice,
   listInvoices,
+  recordInvoiceSent,
   rectifyInvoice,
   updateDraftInvoice,
   type InvoiceDetail,
@@ -74,11 +75,13 @@ export {
 } from "./tenant-context";
 export {
   parseInvitationInput,
+  parseInvoiceSendInput,
   parseOrganizationInput,
   parseTaxpayerDetails,
   suggestSlug,
   type InvitableRole,
   type InvitationInput,
+  type InvoiceSendInput,
   type OrganizationInput,
   type Parsed,
   type TaxpayerDetails,

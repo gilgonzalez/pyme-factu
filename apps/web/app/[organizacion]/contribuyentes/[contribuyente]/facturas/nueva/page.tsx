@@ -16,7 +16,7 @@ async function NewInvoice({ params }: { readonly params: PageProps<"/[organizaci
   const { customers, products } = await editorData(context);
 
   return (
-    <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
+    <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="borradores">
       <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">Nueva factura</h1>
       <InvoiceEditor
         action={saveDraftAction.bind(null, context.tenant.slug, taxpayer.id, null)}

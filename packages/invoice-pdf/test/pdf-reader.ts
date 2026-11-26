@@ -75,6 +75,8 @@ export interface ReadPdf {
   readonly pages: readonly ReadPage[];
   /** Textos de cada página, en orden de escritura. */
   readonly texts: readonly (readonly string[])[];
+  /** Contenido (descomprimido) de cada página, para lo que no es texto horizontal. */
+  readonly contents: readonly string[];
   /** Medida de un texto como lo mide el PDF. */
   readonly measure: (text: string, size: number, bold?: boolean) => number;
 }
@@ -83,13 +85,12 @@ export async function readPdf(bytes: Uint8Array): Promise<ReadPdf> {
   const document = await PDFDocument.load(bytes, { updateMetadata: false });
   const metrics = await PDFDocument.create();
   const fonts = { regular: await metrics.embedFont(StandardFonts.Helvetica), bold: await metrics.embedFont(StandardFonts.HelveticaBold) };
-  const pages = document.getPages().map((page) => {
-    const content = contentOf(page);
-    return { runs: runsOf(content, fonts), images: imagesOf(content) };
-  });
+  const contents = document.getPages().map(contentOf);
+  const pages = contents.map((content) => ({ runs: runsOf(content, fonts), images: imagesOf(content) }));
   return {
     document,
     pages,
+    contents,
     texts: pages.map((page) => page.runs.map((run) => run.text)),
     measure: (text, size, bold = false) => (bold ? fonts.bold : fonts.regular).widthOfTextAtSize(text, size),
   };

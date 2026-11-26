@@ -25,6 +25,15 @@ export async function linkFromEmail(to: string, subject: RegExp): Promise<string
   return link;
 }
 
+/** Espera el último correo a `to` cuyo asunto encaje y devuelve su texto y los nombres de sus adjuntos. */
+export async function emailWithAttachments(to: string, subject: RegExp): Promise<{ readonly text: string; readonly attachments: readonly string[] }> {
+  let found: MessageSummary | undefined;
+  await expect.poll(async () => (found = await search(to, subject)) !== undefined, { timeout: 15_000 }).toBe(true);
+  const response = await fetch(`${MAILPIT_URL}/api/v1/message/${found?.ID ?? ""}`);
+  const message = (await response.json()) as { Text: string; Attachments: { FileName: string }[] };
+  return { text: message.Text, attachments: message.Attachments.map((attachment) => attachment.FileName) };
+}
+
 /** Sufijo único por ejecución y proyecto (escritorio y móvil corren en paralelo). */
 export const uniqueSuffix = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 

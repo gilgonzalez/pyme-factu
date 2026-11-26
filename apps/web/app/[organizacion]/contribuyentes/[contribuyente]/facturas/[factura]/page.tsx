@@ -2,7 +2,7 @@ import { formatAmount, formatDecimal, SCALE } from "@facturalibre/fiscal-core";
 import { getInvoice, type BillingRecordView, type InvoiceDetail } from "@facturalibre/tenancy";
 import { qrSvg, qrUrl } from "@facturalibre/verifactu";
 import type { Metadata } from "next";
-import { Download } from "lucide-react";
+import { Download, Send } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -15,9 +15,9 @@ import { rectificationLabel, taxLabel } from "@/lib/invoicing";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
 import { qrEnvironment } from "@/lib/server/verifactu";
-import { annulAction, deleteDraftAction, issueAction, rectifyAction } from "../actions";
+import { annulAction, deleteDraftAction, issueAction, rectifyAction, sendInvoiceAction } from "../actions";
 import { invoicesPath } from "../editor-data";
-import { AnnulForm, DeleteDraftForm, IssueForm, RectifyForm } from "./invoice-actions";
+import { AnnulForm, DeleteDraftForm, IssueForm, RectifyForm, SendForm } from "./invoice-actions";
 
 export const metadata: Metadata = { title: "Factura" };
 
@@ -280,10 +280,13 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
   const canRectify = !draft && can("invoices.rectify") && anulacion === null;
 
   return (
-    <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
+    <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current={draft ? "borradores" : "facturas"}>
       <div className="grid gap-3">
-        <Link href={invoicesPath(slug, taxpayer.id)} className="w-fit text-sm text-muted-foreground hover:text-foreground">
-          Volver a facturas
+        <Link
+          href={draft ? `/${slug}/contribuyentes/${taxpayer.id}/borradores` : invoicesPath(slug, taxpayer.id)}
+          className="w-fit text-sm text-muted-foreground hover:text-foreground"
+        >
+          {draft ? "Volver a borradores" : "Volver a facturas"}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="grid gap-1">
@@ -298,12 +301,10 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
               {draft ? "Borrador: todavía no tiene número ni validez fiscal." : `Expedida el ${spanishDate(invoice.issueDate ?? "")}. No se puede modificar.`}
             </p>
           </div>
-          {draft ? null : (
-            <a href={`${path}/pdf`} download className={buttonVariants()}>
-              <Download aria-hidden="true" />
-              Descargar PDF
-            </a>
-          )}
+          <a href={`${path}/pdf`} download className={buttonVariants({ variant: draft ? "outline" : "default" })}>
+            <Download aria-hidden="true" />
+            {draft ? "Descargar borrador (PDF)" : "Descargar PDF"}
+          </a>
         </div>
       </div>
 
@@ -382,6 +383,20 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
           ) : (
             <VerifactuInfo invoice={invoice} />
           )}
+          {can("invoices.draft") ? (
+            <section aria-labelledby="enviar" className="surface grid gap-3 p-5">
+              <h2 id="enviar" className="flex items-center gap-2 font-semibold">
+                <Send aria-hidden="true" className="size-4" />
+                {draft ? "Enviar el borrador al cliente" : "Enviar al cliente"}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {draft
+                  ? "Le llega en PDF, marcado como borrador sin validez fiscal, para que lo revise antes de emitir la factura."
+                  : "Le llega la factura en PDF, con su QR tributario."}
+              </p>
+              <SendForm action={sendInvoiceAction.bind(null, slug, taxpayer.id, invoice.id)} defaultTo={invoice.customerEmail ?? ""} draft={draft} />
+            </section>
+          ) : null}
           {canRectify ? (
             <Disclosure
               title="Corregir con una rectificativa"

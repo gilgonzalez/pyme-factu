@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseInvitationInput, parseOrganizationInput, suggestSlug } from "../src";
+import { parseInvitationInput, parseInvoiceSendInput, parseOrganizationInput, suggestSlug } from "../src";
 
 describe("suggestSlug", () => {
   it.each([
@@ -66,5 +66,20 @@ describe("parseInvitationInput", () => {
       ok: false,
       errors: { role: "La propiedad no se invita: se transfiere desde Equipo." },
     });
+  });
+});
+
+describe("parseInvoiceSendInput", () => {
+  it("normaliza el destinatario y deja el mensaje en null si está vacío", () => {
+    expect(parseInvoiceSendInput({ to: "  Compras@Cliente.TEST ", note: "   " })).toEqual({ ok: true, value: { to: "compras@cliente.test", note: null } });
+    expect(parseInvoiceSendInput({ to: "a@b.test", note: " Hola,\nte lo adjunto. " })).toEqual({ ok: true, value: { to: "a@b.test", note: "Hola,\nte lo adjunto." } });
+  });
+
+  it("rechaza un email mal formado y un mensaje demasiado largo", () => {
+    expect(parseInvoiceSendInput({ to: "no-es-un-email", note: "x".repeat(2001) })).toEqual({
+      ok: false,
+      errors: { to: "Escribe un email válido.", note: "El mensaje puede tener como mucho 2000 caracteres." },
+    });
+    expect(parseInvoiceSendInput({})).toMatchObject({ ok: false, errors: { to: "Escribe un email válido." } });
   });
 });

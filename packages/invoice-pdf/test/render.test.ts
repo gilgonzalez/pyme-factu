@@ -45,6 +45,7 @@ const base = (): InvoicePdfData => ({
   notes: null,
   rectification: null,
   annulled: false,
+  draft: false,
   verifactu: { qrPng },
 });
 
@@ -102,6 +103,25 @@ describe("contenido de la factura", () => {
     expect(all).toContain("Observaciones: Pago por transferencia.");
     const annulled = run(pdf, "ANULADA: factura expedida por error; consta su registro de anulación VERI*FACTU.");
     expect(annulled).toMatchObject({ bold: true, color: RED, size: 9 });
+  });
+
+  it("un borrador avisa de que no es una factura, lleva marca de agua en cada página y no tiene QR", async () => {
+    const lines = Array.from({ length: 70 }, (_, index) => ({ ...LINE, description: `Servicio ${String(index + 1)}` }));
+    const pdf = await render({ ...base(), title: "Borrador de factura", issueDate: "26/11/2026", draft: true, verifactu: null, lines });
+    const banner = run(pdf, "BORRADOR: documento sin validez fiscal. No es una factura: no tiene número ni registro VERI*FACTU.");
+    expect(banner).toMatchObject({ bold: true, color: RED, size: 9 });
+    expect(banner.y).toBeGreaterThan(run(pdf, "Borrador de factura").y);
+    expect(pdf.texts.flat()).toContain("Fecha: 26/11/2026");
+    expect(pdf.texts.flat()).not.toContain("Fecha de expedición: 26/11/2026");
+    expect(pdf.texts.flat()).not.toContain("Factura emitida antes de VERI*FACTU: sin registro de facturación ni código QR.");
+    expect(pdf.pages.flatMap((page) => page.images)).toHaveLength(0);
+    expect(pdf.pages.length).toBeGreaterThan(1);
+    for (const content of pdf.contents) expect(content).toContain(`<${Buffer.from("BORRADOR", "latin1").toString("hex").toUpperCase()}> Tj`);
+  });
+
+  it("una factura no lleva marca de agua de borrador", async () => {
+    const pdf = await render(base());
+    for (const content of pdf.contents) expect(content).not.toContain(`<${Buffer.from("BORRADOR", "latin1").toString("hex").toUpperCase()}> Tj`);
   });
 
   it("sin NIF ni domicilio no se escriben líneas vacías; los espacios se normalizan", async () => {

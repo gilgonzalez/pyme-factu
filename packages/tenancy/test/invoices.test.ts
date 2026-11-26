@@ -12,6 +12,7 @@ import {
   listCustomers,
   listInvoices,
   listProducts,
+  recordInvoiceSent,
   rectifyInvoice,
   setTaxpayerAccess,
   updateDraftInvoice,
@@ -87,6 +88,27 @@ describe("borradores", () => {
     expect((await getInvoice(world.db, await b.ctx(), id))?.taxableBase).toBe(15000n);
     expect(await deleteDraftInvoice(world.db, await b.ctx(), id)).toEqual({ ok: true });
     expect(await getInvoice(world.db, await b.ctx(), id)).toBeNull();
+  });
+
+  it("un borrador muestra el emisor y el cliente tal como son ahora, y el email del cliente para enviárselo", async () => {
+    const b = await billing({ legalName: "Cliente Ficticio SL", nif: "B12345674", city: "Sevilla", email: "compras@cliente.test" });
+    const id = await draft(b);
+    const invoice = await getInvoice(world.db, await b.ctx(), id);
+    expect(invoice?.issuerSnapshot).toMatchObject({ nif: "12345678Z", legalName: "Ana Ficticia Pérez", city: "Madrid" });
+    expect(invoice?.customerSnapshot).toMatchObject({ nif: "B12345674", legalName: "Cliente Ficticio SL", city: "Sevilla" });
+    expect(invoice?.customerEmail).toBe("compras@cliente.test");
+  });
+
+  it("enviar un borrador o una factura queda auditado; quien solo lee no envía", async () => {
+    const b = await billing();
+    const id = await draft(b);
+    expect(await recordInvoiceSent(world.db, await b.ctx(), id, "compras@cliente.test")).toEqual({ ok: true });
+    const event = await world.owner.auditEvent.findFirst({ where: { action: "invoice.sent", entityId: id } });
+    expect(event?.metadata).toEqual({ to: "compras@cliente.test", status: "DRAFT" });
+    expect(await recordInvoiceSent(world.db, await b.ctx(), "00000000-0000-7000-8000-000000000000", "a@b.test")).toEqual({ ok: false, reason: "NOT_FOUND" });
+
+    const viewer = await b.team.add("VIEWER");
+    await expect(recordInvoiceSent(world.db, await viewer.ctx(b.taxpayerId), id, "a@b.test")).rejects.toBeInstanceOf(AuthorizationError);
   });
 
   it("una factura emitida de otra organización no se lee aunque se conozca su id (tampoco su PDF, que sale de aquí)", async () => {

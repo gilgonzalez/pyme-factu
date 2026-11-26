@@ -38,8 +38,10 @@ async function Invoices({ params }: { readonly params: PageProps<"/[organizacion
   const { organizacion, contribuyente } = await params;
   const path = invoicesPath(organizacion, contribuyente);
   const { user, context, taxpayer } = await requireTaxpayer(organizacion, contribuyente, path);
-  const invoices = await listInvoices(getDatabase(), context);
-  const summary = monthSummary(invoices);
+  const all = await listInvoices(getDatabase(), context);
+  const summary = monthSummary(all);
+  // Los borradores tienen su propia sección: aquí solo lo emitido.
+  const invoices = all.filter((invoice) => invoice.status === "ISSUED");
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="facturas">
@@ -60,14 +62,21 @@ async function Invoices({ params }: { readonly params: PageProps<"/[organizacion
         </p>
         <p className="pb-1 text-sm text-muted-foreground">
           {count(summary.issued, "factura emitida", "facturas emitidas")}
-          {summary.drafts === 0 ? "" : `, ${count(summary.drafts, "borrador", "borradores")} sin emitir`}
+          {summary.drafts === 0 ? null : (
+            <>
+              {", "}
+              <Link href={`/${organizacion}/contribuyentes/${contribuyente}/borradores`} className="text-foreground underline underline-offset-4 hover:text-primary">
+                {count(summary.drafts, "borrador", "borradores")} sin emitir
+              </Link>
+            </>
+          )}
         </p>
       </section>
 
       {invoices.length === 0 ? (
         <div className="surface grid justify-items-start gap-2 p-8">
-          <h2 className="font-semibold">Aún no hay facturas</h2>
-          <p className="text-muted-foreground">Prepara un borrador: no tendrá número ni validez fiscal hasta que lo emitas.</p>
+          <h2 className="font-semibold">Aún no hay facturas emitidas</h2>
+          <p className="text-muted-foreground">Prepara un borrador: no tendrá número ni validez fiscal hasta que lo emitas. Los borradores están en su propia sección.</p>
         </div>
       ) : (
         <div className="surface overflow-x-auto">
@@ -87,7 +96,7 @@ async function Invoices({ params }: { readonly params: PageProps<"/[organizacion
                 <tr key={invoice.id} className="border-t first:border-t-0 hover:bg-subtle">
                   <td className="px-5 py-3">
                     <Link href={`${path}/${invoice.id}`} className="font-mono font-medium whitespace-nowrap hover:text-primary hover:underline hover:underline-offset-4">
-                      {invoice.number ?? "Borrador"}
+                      {invoice.number}
                     </Link>
                     {invoice.kind === "RECTIFYING" ? <span className="ml-2 text-xs whitespace-nowrap text-muted-foreground">Rectificativa</span> : null}
                     <span className="block text-muted-foreground md:hidden">{invoice.customerName}</span>

@@ -14,7 +14,15 @@ export function createSmtpMailer(smtpUrl: string, from: string): Mailer {
   const transport = nodemailer.createTransport(smtpUrl);
   return {
     async send(email) {
-      await transport.sendMail({ from, to: email.to, subject: email.subject, text: email.text, html: email.html });
+      await transport.sendMail({
+        from,
+        to: email.to,
+        subject: email.subject,
+        text: email.text,
+        html: email.html,
+        ...(email.replyTo === undefined ? {} : { replyTo: email.replyTo }),
+        attachments: email.attachments?.map(({ filename, content, contentType }) => ({ filename, content: Buffer.from(content), contentType })),
+      });
     },
   };
 }

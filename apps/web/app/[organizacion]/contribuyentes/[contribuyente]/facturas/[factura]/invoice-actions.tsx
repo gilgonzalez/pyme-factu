@@ -2,6 +2,7 @@
 import { ActionButton } from "@/components/action-button";
 import { ActionForm, type FormAction } from "@/components/action-form";
 import { Field } from "@/components/form";
+import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { RECTIFICATION_OPTIONS } from "@/lib/invoicing";
@@ -21,6 +22,52 @@ export function IssueForm({ action, total }: { readonly action: FormAction; read
           </label>
           <Button type="submit" size="lg" disabled={pending}>
             {pending ? "Emitiendo…" : "Emitir factura"}
+          </Button>
+        </>
+      )}
+    </ActionForm>
+  );
+}
+
+/**
+ * Enviar al cliente por email, con el PDF adjunto. El destinatario se propone con el email del cliente y se
+ * puede cambiar; el mensaje es opcional.
+ */
+export function SendForm({ action, defaultTo, draft }: { readonly action: FormAction; readonly defaultTo: string; readonly draft: boolean }) {
+  return (
+    <ActionForm action={action} className="grid gap-3" label={draft ? "Enviar el borrador al cliente" : "Enviar la factura al cliente"}>
+      {({ pending, errors, values }) => (
+        <>
+          <Field
+            name="to"
+            type="email"
+            label="Email del cliente"
+            required
+            autoComplete="email"
+            maxLength={254}
+            defaultValue={values["to"] ?? defaultTo}
+            error={errors["to"]}
+          />
+          <div className="grid gap-1.5">
+            <Label htmlFor="envio-mensaje">Mensaje (opcional)</Label>
+            <textarea
+              id="envio-mensaje"
+              name="note"
+              maxLength={2000}
+              rows={3}
+              defaultValue={values["note"] ?? ""}
+              aria-invalid={errors["note"] === undefined ? undefined : true}
+              aria-describedby={errors["note"] === undefined ? undefined : "envio-mensaje-error"}
+              className="rounded-lg border border-input bg-card px-3 py-2 text-base md:text-sm"
+            />
+            {errors["note"] === undefined ? null : (
+              <p id="envio-mensaje-error" className="text-sm text-destructive">
+                {errors["note"]}
+              </p>
+            )}
+          </div>
+          <Button type="submit" variant={draft ? "default" : "outline"} disabled={pending}>
+            {pending ? "Enviando…" : draft ? "Enviar borrador" : "Enviar factura"}
           </Button>
         </>
       )}

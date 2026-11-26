@@ -95,6 +95,24 @@ export function parseInvitationInput(raw: {
   return { ok: true, value: { email, role: role as InvitableRole, taxpayerScope } };
 }
 
+// ─── Envío de borradores y facturas ──────────────────────────────────────────
+
+const NOTE_MAX = 2000;
+
+export interface InvoiceSendInput {
+  readonly to: string;
+  /** Mensaje para el cliente; null si no se escribe nada. */
+  readonly note: string | null;
+}
+
+export function parseInvoiceSendInput(raw: { readonly to?: unknown; readonly note?: unknown }): Parsed<InvoiceSendInput, "to" | "note"> {
+  const to = text(raw.to).toLowerCase();
+  const note = text(raw.note);
+  const errors = collect({ to: emailError(to), note: note.length > NOTE_MAX ? `El mensaje puede tener como mucho ${String(NOTE_MAX)} caracteres.` : undefined });
+  if (errors !== null) return { ok: false, errors };
+  return { ok: true, value: { to, note: note === "" ? null : note } };
+}
+
 // ─── Contribuyentes ──────────────────────────────────────────────────────────
 
 /** Datos editables de un contribuyente (el NIF y el tipo de persona son su identidad: no se editan). */
