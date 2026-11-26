@@ -103,6 +103,9 @@ export interface TaxpayerRecord extends TaxpayerSummary {
   readonly city: string | null;
   readonly province: string | null;
   readonly email: string | null;
+  readonly phone: string | null;
+  readonly website: string | null;
+  readonly registryInfo: string | null;
 }
 
 /** Ficha completa del contribuyente ACTIVO del contexto (el acceso ya se verificó al resolver el contexto). */
@@ -123,6 +126,9 @@ export function getTaxpayer(db: Database, context: TenantContext): Promise<Taxpa
         city: true,
         province: true,
         email: true,
+        phone: true,
+        website: true,
+        registryInfo: true,
         status: true,
       },
     });

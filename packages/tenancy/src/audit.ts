@@ -11,6 +11,8 @@ export type AuditAction =
   | "taxpayer.created"
   | "taxpayer.updated"
   | "taxpayer.access_changed"
+  | "taxpayer.settings_updated"
+  | "taxpayer.logo_updated"
   | "invoice.issued"
   | "invoice.draft_deleted"
   | "invoice.rectification_created"

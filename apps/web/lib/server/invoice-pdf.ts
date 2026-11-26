@@ -1,9 +1,9 @@
 import "server-only";
 import { formatAmount, formatDecimal, SCALE } from "@facturalibre/fiscal-core";
 import { renderInvoicePdf, type InvoicePdfData, type PdfAmount } from "@facturalibre/invoice-pdf";
-import type { InvoiceDetail, TaxpayerRecord } from "@facturalibre/tenancy";
+import type { InvoiceDetail, Logo, TaxpayerRecord } from "@facturalibre/tenancy";
 import { qrPng, qrUrl } from "@facturalibre/verifactu";
-import { partyFrom, spanishDate, type Party } from "@/lib/invoice-view";
+import { issuerExtrasFrom, partyFrom, spanishDate, type Party } from "@/lib/invoice-view";
 import { rectificationLabel, taxLabel } from "@/lib/invoicing";
 import { qrEnvironment } from "./verifactu";
 
@@ -51,13 +51,14 @@ async function verifactuOf(invoice: InvoiceDetail): Promise<InvoicePdfData["veri
  * PDF de una factura emitida, con el QR tributario de su registro de alta (si no está anulada), o de un
  * borrador: con la fecha de hoy, sin número ni QR y marcado como «sin validez fiscal».
  */
-export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecord): Promise<Uint8Array> {
+export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecord, logo: Logo | null): Promise<Uint8Array> {
   const issuer = partyFrom(invoice.issuerSnapshot) ?? { legalName: taxpayer.legalName, nif: taxpayer.nif, address: "" };
+  const extras = issuerExtrasFrom(invoice.issuerSnapshot, invoice.dueDate);
   const recipient = partyFrom(invoice.customerSnapshot) ?? { legalName: invoice.customerName, nif: null, address: "" };
   return renderInvoicePdf({
     title: documentTitle(invoice),
     issueDate: spanishDate(invoice.issueDate ?? todayInSpain()),
-    issuer: pdfParty(issuer),
+    issuer: { ...pdfParty(issuer), details: extras.details },
     recipient: pdfParty(recipient),
     lines: invoice.lines.map((line) => ({
       description: line.description,
@@ -76,5 +77,8 @@ export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecor
     annulled: invoice.verifactu.anulacion !== null,
     draft: invoice.status === "DRAFT",
     verifactu: await verifactuOf(invoice),
+    logo: logo === null ? null : { bytes: logo.bytes, kind: logo.mimeType === "image/png" ? "png" : "jpeg" },
+    payment: extras.payment,
+    legal: extras.legal,
   });
 }

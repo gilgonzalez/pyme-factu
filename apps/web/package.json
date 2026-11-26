@@ -16,6 +16,7 @@
     "@facturalibre/aeat-client": "workspace:*",
     "@facturalibre/auth": "workspace:*",
     "@facturalibre/database": "workspace:*",
+    "@facturalibre/domain": "workspace:*",
     "@facturalibre/fiscal-core": "workspace:*",
     "@facturalibre/invoice-pdf": "workspace:*",
     "@facturalibre/security": "workspace:*",

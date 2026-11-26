@@ -1,5 +1,5 @@
 import { formatDecimal, SCALE } from "@facturalibre/fiscal-core";
-import { getInvoice } from "@facturalibre/tenancy";
+import { getBillingSettings, getInvoice } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { streamedPage } from "@/components/form";
@@ -25,7 +25,7 @@ async function EditInvoice({ params }: { readonly params: Params }) {
   if (invoice === null) notFound();
   // Una factura emitida es inalterable: se vuelve a su ficha (desde allí se rectifica).
   if (invoice.status !== "DRAFT") redirect(detailPath);
-  const { customers, products } = await editorData(context);
+  const [{ customers, products }, settings] = await Promise.all([editorData(context), getBillingSettings(getDatabase(), context)]);
 
   return (
     <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="borradores">
@@ -36,6 +36,7 @@ async function EditInvoice({ params }: { readonly params: Params }) {
         products={products}
         createCustomer={context.permissions.has("customers.write") ? createCustomerFromEditorAction.bind(null, context.tenant.slug, taxpayer.id) : undefined}
         createProduct={context.permissions.has("products.write") ? createProductFromEditorAction.bind(null, context.tenant.slug, taxpayer.id) : undefined}
+        defaultTax={settings.defaultTaxKey ?? undefined}
         newCustomerHref={`/${context.tenant.slug}/contribuyentes/${taxpayer.id}/clientes`}
         initial={{
           customerId: invoice.customerId,

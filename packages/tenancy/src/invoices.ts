@@ -15,6 +15,7 @@ import {
 } from "@facturalibre/fiscal-core";
 import { RECTIFICATION_TYPES } from "@facturalibre/verifactu";
 import { recordAudit } from "./audit";
+import { addDays, issuerProfile } from "./billing-settings";
 import { activeTaxpayerId } from "./catalog";
 import { formatInvoiceNumber, isoDate, lockInvoice, totalsOfStored, UUID, type Kind } from "./invoice-shared";
 import { runInTenant } from "./run-in-tenant";
@@ -215,7 +216,8 @@ export async function issueInvoice(
     const alta = await altaDataFor(tx, taxpayerId, invoiceId, formatted, today);
     if (!alta.ok) return { ok: false, reason: "NOT_REGISTRABLE", errors: alta.errors };
     const invoice = await tx.invoice.findFirstOrThrow({ where: { id: invoiceId, taxpayerId }, select: { customer: { select: PARTY_FIELDS } } });
-    const issuer = await tx.taxpayer.findFirstOrThrow({ where: { id: taxpayerId }, select: PARTY_FIELDS });
+    // Emisor con su contacto y sus datos de cobro de HOY: la factura no cambia si después cambian.
+    const issuer = await issuerProfile(tx, taxpayerId);
 
     await tx.invoice.updateMany({
       where: { id: invoiceId, taxpayerId },
@@ -226,8 +228,9 @@ export async function issueInvoice(
         issueDate: new Date(`${today}T00:00:00Z`),
         issuedAt: new Date(),
         issuedByUserId: context.user.id,
-        issuerSnapshot: issuer,
+        issuerSnapshot: { ...issuer.profile },
         customerSnapshot: invoice.customer,
+        dueDate: issuer.paymentTermsDays === null ? null : new Date(`${addDays(today, issuer.paymentTermsDays)}T00:00:00Z`),
       },
     });
     await tx.invoiceSeries.updateMany({ where: { id: series.id }, data: { nextNumber: number + 1 } });
@@ -378,6 +381,8 @@ export interface InvoiceDetail extends InvoiceSummary {
   readonly customerId: string;
   /** Email actual del cliente (para enviarle el borrador o la factura); null si no tiene. */
   readonly customerEmail: string | null;
+  /** Vencimiento: el fijado al emitir; en un borrador, hoy + el plazo configurado (null sin plazo). */
+  readonly dueDate: string | null;
   readonly equivalenceSurcharge: boolean;
   readonly withholdingPercent: bigint;
   readonly taxableBase: bigint;
@@ -415,13 +420,16 @@ export function getInvoice(db: Database, context: TenantContext, invoiceId: stri
     if (row === null) return null;
     const { email: customerEmail, ...customer } = row.customer;
     const draft = row.status === "DRAFT";
-    const issuer = draft ? await tx.taxpayer.findFirst({ where: { id: taxpayerId }, select: PARTY_FIELDS }) : row.issuerSnapshot;
+    const current = draft ? await issuerProfile(tx, taxpayerId) : null;
+    const issuer = current === null ? row.issuerSnapshot : current.profile;
+    const dueDate = current === null ? dateText(row.dueDate) : current.paymentTermsDays === null ? null : addDays(await todayInSpain(tx), current.paymentTermsDays);
     const lines = row.lines.map((line) => ({ ...line, discountPercent: BigInt(line.discountPercent) }));
     const breakdown = totalsOfStored(row.lines, row.equivalenceSurcharge, row.withholdingPercent).breakdown;
     return {
       ...summaryOf(row),
       customerId: row.customerId,
       customerEmail,
+      dueDate,
       equivalenceSurcharge: row.equivalenceSurcharge,
       withholdingPercent: BigInt(row.withholdingPercent),
       taxableBase: row.taxableBase,

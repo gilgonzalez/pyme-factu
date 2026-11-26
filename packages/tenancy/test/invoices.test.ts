@@ -15,11 +15,17 @@ import {
   recordInvoiceSent,
   rectifyInvoice,
   setTaxpayerAccess,
+  updateBillingSettings,
   updateDraftInvoice,
+  updateTaxpayer,
 } from "../src";
 import { invoicingWorld, LINE, VERIFACTU, YEAR } from "./support";
 
 const { world, billing, draft } = invoicingWorld();
+
+/** Hoy en España ("2026-11-26") y una fecha ISO más n días. */
+const TODAY = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+const addDays = (iso: string, days: number): string => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 describe("clientes y productos", () => {
   it("se dan de alta por contribuyente, con NIF opcional pero válido", async () => {
@@ -28,7 +34,7 @@ describe("clientes y productos", () => {
     // El alta devuelve lo necesario para elegirlo enseguida en el editor de facturas.
     expect(await createCustomer(world.db, ctx, { legalName: "Particular sin NIF", equivalenceSurcharge: "on" })).toEqual({
       ok: true,
-      customer: { id: expect.any(String), legalName: "Particular sin NIF", nif: null, equivalenceSurcharge: true },
+      customer: { id: expect.any(String) as string, legalName: "Particular sin NIF", nif: null, equivalenceSurcharge: true },
     });
     expect(await createCustomer(world.db, ctx, { legalName: "Mal", nif: "B12345675" })).toEqual({
       ok: false,
@@ -40,7 +46,7 @@ describe("clientes y productos", () => {
 
     expect(await createProduct(world.db, ctx, { name: "Hora de trabajo", unitPrice: "35,5", tax: "VAT:2100" })).toEqual({
       ok: true,
-      product: { id: expect.any(String), name: "Hora de trabajo", unitPrice: 355_000n, taxKey: "VAT:2100" },
+      product: { id: expect.any(String) as string, name: "Hora de trabajo", unitPrice: 355_000n, taxKey: "VAT:2100" },
     });
     expect(await createProduct(world.db, ctx, { name: "", unitPrice: "-1", tax: "X" })).toMatchObject({ ok: false, reason: "INVALID" });
     const products = await listProducts(world.db, ctx);
@@ -142,6 +148,33 @@ describe("emisión y numeración", () => {
     expect(issued?.issuerSnapshot).toMatchObject({ nif: "12345678Z", legalName: "Ana Ficticia Pérez", city: "Madrid" });
     expect(issued?.customerSnapshot).toMatchObject({ nif: "B12345674", legalName: "Cliente Ficticio SL" });
     expect(await world.owner.auditEvent.count({ where: { action: "invoice.issued", entityId: latest?.id ?? "" } })).toBe(1);
+  });
+
+  it("al emitir congela los datos de contacto y de cobro del emisor y fija el vencimiento", async () => {
+    const b = await billing();
+    await updateTaxpayer(world.db, await b.ctx(), { legalName: "Ana Ficticia Pérez", city: "Madrid", phone: "600 123 456", registryInfo: "Sin inscripción registral" });
+    await updateBillingSettings(world.db, await b.ctx(), { iban: "ES9121000418450200051332", paymentInstructions: "O por Bizum.", paymentTermsDays: "30", footerNote: "Gracias." });
+    const id = await draft(b);
+
+    // Un borrador muestra la configuración de ahora y vence a 30 días de hoy.
+    const preview = await getInvoice(world.db, await b.ctx(), id);
+    expect(preview?.issuerSnapshot).toMatchObject({ phone: "600 123 456", iban: "ES9121000418450200051332", paymentInstructions: "O por Bizum.", footerNote: "Gracias." });
+    expect(preview?.dueDate).toBe(addDays(TODAY(), 30));
+
+    await issueInvoice(world.db, await b.ctx(), id, VERIFACTU);
+    await updateBillingSettings(world.db, await b.ctx(), { iban: "DE89370400440532013000" });
+    const issued = await getInvoice(world.db, await b.ctx(), id);
+    expect(issued?.issuerSnapshot).toMatchObject({
+      legalName: "Ana Ficticia Pérez",
+      phone: "600 123 456",
+      registryInfo: "Sin inscripción registral",
+      iban: "ES9121000418450200051332",
+      paymentInstructions: "O por Bizum.",
+      footerNote: "Gracias.",
+    });
+    expect(issued?.dueDate).toBe(addDays(issued?.issueDate ?? "", 30));
+    // Sin plazo configurado no hay vencimiento.
+    expect((await getInvoice(world.db, await b.ctx(), await draft(b)))?.dueDate).toBeNull();
   });
 
   it("emitir a la vez varios borradores nunca repite número", async () => {

@@ -2,7 +2,21 @@
 // NIF ficticios calculados con los algoritmos oficiales.
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { AuthorizationError, createTaxpayer, getTaxpayer, listTaxpayerAccess, listTaxpayers, setTaxpayerAccess, updateTaxpayer, type TenantContext } from "../src";
+import {
+  AuthorizationError,
+  createTaxpayer,
+  deleteTaxpayerLogo,
+  getBillingSettings,
+  getTaxpayer,
+  getTaxpayerLogo,
+  listTaxpayerAccess,
+  listTaxpayers,
+  setTaxpayerAccess,
+  setTaxpayerLogo,
+  updateBillingSettings,
+  updateTaxpayer,
+  type TenantContext,
+} from "../src";
 import { testWorld } from "./support";
 
 const world = testWorld();
@@ -204,7 +218,14 @@ describe("edición de contribuyentes", () => {
 describe("ficha del contribuyente activo", () => {
   it("devuelve todos sus datos y el nivel de acceso de quien la consulta", async () => {
     const team = await world.newTeam();
-    const id = await created(await team.ownerCtx(), { ...COMPANY, tradeName: "Fontanería Rápida", email: "Hola@Example.TEST" });
+    const id = await created(await team.ownerCtx(), {
+      ...COMPANY,
+      tradeName: "Fontanería Rápida",
+      email: "Hola@Example.TEST",
+      phone: "+34 600 123 456",
+      website: "fontaneria.example",
+      registryInfo: "Inscrita en el Registro Mercantil de Madrid, tomo 1, folio 2, hoja M-3",
+    });
     expect(await getTaxpayer(world.db, await team.ownerCtx(id))).toEqual({
       id,
       nif: "B12345674",
@@ -216,6 +237,9 @@ describe("ficha del contribuyente activo", () => {
       city: "Madrid",
       province: "Madrid",
       email: "hola@example.test",
+      phone: "+34 600 123 456",
+      website: "fontaneria.example",
+      registryInfo: "Inscrita en el Registro Mercantil de Madrid, tomo 1, folio 2, hoja M-3",
       status: "ACTIVE",
       access: "FULL",
     });
@@ -224,5 +248,92 @@ describe("ficha del contribuyente activo", () => {
   it("sin contribuyente activo en el contexto no hay ficha", async () => {
     const team = await world.newTeam();
     await expect(getTaxpayer(world.db, await team.ownerCtx())).rejects.toBeInstanceOf(AuthorizationError);
+  });
+});
+
+describe("configuración de facturación", () => {
+  const SETTINGS = {
+    iban: "ES91 2100 0418 4502 0005 1332",
+    paymentInstructions: "También por Bizum.",
+    paymentTermsDays: "30",
+    defaultWithholdingPercent: "15",
+    defaultTaxKey: "VAT:1000",
+    footerNote: "Gracias por su confianza.",
+    emailMessage: "Te adjunto el documento.",
+  };
+
+  it("empieza vacía; se guarda, se lee y queda auditada", async () => {
+    const team = await world.newTeam();
+    const id = await created(await team.ownerCtx());
+    const empty = { iban: null, paymentInstructions: null, paymentTermsDays: null, defaultWithholdingPercent: null, defaultTaxKey: null, footerNote: null, emailMessage: null };
+    expect(await getBillingSettings(world.db, await team.ownerCtx(id))).toEqual({ ...empty, hasLogo: false, logoVersion: null });
+
+    expect(await updateBillingSettings(world.db, await team.ownerCtx(id), SETTINGS)).toEqual({ ok: true });
+    expect(await getBillingSettings(world.db, await team.ownerCtx(id))).toEqual({
+      iban: "ES9121000418450200051332",
+      paymentInstructions: "También por Bizum.",
+      paymentTermsDays: 30,
+      defaultWithholdingPercent: 1500,
+      defaultTaxKey: "VAT:1000",
+      footerNote: "Gracias por su confianza.",
+      emailMessage: "Te adjunto el documento.",
+      hasLogo: false,
+      logoVersion: null,
+    });
+    expect(await world.owner.auditEvent.count({ where: { action: "taxpayer.settings_updated", entityId: id } })).toBe(1);
+
+    // Vaciar un campo lo borra.
+    expect(await updateBillingSettings(world.db, await team.ownerCtx(id), {})).toEqual({ ok: true });
+    expect(await getBillingSettings(world.db, await team.ownerCtx(id))).toEqual({ ...empty, hasLogo: false, logoVersion: null });
+  });
+
+  it("valida por campo y exige acceso completo; con solo lectura se consulta", async () => {
+    const team = await world.newTeam();
+    const id = await created(await team.ownerCtx());
+    expect(await updateBillingSettings(world.db, await team.ownerCtx(id), { iban: "ES00" })).toMatchObject({ ok: false, reason: "INVALID", errors: { iban: expect.any(String) as string } });
+
+    const admin = await team.add("ADMIN", "ASSIGNED_TAXPAYERS");
+    await setTaxpayerAccess(world.db, await team.ownerCtx(), { taxpayerId: id, membershipId: admin.membershipId, access: "READ_ONLY" });
+    await expect(updateBillingSettings(world.db, await admin.ctx(id), SETTINGS)).rejects.toBeInstanceOf(AuthorizationError);
+    expect(await getBillingSettings(world.db, await admin.ctx(id))).toMatchObject({ iban: null });
+  });
+
+  it("otra organización no ve ni cambia la configuración aunque conozca el contribuyente", async () => {
+    const team = await world.newTeam();
+    const id = await created(await team.ownerCtx());
+    await updateBillingSettings(world.db, await team.ownerCtx(id), SETTINGS);
+    const other = await world.newTeam();
+    await expect(other.ownerCtx(id)).rejects.toThrow();
+  });
+});
+
+describe("logo", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+
+  it("se sube, se lee y se quita; un fichero que no es imagen se rechaza", async () => {
+    const team = await world.newTeam();
+    const id = await created(await team.ownerCtx());
+    expect(await getTaxpayerLogo(world.db, await team.ownerCtx(id))).toBeNull();
+    expect(await setTaxpayerLogo(world.db, await team.ownerCtx(id), new TextEncoder().encode("hola"))).toEqual({
+      ok: false,
+      reason: "INVALID",
+      errors: { logo: "El logo tiene que ser una imagen PNG o JPEG." },
+    });
+
+    expect(await setTaxpayerLogo(world.db, await team.ownerCtx(id), PNG)).toEqual({ ok: true });
+    expect(await getTaxpayerLogo(world.db, await team.ownerCtx(id))).toEqual({ bytes: PNG, mimeType: "image/png" });
+    expect(await getBillingSettings(world.db, await team.ownerCtx(id))).toMatchObject({ hasLogo: true, logoVersion: expect.stringMatching(/^[0-9]+$/) as string });
+    expect(await world.owner.auditEvent.count({ where: { action: "taxpayer.logo_updated", entityId: id } })).toBe(1);
+
+    await deleteTaxpayerLogo(world.db, await team.ownerCtx(id));
+    expect(await getTaxpayerLogo(world.db, await team.ownerCtx(id))).toBeNull();
+  });
+
+  it("solo con acceso completo se cambia", async () => {
+    const team = await world.newTeam();
+    const id = await created(await team.ownerCtx());
+    const viewer = await team.add("VIEWER");
+    await expect(setTaxpayerLogo(world.db, await viewer.ctx(id), PNG)).rejects.toBeInstanceOf(AuthorizationError);
+    await expect(deleteTaxpayerLogo(world.db, await viewer.ctx(id))).rejects.toBeInstanceOf(AuthorizationError);
   });
 });

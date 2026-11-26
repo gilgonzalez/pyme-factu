@@ -44,6 +44,8 @@ export interface InvoiceEditorProps {
   readonly products: readonly EditorProduct[];
   readonly initial: { readonly customerId: string; readonly withholdingPercent: string; readonly notes: string; readonly lines: readonly EditorLine[] };
   readonly newCustomerHref: string;
+  /** IVA de las líneas nuevas (configuración de la empresa); por defecto, el 21 %. */
+  readonly defaultTax?: string | undefined;
   /** Alta de cliente / producto desde el buscador; ausente si el rol no puede darlos de alta. */
   readonly createCustomer?: ((data: FormData) => Promise<CreatedResult<EditorCustomer>>) | undefined;
   readonly createProduct?: ((data: FormData) => Promise<CreatedResult<EditorProduct>>) | undefined;
@@ -56,9 +58,9 @@ type KeyedLine = EditorLine & { readonly key: number };
 const selectClass =
   "h-10 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base shadow-[0_1px_2px_rgb(16_16_32/0.04)] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm";
 
-function useLines(initial: readonly EditorLine[]) {
+function useLines(initial: readonly EditorLine[], emptyLine: EditorLine) {
   const [nextKey, setNextKey] = useState(initial.length + 1);
-  const [lines, setLines] = useState<KeyedLine[]>(() => (initial.length === 0 ? [EMPTY_LINE] : initial).map((line, index) => ({ ...line, key: index })));
+  const [lines, setLines] = useState<KeyedLine[]>(() => (initial.length === 0 ? [emptyLine] : initial).map((line, index) => ({ ...line, key: index })));
   return {
     lines,
     add(line: EditorLine) {
@@ -152,9 +154,20 @@ const productLine = (product: EditorProduct): EditorLine => ({ description: prod
 
 type Creating = { readonly kind: "customer" | "product"; readonly query: string } | null;
 
-export function InvoiceEditor({ action, customers: listedCustomers, products: listedProducts, initial, newCustomerHref, createCustomer, createProduct, rectification }: InvoiceEditorProps) {
+export function InvoiceEditor({
+  action,
+  customers: listedCustomers,
+  products: listedProducts,
+  initial,
+  newCustomerHref,
+  defaultTax,
+  createCustomer,
+  createProduct,
+  rectification,
+}: InvoiceEditorProps) {
   const ids = { notes: useId() };
-  const { lines, add, addOrFill, update, remove } = useLines(initial.lines);
+  const emptyLine: EditorLine = { ...EMPTY_LINE, tax: defaultTax ?? EMPTY_LINE.tax };
+  const { lines, add, addOrFill, update, remove } = useLines(initial.lines, emptyLine);
   const [customerId, setCustomerId] = useState(initial.customerId);
   const [withholding, setWithholding] = useState(initial.withholdingPercent);
   const [createdCustomers, setCreatedCustomers] = useState<EditorCustomer[]>([]);
@@ -286,7 +299,7 @@ export function InvoiceEditor({ action, customers: listedCustomers, products: li
                 );
               })}
               <div className="flex flex-wrap items-end gap-3">
-                <Button type="button" variant="outline" onClick={() => add(EMPTY_LINE)}>
+                <Button type="button" variant="outline" onClick={() => add(emptyLine)}>
                   Añadir línea
                 </Button>
                 {products.length === 0 && createProduct === undefined ? null : (

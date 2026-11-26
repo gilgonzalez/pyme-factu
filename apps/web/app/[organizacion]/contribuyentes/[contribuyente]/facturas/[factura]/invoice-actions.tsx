@@ -33,7 +33,18 @@ export function IssueForm({ action, total }: { readonly action: FormAction; read
  * Enviar al cliente por email, con el PDF adjunto. El destinatario se propone con el email del cliente y se
  * puede cambiar; el mensaje es opcional.
  */
-export function SendForm({ action, defaultTo, draft }: { readonly action: FormAction; readonly defaultTo: string; readonly draft: boolean }) {
+export function SendForm({
+  action,
+  defaultTo,
+  defaultNote,
+  draft,
+}: {
+  readonly action: FormAction;
+  readonly defaultTo: string;
+  /** Mensaje predeterminado de la configuración de la empresa. */
+  readonly defaultNote: string;
+  readonly draft: boolean;
+}) {
   return (
     <ActionForm action={action} className="grid gap-3" label={draft ? "Enviar el borrador al cliente" : "Enviar la factura al cliente"}>
       {({ pending, errors, values }) => (
@@ -55,7 +66,7 @@ export function SendForm({ action, defaultTo, draft }: { readonly action: FormAc
               name="note"
               maxLength={2000}
               rows={3}
-              defaultValue={values["note"] ?? ""}
+              defaultValue={values["note"] ?? defaultNote}
               aria-invalid={errors["note"] === undefined ? undefined : true}
               aria-describedby={errors["note"] === undefined ? undefined : "envio-mensaje-error"}
               className="rounded-lg border border-input bg-card px-3 py-2 text-base md:text-sm"

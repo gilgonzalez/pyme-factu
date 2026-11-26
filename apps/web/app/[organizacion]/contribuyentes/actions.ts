@@ -1,7 +1,14 @@
 "use server";
 // Acciones de Contribuyentes: sesión → contexto verificado (con el contribuyente activo cuando aplica) →
 // caso de uso de @facturalibre/tenancy (permiso + RLS + auditoría) → mensaje en español.
-import { createTaxpayer, setTaxpayerAccess, updateTaxpayer } from "@facturalibre/tenancy";
+import {
+  createTaxpayer,
+  deleteTaxpayerLogo,
+  setTaxpayerAccess,
+  setTaxpayerLogo,
+  updateBillingSettings,
+  updateTaxpayer,
+} from "@facturalibre/tenancy";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/action-form";
 import { getDatabase } from "@/lib/server/db";
@@ -45,5 +52,32 @@ export async function setTaxpayerAccessAction(slug: string, taxpayerId: string, 
     if (!isAccess(access)) return { ok: false, message: "Elige un nivel de acceso." };
     const outcome = await setTaxpayerAccess(getDatabase(), context, { taxpayerId, membershipId: formText(data, "membershipId"), access });
     return outcome.ok ? { ok: true, message: "Acceso actualizado." } : reasonMessage(REASONS, outcome.reason);
+  });
+}
+
+// ─── Configuración de la empresa (cobro, valores por defecto y logo) ────────
+
+const companyTarget = (slug: string, taxpayerId: string) => ({ slug, returnPath: `/${slug}/contribuyentes/${taxpayerId}`, taxpayerId });
+
+export async function updateBillingSettingsAction(slug: string, taxpayerId: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
+  return tenantAction(companyTarget(slug, taxpayerId), async ({ context }) => {
+    const outcome = await updateBillingSettings(getDatabase(), context, Object.fromEntries(data));
+    return outcome.ok ? { ok: true, message: "Configuración guardada. Se usará en tus próximos borradores y facturas." } : { ok: false, message: "", errors: outcome.errors };
+  });
+}
+
+export async function uploadLogoAction(slug: string, taxpayerId: string, _previous: ActionResult, data: FormData): Promise<ActionResult> {
+  return tenantAction(companyTarget(slug, taxpayerId), async ({ context }) => {
+    const file = data.get("logo");
+    const bytes = file instanceof File ? new Uint8Array(await file.arrayBuffer()) : new Uint8Array();
+    const outcome = await setTaxpayerLogo(getDatabase(), context, bytes);
+    return outcome.ok ? { ok: true, message: "Logo guardado." } : { ok: false, message: "", errors: outcome.errors };
+  });
+}
+
+export async function deleteLogoAction(slug: string, taxpayerId: string): Promise<ActionResult> {
+  return tenantAction(companyTarget(slug, taxpayerId), async ({ context }) => {
+    await deleteTaxpayerLogo(getDatabase(), context);
+    return { ok: true, message: "Logo quitado." };
   });
 }

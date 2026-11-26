@@ -8,6 +8,7 @@ import {
   deleteDraftInvoice,
   getInvoice,
   getTaxpayer,
+  getTaxpayerLogo,
   issueInvoice,
   parseInvoiceSendInput,
   recordInvoiceSent,
@@ -143,7 +144,7 @@ export async function sendInvoiceAction(slug: string, taxpayerId: string, invoic
           total: formatAmount(invoice.total),
           note: input.value.note,
           replyTo: taxpayer.email,
-          pdf: { filename: pdfFilename(invoice), content: await invoicePdf(invoice, taxpayer) },
+          pdf: { filename: pdfFilename(invoice), content: await invoicePdf(invoice, taxpayer, await getTaxpayerLogo(db, context)) },
         }),
       );
     } catch {

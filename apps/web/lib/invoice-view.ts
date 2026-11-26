@@ -1,4 +1,5 @@
 // Datos de presentación de una factura compartidos por su ficha web y su PDF.
+import { formatIban } from "@facturalibre/domain";
 
 export interface Party {
   readonly legalName: string;
@@ -27,3 +28,32 @@ const SHORT_DATE_TIME = new Intl.DateTimeFormat("es-ES", { dateStyle: "short", t
 
 /** "2026-11-25T16:04:03+01:00" → "25/11/26, 16:04" (para tablas). */
 export const spanishShortDateTime = (iso: string): string => SHORT_DATE_TIME.format(new Date(iso));
+
+/** Lo que el emisor añade a un borrador o una factura además de sus datos fiscales. */
+export interface IssuerExtras {
+  /** Nombre comercial y contacto, bajo su domicilio. */
+  readonly details: readonly string[];
+  /** Forma de pago y vencimiento. */
+  readonly payment: readonly string[];
+  /** Datos registrales y pie de factura. */
+  readonly legal: readonly string[];
+}
+
+/** Contacto, cobro y textos legales del emisor (de la instantánea al emitir; en un borrador, los de ahora). */
+export function issuerExtrasFrom(snapshot: unknown, dueDate: string | null): IssuerExtras {
+  const data = typeof snapshot === "object" && snapshot !== null ? (snapshot as Record<string, unknown>) : {};
+  const text = (key: string): string | null => (typeof data[key] === "string" && data[key] !== "" ? data[key] : null);
+  const present = (values: readonly (string | null)[]): string[] => values.filter((value): value is string => value !== null);
+  const tradeName = text("tradeName");
+  const phone = text("phone");
+  const iban = text("iban");
+  return {
+    details: present([tradeName === text("legalName") ? null : tradeName, phone === null ? null : `Tel. ${phone}`, text("email"), text("website")]),
+    payment: present([
+      iban === null ? null : `Transferencia bancaria a ${formatIban(iban)}`,
+      text("paymentInstructions"),
+      dueDate === null ? null : `Vencimiento: ${spanishDate(dueDate)}`,
+    ]),
+    legal: present([text("registryInfo"), text("footerNote")]),
+  };
+}

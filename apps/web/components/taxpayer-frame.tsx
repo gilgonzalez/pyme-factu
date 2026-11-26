@@ -1,5 +1,5 @@
 import type { TaxpayerRecord, TenantContext } from "@facturalibre/tenancy";
-import { BookUser, FilePen, FileText, KeyRound, Package, Settings2, ShieldCheck } from "lucide-react";
+import { BookUser, Building2, FilePen, FileText, KeyRound, Package, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "@/components/app-header";
 import { SubmissionNotice } from "@/components/submission-notice";
@@ -33,7 +33,7 @@ export function TaxpayerFrame({
     { id: "productos", href: `${base}/productos`, label: "Productos", icon: <Package />, visible: context.permissions.has("products.read") },
     { id: "registros", href: `${base}/registros`, label: "Registros VERI*FACTU", icon: <ShieldCheck />, visible: context.permissions.has("verifactu.read") },
     { id: "certificado", href: `${base}/certificado`, label: "Certificado", icon: <KeyRound />, visible: context.permissions.has("certificates.manage") },
-    { id: "datos", href: base, label: "Datos", icon: <Settings2 />, visible: true },
+    { id: "datos", href: base, label: "Empresa", icon: <Building2 />, visible: true },
   ];
   const aside = (
     <div className="grid gap-1.5 border-t pt-3 lg:border-t lg:pt-4">

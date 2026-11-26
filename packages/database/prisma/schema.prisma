@@ -84,16 +84,16 @@ enum OutboxStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   name          String
   /// Siempre en minúsculas (CHECK en SQL).
-  email         String   @unique
-  emailVerified Boolean  @default(false) @map("email_verified")
+  email         String    @unique
+  emailVerified Boolean   @default(false) @map("email_verified")
   /// Cuenta desactivada por su titular (Fase 7): sin acceso; se conserva la autoría en la auditoría.
   deactivatedAt DateTime? @map("deactivated_at") @db.Timestamptz(6)
   image         String?
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   profile             UserProfile?
   sessions            Session[]
@@ -266,24 +266,28 @@ model TenantInvitation {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Taxpayer {
-  id          String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  tenantId    String             @map("tenant_id") @db.Uuid
-  personType  TaxpayerPersonType @map("person_type")
+  id           String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
+  personType   TaxpayerPersonType @map("person_type")
   /// NIF del obligado tributario (9 caracteres alfanuméricos en mayúsculas; CHECK en SQL).
   /// La validación del dígito de control vive en el dominio (Fase 3).
-  nif         String
+  nif          String
   /// Nombre y apellidos o razón social.
-  legalName   String             @map("legal_name")
-  tradeName   String?            @map("trade_name")
-  addressLine String?            @map("address_line")
-  postalCode  String?            @map("postal_code")
-  city        String?
-  province    String?
-  countryCode String             @default("ES") @map("country_code") @db.Char(2)
-  email       String?
-  status      TaxpayerStatus     @default(ACTIVE)
-  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  legalName    String             @map("legal_name")
+  tradeName    String?            @map("trade_name")
+  addressLine  String?            @map("address_line")
+  postalCode   String?            @map("postal_code")
+  city         String?
+  province     String?
+  countryCode  String             @default("ES") @map("country_code") @db.Char(2)
+  email        String?
+  phone        String?
+  website      String?
+  /// Datos de inscripción en el Registro Mercantil (se imprimen en las facturas).
+  registryInfo String?            @map("registry_info")
+  status       TaxpayerStatus     @default(ACTIVE)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   settings       TaxpayerSettings?
@@ -306,11 +310,22 @@ model Taxpayer {
 }
 
 model TaxpayerSettings {
-  taxpayerId              String   @id @map("taxpayer_id") @db.Uuid
-  tenantId                String   @map("tenant_id") @db.Uuid
-  defaultPaymentTermsDays Int?     @map("default_payment_terms_days")
-  invoiceFooterNote       String?  @map("invoice_footer_note")
-  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  taxpayerId                String   @id @map("taxpayer_id") @db.Uuid
+  tenantId                  String   @map("tenant_id") @db.Uuid
+  defaultPaymentTermsDays   Int?     @map("default_payment_terms_days")
+  invoiceFooterNote         String?  @map("invoice_footer_note")
+  /// IBAN normalizado (sin espacios, en mayúsculas).
+  iban                      String?
+  paymentInstructions       String?  @map("payment_instructions")
+  /// Retención de IRPF por defecto, escala 2 (1500 = 15 %).
+  defaultWithholdingPercent Int?     @map("default_withholding_percent")
+  /// IVA por defecto de las líneas nuevas ("VAT:2100", "EXEMPT"…).
+  defaultTaxKey             String?  @map("default_tax_key")
+  /// Mensaje predeterminado al enviar borradores y facturas por email.
+  emailMessage              String?  @map("email_message")
+  logo                      Bytes?
+  logoMimeType              String?  @map("logo_mime_type")
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   taxpayer Taxpayer @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
 
@@ -479,6 +494,8 @@ model Invoice {
   issueDate            DateTime?     @map("issue_date") @db.Date
   /// Fecha de la operación si es distinta de la de expedición.
   operationDate        DateTime?     @map("operation_date") @db.Date
+  /// Vencimiento (expedición + plazo de pago configurado), fijado al emitir.
+  dueDate              DateTime?     @map("due_date") @db.Date
   equivalenceSurcharge Boolean       @default(false) @map("equivalence_surcharge")
   /// Retención de IRPF en porcentaje a escala 2 (1500 = 15 %).
   withholdingPercent   Int           @default(0) @map("withholding_percent")

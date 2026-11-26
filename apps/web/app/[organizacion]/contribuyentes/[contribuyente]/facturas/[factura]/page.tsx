@@ -1,5 +1,5 @@
 import { formatAmount, formatDecimal, SCALE } from "@facturalibre/fiscal-core";
-import { getInvoice, type BillingRecordView, type InvoiceDetail } from "@facturalibre/tenancy";
+import { getBillingSettings, getInvoice, type BillingRecordView, type InvoiceDetail } from "@facturalibre/tenancy";
 import { qrSvg, qrUrl } from "@facturalibre/verifactu";
 import type { Metadata } from "next";
 import { Download, Send } from "lucide-react";
@@ -10,7 +10,7 @@ import { FormAlert, streamedPage } from "@/components/form";
 import { InvoiceStatus, invoiceState, StatusBadge, type Tone } from "@/components/invoice-status";
 import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { buttonVariants } from "@/components/ui/button";
-import { partyFrom, spanishDate, spanishDateTime, type Party } from "@/lib/invoice-view";
+import { issuerExtrasFrom, partyFrom, spanishDate, spanishDateTime, type Party } from "@/lib/invoice-view";
 import { rectificationLabel, taxLabel } from "@/lib/invoicing";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
@@ -27,13 +27,18 @@ type Props = PageProps<"/[organizacion]/contribuyentes/[contribuyente]/facturas/
 
 const percent = (scaled: bigint): string => `${formatDecimal(scaled, SCALE.percent)} %`;
 
-function PartyBlock({ title, party }: { readonly title: string; readonly party: Party }) {
+function PartyBlock({ title, party, details = [] }: { readonly title: string; readonly party: Party; readonly details?: readonly string[] }) {
   return (
     <section className="grid content-start gap-0.5 text-sm">
       <h2 className="mb-1 text-xs font-medium text-muted-foreground">{title}</h2>
       <p className="font-semibold">{party.legalName}</p>
       {party.nif === null ? null : <p className="font-mono">NIF {party.nif}</p>}
       {party.address === "" ? null : <p className="text-muted-foreground">{party.address}</p>}
+      {details.map((line) => (
+        <p key={line} className="text-muted-foreground">
+          {line}
+        </p>
+      ))}
     </section>
   );
 }
@@ -259,7 +264,7 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
   const { emitida, anulada } = await searchParams;
   const path = `${invoicesPath(organizacion, contribuyente)}/${factura}`;
   const { user, context, taxpayer } = await requireTaxpayer(organizacion, contribuyente, path);
-  const invoice = await getInvoice(getDatabase(), context, factura);
+  const [invoice, settings] = await Promise.all([getInvoice(getDatabase(), context, factura), getBillingSettings(getDatabase(), context)]);
   if (invoice === null) notFound();
   const can = (permission: Parameters<typeof context.permissions.has>[0]): boolean => context.permissions.has(permission);
   const slug = context.tenant.slug;
@@ -275,6 +280,7 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
     nif: null,
     address: "",
   };
+  const extras = issuerExtrasFrom(invoice.issuerSnapshot, invoice.dueDate);
   const { alta, anulacion } = invoice.verifactu;
   const canAnnul = can("invoices.rectify") && alta !== null && anulacion === null;
   const canRectify = !draft && can("invoices.rectify") && anulacion === null;
@@ -331,15 +337,34 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
               </p>
             ) : null}
             <div className="grid gap-6 sm:grid-cols-2">
-              <PartyBlock title="Emisor" party={issuer} />
+              <PartyBlock title="Emisor" party={issuer} details={extras.details} />
               <PartyBlock title="Destinatario" party={recipient} />
             </div>
             <Lines invoice={invoice} />
             <Totals invoice={invoice} />
+            {extras.payment.length === 0 ? null : (
+              <section aria-labelledby="forma-pago" className="grid gap-0.5 text-sm">
+                <h2 id="forma-pago" className="mb-1 text-xs font-medium text-muted-foreground">
+                  Forma de pago
+                </h2>
+                {extras.payment.map((line) => (
+                  <p key={line} className="figures">
+                    {line}
+                  </p>
+                ))}
+              </section>
+            )}
             {invoice.notes === null ? null : (
               <p className="border-t pt-4 text-sm">
                 <span className="text-muted-foreground">Observaciones:</span> {invoice.notes}
               </p>
+            )}
+            {extras.legal.length === 0 ? null : (
+              <footer className="grid gap-1 border-t pt-4 text-xs text-muted-foreground">
+                {extras.legal.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </footer>
             )}
           </div>
         </article>
@@ -394,7 +419,7 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
                   ? "Le llega en PDF, marcado como borrador sin validez fiscal, para que lo revise antes de emitir la factura."
                   : "Le llega la factura en PDF, con su QR tributario."}
               </p>
-              <SendForm action={sendInvoiceAction.bind(null, slug, taxpayer.id, invoice.id)} defaultTo={invoice.customerEmail ?? ""} draft={draft} />
+              <SendForm action={sendInvoiceAction.bind(null, slug, taxpayer.id, invoice.id)} defaultTo={invoice.customerEmail ?? ""} defaultNote={settings.emailMessage ?? ""} draft={draft} />
             </section>
           ) : null}
           {canRectify ? (

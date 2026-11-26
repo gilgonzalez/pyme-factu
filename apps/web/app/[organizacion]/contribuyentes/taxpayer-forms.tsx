@@ -16,6 +16,7 @@ export function TaxpayerForm({ action, values, withNif }: { readonly action: For
       values={values}
       nif={withNif ? "required" : "none"}
       withTradeName
+      withContact
       label={withNif ? "Nuevo contribuyente" : "Datos del contribuyente"}
       submitLabel={withNif ? "Dar de alta" : "Guardar cambios"}
       pendingLabel={withNif ? "Dando de alta…" : "Guardando…"}

@@ -51,5 +51,7 @@ test("alta de un contribuyente y acceso de solo lectura para un empleado con alc
   await employee.getByRole("link", { name: /Fontanería Ficticia SL/ }).click();
   await expect(employee.getByLabel("Contribuyente activo")).toContainText("Fontanería Ficticia SL");
   await expect(employee.getByRole("form", { name: "Datos del contribuyente" })).toHaveCount(0);
+  await expect(employee.getByRole("form", { name: "Cobro y facturas" })).toHaveCount(0);
+  await expect(employee.getByRole("form", { name: "Subir logo" })).toHaveCount(0);
   await expect(employee.getByText("tu acceso: solo lectura")).toBeVisible();
 });

@@ -47,6 +47,9 @@ const base = (): InvoicePdfData => ({
   annulled: false,
   draft: false,
   verifactu: { qrPng },
+  logo: null,
+  payment: [],
+  legal: [],
 });
 
 const render = async (data: InvoicePdfData): Promise<ReadPdf> => readPdf(await renderInvoicePdf(data));
@@ -135,6 +138,11 @@ describe("contenido de la factura", () => {
     const recipientColumn = (pdf.pages[0]?.runs ?? []).filter((text) => text.x === recipientTitle.x && text.y < recipientTitle.y && text.y > run(pdf, "Descripción").y);
     expect(recipientColumn.map((text) => text.text)).toEqual(["Cliente sin NIF"]);
     expect(all).not.toContain("");
+  });
+
+  it("el signo menos tipográfico (retenciones) se escribe como guion, no como «?»", async () => {
+    const pdf = await render({ ...base(), amounts: [{ label: "Retención IRPF (15 %)", value: "−15,00 €" }] });
+    expect(pdf.texts.flat()).toContain("-15,00 €");
   });
 
   it("los textos largos se reparten en varias líneas y lo que no se puede escribir no rompe el PDF", async () => {
@@ -349,5 +357,59 @@ describe("maquetación", () => {
     expect(first?.y).toBeCloseTo(PAGE.height - MARGIN - 9, 3);
     // Una fila nunca se parte entre páginas: sus celdas comparten línea base.
     expect(bodyRuns(pdf, 1).filter((text) => text.y === first?.y)).toHaveLength(6);
+  });
+});
+
+describe("datos de la empresa", () => {
+  it("el contacto del emisor va bajo su domicilio", async () => {
+    const pdf = await render({ ...base(), issuer: { ...base().issuer, details: ["Tel. 600 123 456", "hola@fontaneria.example", "fontaneria.example"] } });
+    const issuerColumn = (pdf.pages[0]?.runs ?? []).filter((text) => text.x === run(pdf, "Emisor").x && text.y < run(pdf, "Emisor").y && text.y > run(pdf, "Descripción").y);
+    expect(issuerColumn.map((text) => text.text)).toEqual([
+      "Ana Ficticia Pérez",
+      "NIF 12345678Z",
+      "Calle Mayor 1, 28001 Madrid",
+      "Tel. 600 123 456",
+      "hola@fontaneria.example",
+      "fontaneria.example",
+    ]);
+  });
+
+  it("el logo va arriba a la derecha, junto al título, sin pasar de 50 × 20 mm ni deformarse", async () => {
+    const pdf = await render({ ...base(), verifactu: null, logo: { bytes: qrPng, kind: "png" } });
+    const [logo] = pdf.pages[0]?.images ?? [];
+    expect(pdf.pages[0]?.images).toHaveLength(1);
+    // El QR de prueba es cuadrado: lo limita el alto (20 mm).
+    expect(logo?.height).toBeCloseTo(20 * MM, 3);
+    expect(logo?.width).toBeCloseTo(20 * MM, 3);
+    expect((logo?.x ?? 0) + (logo?.width ?? 0)).toBeCloseTo(PAGE.width - MARGIN, 3);
+    expect((logo?.y ?? 0) + (logo?.height ?? 0)).toBeCloseTo(PAGE.height - MARGIN, 3);
+    // Lo que sigue al título empieza por debajo del logo.
+    expect(run(pdf, "Emisor").y + 9).toBeLessThan(logo?.y ?? 0);
+  });
+
+  it("con QR tributario, el logo va después de él (el QR siempre es lo primero)", async () => {
+    const pdf = await render({ ...base(), logo: { bytes: qrPng, kind: "png" } });
+    const [qr, logo] = pdf.pages[0]?.images ?? [];
+    expect(pdf.pages[0]?.images).toHaveLength(2);
+    expect(logo?.y ?? 0).toBeLessThan(qr?.y ?? 0);
+  });
+
+  it("forma de pago tras los importes y textos legales al final, en gris", async () => {
+    const pdf = await render({
+      ...base(),
+      notes: "Pago por transferencia.",
+      verifactu: null,
+      payment: ["Transferencia a ES91 2100 0418 4502 0005 1332", "Vencimiento: 24/12/2026"],
+      legal: ["Inscrita en el Registro Mercantil de Madrid, tomo 1, folio 2, hoja M-3", "Gracias por su confianza."],
+    });
+    const title = run(pdf, "Forma de pago");
+    expect(title).toMatchObject({ bold: true, size: 9 });
+    expect(title.y).toBeLessThan(run(pdf, "128,90 €").y);
+    expect(run(pdf, "Transferencia a ES91 2100 0418 4502 0005 1332").y).toBeLessThan(title.y);
+    expect(run(pdf, "Vencimiento: 24/12/2026").y).toBeLessThan(title.y);
+    const registry = run(pdf, "Inscrita en el Registro Mercantil de Madrid, tomo 1, folio 2, hoja M-3");
+    expect(registry).toMatchObject({ color: GRAY, size: 8 });
+    expect(registry.y).toBeLessThan(run(pdf, "Observaciones: Pago por transferencia.").y);
+    expect(run(pdf, "Gracias por su confianza.").y).toBeLessThan(registry.y);
   });
 });

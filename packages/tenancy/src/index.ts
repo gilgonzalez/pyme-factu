@@ -9,6 +9,15 @@ export {
   type ProductSummary,
 } from "./catalog";
 export { deactivateMyAccount, exportMyData, type DeactivateResult, type PersonalData } from "./account";
+export {
+  deleteTaxpayerLogo,
+  getBillingSettings,
+  getTaxpayerLogo,
+  setTaxpayerLogo,
+  updateBillingSettings,
+  type BillingSettingsView,
+  type IssuerProfile,
+} from "./billing-settings";
 export { certificateStatus, deleteCertificate, saveCertificate, type SaveCertificateResult } from "./certificates";
 export { databaseErrorCode } from "./database-errors";
 export {
@@ -73,6 +82,14 @@ export {
   type ResolveTenantContextResult,
   type TenantContext,
 } from "./tenant-context";
+export {
+  LOGO_MAX_BYTES,
+  parseBillingSettings,
+  parseLogo,
+  type BillingSettings,
+  type BillingSettingsField,
+  type Logo,
+} from "./validation";
 export {
   parseInvitationInput,
   parseInvoiceSendInput,

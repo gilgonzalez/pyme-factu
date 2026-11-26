@@ -8,6 +8,8 @@ export interface PdfParty {
   readonly name: string;
   readonly nif: string | null;
   readonly address: string;
+  /** Líneas de contacto bajo el domicilio (teléfono, email, web). */
+  readonly details?: readonly string[];
 }
 
 export interface PdfLine {
@@ -42,6 +44,12 @@ export interface InvoicePdfData {
   readonly draft: boolean;
   /** PNG del QR (nivel M); null si la factura no tiene registro VERI*FACTU. */
   readonly verifactu: { readonly qrPng: Uint8Array } | null;
+  /** Logo del emisor, arriba a la derecha junto al título (después del QR, que siempre va primero). */
+  readonly logo: { readonly bytes: Uint8Array; readonly kind: "png" | "jpeg" } | null;
+  /** Forma de pago, vencimiento… (vacío: no se imprime el bloque). */
+  readonly payment: readonly string[];
+  /** Textos legales al final (datos registrales, pie de factura), en gris. */
+  readonly legal: readonly string[];
 }
 
 const MM = 72 / 25.4;
@@ -51,6 +59,8 @@ const FOOTER = 12 * MM;
 const WIDTH = PAGE[0] - 2 * MARGIN;
 const QR_SIZE = 35 * MM;
 const QR_QUIET = 6 * MM;
+const LOGO_MAX = { width: 50 * MM, height: 20 * MM };
+const SMALL = 8;
 const BODY = 9;
 /** Título, total y textos del QR: el tamaño mayor del documento. */
 const STRONG = 11;
@@ -77,13 +87,18 @@ interface WriteOptions {
   readonly size?: number;
   readonly align?: Align;
   readonly color?: RGB;
+  /** Ancho disponible (por defecto, todo el de la página). */
+  readonly width?: number;
 }
 
-/** Sustituye por «?» lo que la fuente estándar (WinAnsi) no puede escribir; espacios normalizados. */
+/**
+ * Sustituye por «?» lo que la fuente estándar (WinAnsi) no puede escribir; espacios normalizados. El signo menos
+ * (U+2212, el de las retenciones) no existe en WinAnsi: se escribe como guion.
+ */
 function clean(text: string, font: PDFFont): string {
   const supported = new Set(font.getCharacterSet());
   let result = "";
-  for (const char of text.replace(/\s+/g, " ").trim()) result += supported.has(char.codePointAt(0) ?? 0) ? char : "?";
+  for (const char of text.replace(/\s+/g, " ").replace(/−/g, "-").trim()) result += supported.has(char.codePointAt(0) ?? 0) ? char : "?";
   return result;
 }
 
@@ -178,13 +193,27 @@ class Layout {
 
   /** Un texto a todo el ancho. */
   write(text: string, options: WriteOptions = {}): void {
-    this.row([{ paragraphs: [text], x: MARGIN, width: WIDTH, align: options.align ?? "left", bold: options.bold ?? false }], options.size ?? BODY, options.color ?? BLACK);
+    this.row([{ paragraphs: [text], x: MARGIN, width: options.width ?? WIDTH, align: options.align ?? "left", bold: options.bold ?? false }], options.size ?? BODY, options.color ?? BLACK);
   }
 
   /** Imagen cuadrada centrada: el QR, lo primero de la primera página (siempre cabe). */
   centeredImage(image: PDFImage, size: number): void {
     this.page.drawImage(image, { x: (PAGE[0] - size) / 2, y: this.y - size, width: size, height: size });
     this.y -= size;
+  }
+
+  /** Imagen arriba a la derecha que cabe en `max` sin deformarse; no mueve el cursor. Devuelve su caja. */
+  imageTopRight(image: PDFImage, max: { readonly width: number; readonly height: number }): { readonly width: number; readonly bottom: number } {
+    const scale = Math.min(max.width / image.width, max.height / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    this.page.drawImage(image, { x: PAGE[0] - MARGIN - width, y: this.y - height, width, height });
+    return { width, bottom: this.y - height };
+  }
+
+  /** Lleva el cursor al menos hasta `y` (para seguir por debajo de una imagen). */
+  below(y: number): void {
+    this.y = Math.min(this.y, y);
   }
 
   /** «BORRADOR» en diagonal, de fondo, en cada página. */
@@ -219,7 +248,7 @@ async function drawQr(layout: Layout, document: PDFDocument, qrPng: Uint8Array):
 }
 
 /** Nombre, NIF y domicilio; lo que falta queda vacío y un párrafo vacío no ocupa línea. */
-const partyParagraphs = (party: PdfParty): string[] => [party.name, party.nif === null ? "" : `NIF ${party.nif}`, party.address];
+const partyParagraphs = (party: PdfParty): string[] => [party.name, party.nif === null ? "" : `NIF ${party.nif}`, party.address, ...(party.details ?? [])];
 
 function drawParties(layout: Layout, data: InvoicePdfData): void {
   const half = (WIDTH - CELL_GAP * 2) / 2;
@@ -276,18 +305,34 @@ function drawAmounts(layout: Layout, amounts: readonly PdfAmount[]): void {
   }
 }
 
-function drawHeading(layout: Layout, data: InvoicePdfData): void {
+async function drawLogo(layout: Layout, document: PDFDocument, logo: InvoicePdfData["logo"]): Promise<{ readonly width: number; readonly bottom: number } | null> {
+  if (logo === null) return null;
+  const image = logo.kind === "png" ? await document.embedPng(logo.bytes) : await document.embedJpg(logo.bytes);
+  return layout.imageTopRight(image, LOGO_MAX);
+}
+
+function drawHeading(layout: Layout, data: InvoicePdfData, logo: { readonly width: number; readonly bottom: number } | null): void {
+  // Con logo, los textos de la cabecera no pasan por debajo de él.
+  const width = logo === null ? WIDTH : WIDTH - logo.width - 4 * MM;
   if (data.draft) {
-    layout.write(DRAFT_NOTICE, { bold: true, color: RED });
+    layout.write(DRAFT_NOTICE, { bold: true, color: RED, width });
     layout.gap(4);
   }
   if (data.annulled) {
-    layout.write("ANULADA: factura expedida por error; consta su registro de anulación VERI*FACTU.", { bold: true, color: RED });
+    layout.write("ANULADA: factura expedida por error; consta su registro de anulación VERI*FACTU.", { bold: true, color: RED, width });
     layout.gap(4);
   }
-  layout.write(data.title, { bold: true, size: STRONG });
-  layout.write(`${data.draft ? "Fecha" : "Fecha de expedición"}: ${data.issueDate}`);
+  layout.write(data.title, { bold: true, size: STRONG, width });
+  layout.write(`${data.draft ? "Fecha" : "Fecha de expedición"}: ${data.issueDate}`, { width });
+  if (logo !== null) layout.below(logo.bottom);
   layout.gap(4 * MM);
+}
+
+function drawPayment(layout: Layout, payment: readonly string[]): void {
+  if (payment.length === 0) return;
+  layout.gap(4 * MM);
+  layout.write("Forma de pago", { bold: true });
+  for (const line of payment) layout.write(line);
 }
 
 function drawClosing(layout: Layout, data: InvoicePdfData): void {
@@ -298,6 +343,10 @@ function drawClosing(layout: Layout, data: InvoicePdfData): void {
   if (data.verifactu === null && !data.draft) {
     layout.gap(4 * MM);
     layout.write("Factura emitida antes de VERI*FACTU: sin registro de facturación ni código QR.", { color: GRAY });
+  }
+  if (data.legal.length > 0) {
+    layout.gap(4 * MM);
+    for (const line of data.legal) layout.write(line, { size: SMALL, color: GRAY });
   }
 }
 
@@ -311,7 +360,7 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Uint8Array
   const layout = new Layout(document, await document.embedFont(StandardFonts.Helvetica), await document.embedFont(StandardFonts.HelveticaBold));
 
   if (data.verifactu !== null) await drawQr(layout, document, data.verifactu.qrPng);
-  drawHeading(layout, data);
+  drawHeading(layout, data, await drawLogo(layout, document, data.logo));
   drawParties(layout, data);
   if (data.rectification !== null) {
     layout.gap(4 * MM);
@@ -321,6 +370,7 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Uint8Array
   drawLines(layout, data.lines);
   layout.gap(3 * MM);
   drawAmounts(layout, data.amounts);
+  drawPayment(layout, data.payment);
   drawClosing(layout, data);
   if (data.draft) layout.watermark("BORRADOR");
   layout.numberPages();
