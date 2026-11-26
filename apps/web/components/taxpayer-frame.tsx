@@ -1,16 +1,17 @@
 import type { TaxpayerRecord, TenantContext } from "@facturalibre/tenancy";
-import { BookUser, Building2, FilePen, FileText, KeyRound, Package, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
-import { NavLink } from "@/components/app-header";
+import { RememberTaxpayer } from "@/components/remember-taxpayer";
 import { SubmissionNotice } from "@/components/submission-notice";
+import { TaxpayerSidebar, type TaxpayerSection } from "@/components/taxpayer-sidebar";
 import { TenantFrame } from "@/components/tenant-frame";
 import type { SessionUser } from "@/lib/server/session";
 
-export type TaxpayerSection = "datos" | "borradores" | "facturas" | "clientes" | "productos" | "registros" | "certificado";
+export type { TaxpayerSection } from "@/components/taxpayer-sidebar";
 
 /**
  * Marco de toda pantalla que actúa sobre un contribuyente: el contribuyente activo SIEMPRE visible (R-05)
- * y sus secciones, en el lateral. Las secciones sin permiso no se muestran.
+ * y sus secciones, en el lateral. Las secciones sin permiso no se muestran. Lo recuerda como contribuyente
+ * de trabajo, para que las pantallas de la organización sigan mostrando sus secciones.
  */
 export function TaxpayerFrame({
   user,
@@ -25,43 +26,11 @@ export function TaxpayerFrame({
   readonly current: TaxpayerSection;
   readonly children: ReactNode;
 }) {
-  const base = `/${context.tenant.slug}/contribuyentes/${taxpayer.id}`;
-  const sections: { id: TaxpayerSection; href: string; label: string; icon: ReactNode; visible: boolean }[] = [
-    { id: "borradores", href: `${base}/borradores`, label: "Borradores", icon: <FilePen />, visible: context.permissions.has("invoices.read") },
-    { id: "facturas", href: `${base}/facturas`, label: "Facturas", icon: <FileText />, visible: context.permissions.has("invoices.read") },
-    { id: "clientes", href: `${base}/clientes`, label: "Clientes", icon: <BookUser />, visible: context.permissions.has("customers.read") },
-    { id: "productos", href: `${base}/productos`, label: "Productos", icon: <Package />, visible: context.permissions.has("products.read") },
-    { id: "registros", href: `${base}/registros`, label: "Registros VERI*FACTU", icon: <ShieldCheck />, visible: context.permissions.has("verifactu.read") },
-    { id: "certificado", href: `${base}/certificado`, label: "Certificado", icon: <KeyRound />, visible: context.permissions.has("certificates.manage") },
-    { id: "datos", href: base, label: "Empresa", icon: <Building2 />, visible: true },
-  ];
-  const aside = (
-    <div className="grid gap-1.5 border-t pt-3 lg:border-t lg:pt-4">
-      <div className="px-4 lg:px-2.5" aria-label="Contribuyente activo">
-        <p className="text-xs text-muted-foreground">Facturando como</p>
-        <p className="truncate text-sm font-semibold" title={taxpayer.legalName}>
-          {taxpayer.legalName}
-        </p>
-        <p className="font-mono text-xs text-muted-foreground">NIF {taxpayer.nif}</p>
-      </div>
-      <nav aria-label="Secciones del contribuyente" className="overflow-x-auto px-4 lg:overflow-visible lg:p-0">
-        <ul className="flex gap-1 lg:grid lg:gap-0.5">
-          {sections
-            .filter((section) => section.visible)
-            .map((section) => (
-              <li key={section.id}>
-                <NavLink href={section.href} current={section.id === current} icon={section.icon}>
-                  {section.label}
-                </NavLink>
-              </li>
-            ))}
-        </ul>
-      </nav>
-    </div>
-  );
+  const aside = <TaxpayerSidebar slug={context.tenant.slug} taxpayer={taxpayer} permissions={context.permissions} current={current} />;
   return (
     <TenantFrame user={user} context={context} current="contribuyentes" aside={aside}>
-      <SubmissionNotice context={context} recordsHref={`${base}/registros`} />
+      <RememberTaxpayer tenantId={context.tenant.id} taxpayerId={taxpayer.id} />
+      <SubmissionNotice context={context} recordsHref={`/${context.tenant.slug}/contribuyentes/${taxpayer.id}/registros`} />
       {children}
     </TenantFrame>
   );

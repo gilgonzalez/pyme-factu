@@ -12,7 +12,7 @@ import { InvoiceEditor } from "../invoice-editor";
 
 export const metadata: Metadata = { title: "Nueva factura" };
 
-export default streamedPage("Preparando la factura…", NewInvoice);
+export default streamedPage("Preparando la factura…", NewInvoice, "frame");
 
 async function NewInvoice({ params }: { readonly params: PageProps<"/[organizacion]/contribuyentes/[contribuyente]/facturas/nueva">["params"] }) {
   const { organizacion, contribuyente } = await params;

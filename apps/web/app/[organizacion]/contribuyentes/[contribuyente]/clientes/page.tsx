@@ -9,7 +9,7 @@ import { createCustomerAction } from "../catalog-actions";
 
 export const metadata: Metadata = { title: "Clientes" };
 
-export default streamedPage("Cargando los clientes…", Customers);
+export default streamedPage("Cargando los clientes…", Customers, "frame");
 
 async function Customers({ params }: { readonly params: PageProps<"/[organizacion]/contribuyentes/[contribuyente]/clientes">["params"] }) {
   const { organizacion, contribuyente } = await params;

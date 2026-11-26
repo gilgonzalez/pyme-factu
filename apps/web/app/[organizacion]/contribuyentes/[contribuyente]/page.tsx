@@ -15,7 +15,7 @@ import { BillingSettingsForm, LogoForm, type BillingSettingsValues } from "./com
 
 export const metadata: Metadata = { title: "Empresa" };
 
-export default streamedPage("Cargando los datos de la empresa…", Company);
+export default streamedPage("Cargando los datos de la empresa…", Company, "frame");
 
 type Params = PageProps<"/[organizacion]/contribuyentes/[contribuyente]">["params"];
 
@@ -80,7 +80,7 @@ async function Company({ params }: { readonly params: Params }) {
         <Link href={`/${slug}/contribuyentes`} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
           Volver a contribuyentes
         </Link>
-        <p className="mt-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Empresa</p>
+        <p className="mt-2 text-sm font-medium text-muted-foreground">Empresa</p>
         <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">{taxpayer.legalName}</h1>
         <p className="text-muted-foreground">
           NIF {taxpayer.nif}, {taxpayer.personType === "LEGAL_ENTITY" ? "persona jurídica o entidad" : "persona física"}; tu acceso:{" "}

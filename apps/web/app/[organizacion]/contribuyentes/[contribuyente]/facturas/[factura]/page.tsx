@@ -21,7 +21,7 @@ import { AnnulForm, DeleteDraftForm, IssueForm, RectifyForm, SendForm } from "./
 
 export const metadata: Metadata = { title: "Factura" };
 
-export default streamedPage("Cargando la factura…", Invoice);
+export default streamedPage("Cargando la factura…", Invoice, "frame");
 
 type Props = PageProps<"/[organizacion]/contribuyentes/[contribuyente]/facturas/[factura]">;
 

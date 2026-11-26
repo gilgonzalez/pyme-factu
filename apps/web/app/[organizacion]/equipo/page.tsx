@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Equipo" };
 
 const dateFormat = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
 
-export default streamedPage("Cargando el equipo…", Team);
+export default streamedPage("Cargando el equipo…", Team, "frame");
 
 async function Team({ params }: { readonly params: PageProps<"/[organizacion]/equipo">["params"] }) {
   const { organizacion } = await params;

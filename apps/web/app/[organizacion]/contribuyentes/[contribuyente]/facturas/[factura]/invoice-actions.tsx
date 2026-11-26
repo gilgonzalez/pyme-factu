@@ -69,7 +69,7 @@ export function SendForm({
               defaultValue={values["note"] ?? defaultNote}
               aria-invalid={errors["note"] === undefined ? undefined : true}
               aria-describedby={errors["note"] === undefined ? undefined : "envio-mensaje-error"}
-              className="rounded-lg border border-input bg-card px-3 py-2 text-base md:text-sm"
+              className="field field-textarea"
             />
             {errors["note"] === undefined ? null : (
               <p id="envio-mensaje-error" className="text-sm text-destructive">

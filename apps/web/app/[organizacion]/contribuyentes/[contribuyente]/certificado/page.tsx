@@ -11,7 +11,7 @@ import { CertificateForm, DeleteCertificateForm } from "./certificate-forms";
 
 export const metadata: Metadata = { title: "Certificado electrónico" };
 
-export default streamedPage("Cargando…", Certificate);
+export default streamedPage("Cargando…", Certificate, "frame");
 
 const dateTime = new Intl.DateTimeFormat("es-ES", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Madrid" });
 

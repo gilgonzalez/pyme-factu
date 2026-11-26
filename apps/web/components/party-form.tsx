@@ -36,7 +36,8 @@ const value = (input: string | null | undefined): string => input ?? "";
 
 export function PartyForm({ action, label, submitLabel, pendingLabel, values, nif, withTradeName = false, withSurcharge = false, withContact = false }: PartyFormProps) {
   return (
-    <ActionForm action={action} className="grid gap-4 sm:grid-cols-2" label={label}>
+    // Filas por significado (identidad, contacto, domicilio, registro) y cada campo a la medida de lo que lleva.
+    <ActionForm action={action} className="grid max-w-3xl gap-4" label={label}>
       {({ pending, errors, values: sent }) => {
         const initial = (name: keyof PartyValues): string => sent[name] ?? value(values?.[name]);
         return (
@@ -50,44 +51,51 @@ export function PartyForm({ action, label, submitLabel, pendingLabel, values, ni
                 maxLength={15}
                 autoComplete="off"
                 autoCapitalize="characters"
+                width="md"
                 defaultValue={sent["nif"]}
                 error={errors["nif"]}
               />
             )}
-            <Field name="legalName" label="Nombre y apellidos o razón social" required maxLength={120} defaultValue={initial("legalName")} error={errors["legalName"]} />
-            {withTradeName ? (
-              <Field name="tradeName" label="Nombre comercial (opcional)" maxLength={120} defaultValue={initial("tradeName")} error={errors["tradeName"]} />
-            ) : null}
-            <Field name="email" label="Email de facturación (opcional)" type="email" maxLength={254} defaultValue={initial("email")} error={errors["email"]} />
+            <div className={withTradeName ? "grid gap-4 sm:grid-cols-2" : "grid"}>
+              <Field name="legalName" label="Nombre y apellidos o razón social" required maxLength={120} defaultValue={initial("legalName")} error={errors["legalName"]} />
+              {withTradeName ? (
+                <Field name="tradeName" label="Nombre comercial (opcional)" maxLength={120} defaultValue={initial("tradeName")} error={errors["tradeName"]} />
+              ) : null}
+            </div>
+            <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-start">
+              <Field name="email" label="Email de facturación (opcional)" type="email" maxLength={254} width="lg" defaultValue={initial("email")} error={errors["email"]} />
+              {withContact ? (
+                <Field name="phone" label="Teléfono (opcional)" type="tel" maxLength={30} autoComplete="tel" width="md" defaultValue={initial("phone")} error={errors["phone"]} />
+              ) : null}
+            </div>
             <Field name="addressLine" label="Dirección (opcional)" maxLength={200} autoComplete="street-address" defaultValue={initial("addressLine")} error={errors["addressLine"]} />
-            <Field name="postalCode" label="Código postal (opcional)" inputMode="numeric" maxLength={5} autoComplete="postal-code" defaultValue={initial("postalCode")} error={errors["postalCode"]} />
-            <Field name="city" label="Municipio (opcional)" maxLength={100} autoComplete="address-level2" defaultValue={initial("city")} error={errors["city"]} />
-            <Field name="province" label="Provincia (opcional)" maxLength={100} autoComplete="address-level1" defaultValue={initial("province")} error={errors["province"]} />
+            <div className="grid gap-4 sm:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)]">
+              <Field name="postalCode" label="Código postal (opcional)" inputMode="numeric" maxLength={5} autoComplete="postal-code" defaultValue={initial("postalCode")} error={errors["postalCode"]} />
+              <Field name="city" label="Municipio (opcional)" maxLength={100} autoComplete="address-level2" defaultValue={initial("city")} error={errors["city"]} />
+              <Field name="province" label="Provincia (opcional)" maxLength={100} autoComplete="address-level1" defaultValue={initial("province")} error={errors["province"]} />
+            </div>
             {withContact ? (
               <>
-                <Field name="phone" label="Teléfono (opcional)" type="tel" maxLength={30} autoComplete="tel" defaultValue={initial("phone")} error={errors["phone"]} />
-                <Field name="website" label="Web (opcional)" maxLength={200} autoComplete="url" placeholder="www.tuempresa.es" defaultValue={initial("website")} error={errors["website"]} />
-                <div className="sm:col-span-2">
-                  <Field
-                    name="registryInfo"
-                    label="Datos registrales (opcional)"
-                    hint="Si eres una sociedad: «Inscrita en el Registro Mercantil de …, tomo …, folio …, hoja …». Sale al pie de tus facturas."
-                    maxLength={300}
-                    defaultValue={initial("registryInfo")}
-                    error={errors["registryInfo"]}
-                  />
-                </div>
+                <Field name="website" label="Web (opcional)" maxLength={200} autoComplete="url" placeholder="www.tuempresa.es" width="lg" defaultValue={initial("website")} error={errors["website"]} />
+                <Field
+                  name="registryInfo"
+                  label="Datos registrales (opcional)"
+                  hint="Si eres una sociedad: «Inscrita en el Registro Mercantil de …, tomo …, folio …, hoja …». Sale al pie de tus facturas."
+                  maxLength={300}
+                  defaultValue={initial("registryInfo")}
+                  error={errors["registryInfo"]}
+                />
               </>
             ) : null}
             {withSurcharge ? (
-              <label className="flex items-start gap-2 text-sm sm:col-span-2">
+              <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" name="equivalenceSurcharge" defaultChecked={sent["equivalenceSurcharge"] === "on"} className="mt-1" />
                 <span>
                   Está en el <strong>recargo de equivalencia</strong> (comercio minorista): sus facturas llevan el recargo además del IVA.
                 </span>
               </label>
             ) : null}
-            <div className="sm:col-span-2">
+            <div className="pt-1">
               <Button type="submit" size="lg" disabled={pending}>
                 {pending ? pendingLabel : submitLabel}
               </Button>

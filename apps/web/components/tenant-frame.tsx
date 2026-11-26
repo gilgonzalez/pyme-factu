@@ -1,20 +1,45 @@
-import type { TenantContext } from "@facturalibre/tenancy";
+import { effectivePermissions } from "@facturalibre/security";
+import { listTaxpayers, type TenantContext } from "@facturalibre/tenancy";
+import { cookies } from "next/headers";
 import { Building2, House, Info, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AccountLinks, AppFooter, NavLink } from "@/components/app-header";
 import { Brand } from "@/components/brand";
+import { NoTaxpayerSidebar, TaxpayerSidebar } from "@/components/taxpayer-sidebar";
+import { getDatabase } from "@/lib/server/db";
+import { pickWorkingTaxpayer, workingTaxpayerCookie } from "@/lib/working-taxpayer";
 import { ROLE_INFO } from "@/lib/roles";
 import type { SessionUser } from "@/lib/server/session";
 
 type Section = "inicio" | "contribuyentes" | "equipo";
 
 /**
+ * En las pantallas de la organización, el lateral muestra igualmente el contribuyente de trabajo (el último
+ * abierto o el primero) con sus secciones: Borradores, Facturas, Clientes… a un clic desde cualquier sitio.
+ */
+async function workingTaxpayerAside(context: TenantContext): Promise<ReactNode> {
+  if (!context.permissions.has("taxpayers.read")) return null;
+  const taxpayers = await listTaxpayers(getDatabase(), context);
+  const remembered = (await cookies()).get(workingTaxpayerCookie(context.tenant.id))?.value;
+  const taxpayer = pickWorkingTaxpayer(taxpayers, remembered);
+  if (taxpayer === null) return <NoTaxpayerSidebar slug={context.tenant.slug} canCreate={context.permissions.has("taxpayers.create")} />;
+  return (
+    <TaxpayerSidebar
+      slug={context.tenant.slug}
+      taxpayer={taxpayer}
+      permissions={effectivePermissions(context.membership.role, taxpayer.access)}
+      current={null}
+    />
+  );
+}
+
+/**
  * Marco de las pantallas de una organización: lateral fijo (escritorio) con la organización activa SIEMPRE
  * visible, sus secciones, `aside` (el contribuyente activo y sus secciones) y la cuenta. En móvil, el mismo
  * contenido en filas compactas con las secciones en tiras desplazables.
  */
-export function TenantFrame({
+export async function TenantFrame({
   user,
   context,
   current,
@@ -28,6 +53,8 @@ export function TenantFrame({
   readonly children: ReactNode;
 }) {
   const base = `/${context.tenant.slug}`;
+  // Dentro de un contribuyente, el suyo; en la organización, el de trabajo.
+  const sidebar = aside ?? (await workingTaxpayerAside(context));
   const links: { section: Section; href: string; label: string; icon: ReactNode; visible: boolean }[] = [
     { section: "inicio", href: base, label: "Inicio", icon: <House />, visible: true },
     {
@@ -68,7 +95,7 @@ export function TenantFrame({
             </Link>
           </div>
 
-          <nav aria-label="Secciones de la organización" className="overflow-x-auto px-4 pt-2 lg:overflow-visible lg:p-0">
+          <nav aria-label="Secciones de la organización" className="scroll-fade-x overflow-x-auto px-4 pt-2 lg:overflow-visible lg:p-0">
             <ul className="flex gap-1 lg:grid lg:gap-0.5">
               {links
                 .filter((link) => link.visible)
@@ -82,7 +109,7 @@ export function TenantFrame({
             </ul>
           </nav>
 
-          {aside}
+          {sidebar}
 
           <div className="hidden border-t pt-4 lg:mt-auto lg:grid lg:gap-1">
             <AccountLinks userName={user.name} />

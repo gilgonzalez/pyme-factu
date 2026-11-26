@@ -136,7 +136,7 @@ export function EntityPicker<Item>({
         onClick={() => setOpen(true)}
         onBlur={close}
         onKeyDown={onKeyDown}
-        className="h-10 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base shadow-[0_1px_2px_rgb(16_16_32/0.04)] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive md:text-sm"
+        className="field h-10"
       />
       {open ? (
         <ul

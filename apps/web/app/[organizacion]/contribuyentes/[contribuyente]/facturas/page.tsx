@@ -13,7 +13,7 @@ import { invoicesPath } from "./editor-data";
 
 export const metadata: Metadata = { title: "Facturas" };
 
-export default streamedPage("Cargando las facturas…", Invoices);
+export default streamedPage("Cargando las facturas…", Invoices, "frame");
 
 const dateFormat = new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 const formatDate = (date: string | null): string => (date === null ? "—" : dateFormat.format(new Date(`${date}T00:00:00Z`)));

@@ -11,7 +11,7 @@ import { ProductForm } from "./product-form";
 
 export const metadata: Metadata = { title: "Productos" };
 
-export default streamedPage("Cargando los productos…", Products);
+export default streamedPage("Cargando los productos…", Products, "frame");
 
 async function Products({ params }: { readonly params: PageProps<"/[organizacion]/contribuyentes/[contribuyente]/productos">["params"] }) {
   const { organizacion, contribuyente } = await params;

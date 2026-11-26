@@ -10,7 +10,7 @@ import { TaxpayerForm } from "./taxpayer-forms";
 
 export const metadata: Metadata = { title: "Contribuyentes" };
 
-export default streamedPage("Cargando los contribuyentes…", Taxpayers);
+export default streamedPage("Cargando los contribuyentes…", Taxpayers, "frame");
 
 const PERSON_TYPE = { NATURAL_PERSON: "Persona física", LEGAL_ENTITY: "Persona jurídica o entidad" } as const;
 

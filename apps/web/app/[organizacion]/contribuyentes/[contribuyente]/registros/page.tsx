@@ -10,7 +10,7 @@ import { requireTaxpayer } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "Registros VERI*FACTU" };
 
-export default streamedPage("Comprobando la cadena de registros…", Records);
+export default streamedPage("Comprobando la cadena de registros…", Records, "frame");
 
 const STATUS: Readonly<Record<BillingRecordView["status"], { readonly label: string; readonly tone: Tone }>> = {
   PENDING: { label: "Pendiente de remitir", tone: "neutral" },

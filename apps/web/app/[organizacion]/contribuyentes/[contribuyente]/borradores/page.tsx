@@ -12,7 +12,7 @@ import { invoicesPath } from "../facturas/editor-data";
 
 export const metadata: Metadata = { title: "Borradores" };
 
-export default streamedPage("Cargando los borradores…", Drafts);
+export default streamedPage("Cargando los borradores…", Drafts, "frame");
 
 /**
  * Borradores: facturas aún sin número ni validez fiscal. Se editan, se descargan en PDF o se envían al cliente

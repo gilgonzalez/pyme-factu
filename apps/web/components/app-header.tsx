@@ -1,17 +1,21 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
+import { NavIcon } from "@/components/nav-pending";
 import { SignOutButton } from "@/components/sign-out-button";
 
-/** Enlace de navegación del lateral (o de la tira desplazable en móvil), con icono. */
+/**
+ * Enlace de navegación del lateral (o de la tira desplazable en móvil), con icono. La sección actual va en una
+ * píldora blanca y, en escritorio, con una barra violeta en el borde del lateral.
+ */
 export function NavLink({ href, current, icon, children }: { readonly href: string; readonly current: boolean; readonly icon: ReactNode; readonly children: ReactNode }) {
   return (
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-black/[0.04] hover:text-foreground aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(16_16_32/0.06)] [&>svg]:size-4 [&>svg]:shrink-0 aria-[current=page]:[&>svg]:text-primary"
+      className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-black/[0.04] hover:text-foreground aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(16_16_32/0.06)] lg:aria-[current=page]:before:absolute lg:aria-[current=page]:before:inset-y-2 lg:aria-[current=page]:before:-left-3 lg:aria-[current=page]:before:w-[3px] lg:aria-[current=page]:before:rounded-r-full lg:aria-[current=page]:before:bg-primary aria-[current=page]:[&_svg]:text-primary"
     >
-      {icon}
+      <NavIcon>{icon}</NavIcon>
       {children}
     </Link>
   );

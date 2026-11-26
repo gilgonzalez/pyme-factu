@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { FIELD_WIDTHS, FieldError, type FieldWidth } from "@/components/form";
 import { Label } from "@/components/ui/label";
 
 /**
@@ -12,6 +13,7 @@ export function SelectField<Value extends string>({
   options,
   placeholder,
   error,
+  width = "full",
 }: {
   readonly name: string;
   readonly label: string;
@@ -19,11 +21,12 @@ export function SelectField<Value extends string>({
   readonly options: readonly { readonly value: Value; readonly label: string }[];
   readonly placeholder?: string;
   readonly error?: string | undefined;
+  readonly width?: FieldWidth;
 }) {
   const id = useId();
   const errorId = `${id}-error`;
   return (
-    <div className="grid min-w-0 gap-1.5">
+    <div className={`grid min-w-0 content-start gap-1.5 ${FIELD_WIDTHS[width]}`}>
       <Label htmlFor={id}>{label}</Label>
       <select
         id={id}
@@ -32,7 +35,7 @@ export function SelectField<Value extends string>({
         required={placeholder !== undefined}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={error === undefined ? undefined : errorId}
-        className="h-10 w-full min-w-0 max-w-full truncate rounded-lg border border-input bg-card shadow-[0_1px_2px_rgb(16_16_32/0.04)] px-3 text-base md:text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+        className="field field-select"
       >
         {placeholder === undefined ? null : (
           <option value="" disabled>
@@ -45,11 +48,7 @@ export function SelectField<Value extends string>({
           </option>
         ))}
       </select>
-      {error === undefined ? null : (
-        <p id={errorId} className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <FieldError id={errorId} error={error} />
     </div>
   );
 }

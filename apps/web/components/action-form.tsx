@@ -37,7 +37,7 @@ export function ActionForm({ action, children, className, label }: ActionFormPro
     return { result: next, values: next?.ok === false ? textValues(data) : {} };
   }, INITIAL);
   return (
-    <form action={formAction} className={className} aria-label={label}>
+    <form action={formAction} className={className} aria-label={label} aria-busy={pending}>
       {children({ pending, errors: result?.errors ?? {}, values })}
       {result === null || result.message === "" ? null : (
         <div className="basis-full">

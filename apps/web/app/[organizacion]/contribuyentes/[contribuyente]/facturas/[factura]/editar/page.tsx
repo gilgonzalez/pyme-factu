@@ -13,7 +13,7 @@ import { InvoiceEditor } from "../../invoice-editor";
 
 export const metadata: Metadata = { title: "Editar factura" };
 
-export default streamedPage("Cargando el borrador…", EditInvoice);
+export default streamedPage("Cargando el borrador…", EditInvoice, "frame");
 
 type Params = PageProps<"/[organizacion]/contribuyentes/[contribuyente]/facturas/[factura]/editar">["params"];
 

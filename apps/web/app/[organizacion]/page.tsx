@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { getDatabase } from "@/lib/server/db";
 import { requireTenant } from "@/lib/server/session";
 
-export default streamedPage("Cargando la organización…", TenantHome);
+export default streamedPage("Cargando la organización…", TenantHome, "frame");
 
 /** Inicio de la organización: lo primero es elegir para quién se factura. */
 async function TenantHome({ params }: { readonly params: PageProps<"/[organizacion]">["params"] }) {

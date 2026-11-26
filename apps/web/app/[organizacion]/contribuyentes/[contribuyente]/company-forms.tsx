@@ -19,7 +19,7 @@ export interface BillingSettingsValues {
   readonly emailMessage: string;
 }
 
-const inputClass = "rounded-lg border border-input bg-card px-3 py-2 text-base md:text-sm aria-invalid:border-destructive";
+const inputClass = "field field-textarea";
 
 function TextArea({
   name,
@@ -79,14 +79,15 @@ function Group({ title, description, children }: { readonly title: string; reado
 export function BillingSettingsForm({ action, values }: { readonly action: FormAction; readonly values: BillingSettingsValues }) {
   const taxId = useId();
   return (
-    <ActionForm action={action} className="grid gap-5" label="Cobro y facturas">
+    <ActionForm action={action} className="grid max-w-3xl gap-5" label="Cobro y facturas">
       {({ pending, errors, values: sent }) => {
         const initial = (name: keyof BillingSettingsValues): string => sent[name] ?? values[name];
         return (
           <>
             <Group title="Cobro" description="Cómo te pagan. Sale en la forma de pago de tus borradores y facturas.">
-              <div className="grid gap-4 sm:grid-cols-[1fr_13rem]">
+              <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-start">
                 <Field
+                  width="lg"
                   name="iban"
                   label="IBAN para transferencias (opcional)"
                   autoComplete="off"
@@ -98,6 +99,7 @@ export function BillingSettingsForm({ action, values }: { readonly action: FormA
                   error={errors["iban"]}
                 />
                 <Field
+                  width="sm"
                   name="paymentTermsDays"
                   label="Plazo de pago (días)"
                   hint="Con 30, vence a los 30 días de la fecha."
@@ -118,8 +120,9 @@ export function BillingSettingsForm({ action, values }: { readonly action: FormA
             </Group>
 
             <Group title="Valores por defecto" description="Con qué empieza cada factura nueva. Siempre puedes cambiarlos en la propia factura.">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-start">
                 <Field
+                  width="md"
                   name="defaultWithholdingPercent"
                   label="Retención IRPF % (opcional)"
                   hint="Profesionales que facturan a empresas: normalmente 15 (7 los primeros años)."
@@ -128,7 +131,7 @@ export function BillingSettingsForm({ action, values }: { readonly action: FormA
                   defaultValue={initial("defaultWithholdingPercent")}
                   error={errors["defaultWithholdingPercent"]}
                 />
-                <div className="grid content-start gap-1.5">
+                <div className="grid content-start gap-1.5 sm:w-72">
                   <Label htmlFor={taxId}>IVA de las líneas nuevas</Label>
                   {/* key: tras un error, React reinicia el formulario; así el desplegable vuelve a lo elegido. */}
                   <select
@@ -137,7 +140,7 @@ export function BillingSettingsForm({ action, values }: { readonly action: FormA
                     name="defaultTaxKey"
                     defaultValue={initial("defaultTaxKey")}
                     aria-invalid={errors["defaultTaxKey"] === undefined ? undefined : true}
-                    className="h-10 w-full rounded-lg border border-input bg-card px-3 text-base md:text-sm"
+                    className="field field-select"
                   >
                     <option value="">IVA 21 % (el general)</option>
                     {TAX_OPTIONS.filter((option) => option.value !== "VAT:2100").map((option) => (
