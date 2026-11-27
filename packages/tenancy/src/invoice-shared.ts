@@ -1,8 +1,52 @@
-// Piezas de facturación compartidas por invoices.ts (borradores, emisión, consulta) y verifactu.ts (registros).
+// Piezas de facturación compartidas por invoices.ts (borradores, emisión, consulta), templates.ts (plantillas) y
+// verifactu.ts (registros).
 import type { Tx } from "@facturalibre/database";
-import { calculateInvoice, parseTaxCategory, type InvoiceTotals, type TaxCategory } from "@facturalibre/fiscal-core";
+import {
+  calculateInvoice,
+  parseDecimal,
+  parseInvoiceLine,
+  parseTaxCategory,
+  SCALE,
+  type InvoiceTotals,
+  type ParsedLine,
+  type TaxCategory,
+} from "@facturalibre/fiscal-core";
 
 export type Kind = "STANDARD" | "RECTIFYING";
+
+export type Invalid = { readonly ok: false; readonly reason: "INVALID"; readonly errors: Readonly<Record<string, string>> };
+
+// ─── Entrada de borradores y plantillas: mismas reglas en ambos ──────────────
+
+const HUNDRED_PERCENT = 10_000n;
+const NOTES_MAX = 1000;
+
+/** Líneas del formulario; los errores se anotan por campo («lines.1.quantity»). */
+export function parseLines(raw: unknown, errors: Record<string, string>): ParsedLine[] {
+  const rows: unknown[] = Array.isArray(raw) ? raw : [];
+  if (rows.length === 0) errors["lines"] = "Añade al menos una línea.";
+  const lines: ParsedLine[] = [];
+  rows.forEach((row, index) => {
+    const parsed = parseInvoiceLine(typeof row === "object" && row !== null ? row : {});
+    if (parsed.ok) lines.push(parsed.value);
+    else for (const [field, message] of Object.entries(parsed.errors)) errors[`lines.${String(index)}.${field}`] = message;
+  });
+  return lines;
+}
+
+export function parseWithholding(raw: unknown, errors: Record<string, string>): bigint {
+  if (raw === undefined || raw === null || (typeof raw === "string" && raw.trim() === "")) return 0n;
+  const parsed = parseDecimal(raw, SCALE.percent);
+  if (parsed.ok && parsed.value <= HUNDRED_PERCENT) return parsed.value;
+  errors["withholdingPercent"] = "La retención debe estar entre 0 y 100 %.";
+  return 0n;
+}
+
+export function parseNotes(raw: unknown, errors: Record<string, string>): string | null {
+  const notes = typeof raw === "string" ? raw.trim() : "";
+  if (notes.length > NOTES_MAX) errors["notes"] = `Las observaciones no pueden superar los ${String(NOTES_MAX)} caracteres.`;
+  return notes === "" ? null : notes;
+}
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

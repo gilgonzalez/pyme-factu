@@ -67,6 +67,15 @@ export {
   type TaxpayerSummary,
 } from "./taxpayers";
 export {
+  deleteInvoiceTemplate,
+  getInvoiceTemplate,
+  listInvoiceTemplates,
+  saveInvoiceTemplate,
+  type InvoiceTemplateDetail,
+  type InvoiceTemplateSummary,
+  type TemplateLine,
+} from "./templates";
+export {
   annulInvoice,
   listBillingRecords,
   submissionStatus,

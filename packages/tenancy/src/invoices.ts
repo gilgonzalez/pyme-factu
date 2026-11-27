@@ -4,10 +4,7 @@ import { randomUUID } from "node:crypto";
 import type { Database, Tx } from "@facturalibre/database";
 import {
   calculateInvoice,
-  parseDecimal,
-  parseInvoiceLine,
   parseTaxCategory,
-  SCALE,
   taxCategoryKey,
   type InvoiceTotals,
   type ParsedLine,
@@ -17,7 +14,18 @@ import { RECTIFICATION_TYPES } from "@facturalibre/verifactu";
 import { recordAudit } from "./audit";
 import { addDays, issuerProfile } from "./billing-settings";
 import { activeTaxpayerId } from "./catalog";
-import { formatInvoiceNumber, isoDate, lockInvoice, totalsOfStored, UUID, type Kind } from "./invoice-shared";
+import {
+  formatInvoiceNumber,
+  isoDate,
+  lockInvoice,
+  parseLines,
+  parseNotes,
+  parseWithholding,
+  totalsOfStored,
+  UUID,
+  type Invalid,
+  type Kind,
+} from "./invoice-shared";
 import { runInTenant } from "./run-in-tenant";
 import type { TenantContext } from "./tenant-context";
 import { altaDataFor, invoiceRecords, registerAlta, type InvoiceRecords, type VerifactuSettings } from "./verifactu";
@@ -25,10 +33,6 @@ import { altaDataFor, invoiceRecords, registerAlta, type InvoiceRecords, type Ve
 export { formatInvoiceNumber } from "./invoice-shared";
 
 type Raw = Readonly<Record<string, unknown>>;
-type Invalid = { readonly ok: false; readonly reason: "INVALID"; readonly errors: Readonly<Record<string, string>> };
-
-const HUNDRED_PERCENT = 10_000n;
-const NOTES_MAX = 1000;
 
 // ─── Series automáticas por año: F{año} ordinarias, R{año} rectificativas ──────
 
@@ -54,32 +58,6 @@ interface DraftInput {
   readonly lines: readonly ParsedLine[];
   readonly withholdingPercent: bigint;
   readonly notes: string | null;
-}
-
-function parseLines(raw: unknown, errors: Record<string, string>): ParsedLine[] {
-  const rows: unknown[] = Array.isArray(raw) ? raw : [];
-  if (rows.length === 0) errors["lines"] = "Añade al menos una línea.";
-  const lines: ParsedLine[] = [];
-  rows.forEach((row, index) => {
-    const parsed = parseInvoiceLine(typeof row === "object" && row !== null ? row : {});
-    if (parsed.ok) lines.push(parsed.value);
-    else for (const [field, message] of Object.entries(parsed.errors)) errors[`lines.${String(index)}.${field}`] = message;
-  });
-  return lines;
-}
-
-function parseWithholding(raw: unknown, errors: Record<string, string>): bigint {
-  if (raw === undefined || raw === null || (typeof raw === "string" && raw.trim() === "")) return 0n;
-  const parsed = parseDecimal(raw, SCALE.percent);
-  if (parsed.ok && parsed.value <= HUNDRED_PERCENT) return parsed.value;
-  errors["withholdingPercent"] = "La retención debe estar entre 0 y 100 %.";
-  return 0n;
-}
-
-function parseNotes(raw: unknown, errors: Record<string, string>): string | null {
-  const notes = typeof raw === "string" ? raw.trim() : "";
-  if (notes.length > NOTES_MAX) errors["notes"] = `Las observaciones no pueden superar los ${String(NOTES_MAX)} caracteres.`;
-  return notes === "" ? null : notes;
 }
 
 async function parseDraft(tx: Tx, taxpayerId: string, raw: Raw): Promise<{ ok: true; value: DraftInput } | Invalid> {

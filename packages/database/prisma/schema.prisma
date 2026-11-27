@@ -307,17 +307,19 @@ model Taxpayer {
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  settings       TaxpayerSettings?
-  memberships    TaxpayerMembership[]
-  customers      Customer[]
-  products       Product[]
-  invoiceSeries  InvoiceSeries[]
-  invoices       Invoice[]
-  invoiceLines   InvoiceLine[]
-  billingSystem  BillingSystem?
-  billingRecords BillingRecord[]
-  certificate    TaxpayerCertificate?
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  settings             TaxpayerSettings?
+  memberships          TaxpayerMembership[]
+  customers            Customer[]
+  products             Product[]
+  invoiceSeries        InvoiceSeries[]
+  invoices             Invoice[]
+  invoiceLines         InvoiceLine[]
+  invoiceTemplates     InvoiceTemplate[]
+  invoiceTemplateLines InvoiceTemplateLine[]
+  billingSystem        BillingSystem?
+  billingRecords       BillingRecord[]
+  certificate          TaxpayerCertificate?
 
   /// Destino de las claves foráneas compuestas (tenant_id, taxpayer_id).
   @@unique([tenantId, id])
@@ -661,6 +663,51 @@ model InvoiceLine {
 
   @@unique([invoiceId, position])
   @@map("invoice_lines")
+}
+
+/// Plantilla de factura: lo que se repite (cliente, líneas, retención, observaciones) con un nombre para encontrarla.
+/// Usarla rellena el editor de una factura nueva; lo que se cambie allí no toca la plantilla. Sin importes guardados:
+/// se calculan al facturar. El cliente es opcional; su FK compuesta (taxpayer_id, customer_id) está en SQL (como
+/// la de rectifies_invoice_id). Migración 20261127001000_invoice_templates.
+model InvoiceTemplate {
+  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  taxpayerId         String   @map("taxpayer_id") @db.Uuid
+  /// Nombre identificativo, único por contribuyente sin distinguir mayúsculas (índice en SQL).
+  name               String
+  customerId         String?  @map("customer_id") @db.Uuid
+  /// Retención de IRPF en porcentaje a escala 2 (1500 = 15 %), como en "invoices".
+  withholdingPercent Int      @default(0) @map("withholding_percent")
+  notes              String?
+  createdByUserId    String?  @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  taxpayer Taxpayer              @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  lines    InvoiceTemplateLine[]
+
+  @@unique([taxpayerId, id])
+  @@map("invoice_templates")
+}
+
+/// Línea de una plantilla: los mismos datos y escalas que InvoiceLine, sin la base calculada.
+model InvoiceTemplateLine {
+  id              String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  tenantId        String @map("tenant_id") @db.Uuid
+  taxpayerId      String @map("taxpayer_id") @db.Uuid
+  templateId      String @map("template_id") @db.Uuid
+  position        Int
+  description     String
+  quantity        BigInt
+  unitPrice       BigInt @map("unit_price")
+  discountPercent Int    @map("discount_percent")
+  taxKey          String @map("tax_key")
+
+  taxpayer Taxpayer        @relation(fields: [tenantId, taxpayerId], references: [tenantId, id], onDelete: Restrict)
+  template InvoiceTemplate @relation(fields: [taxpayerId, templateId], references: [taxpayerId, id], onDelete: Cascade)
+
+  @@unique([templateId, position])
+  @@map("invoice_template_lines")
 }
 
 /// Certificado electrónico del contribuyente para remitir a la AEAT (Fase 6), cifrado por sobre: la clave que lo

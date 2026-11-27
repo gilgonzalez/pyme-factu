@@ -76,3 +76,4 @@ Migración `20261124000400_invoicing`. Tablas `customers`, `products`, `invoice_
 - Qué **rol** puede preparar, emitir o rectificar lo decide la aplicación (`runInTenant` con `invoices.draft` / `invoices.issue` / `invoices.rectify`); la base de datos garantiza el aislamiento por contribuyente.
 - Las facturas emitidas y sus líneas son inalterables para **todos** los roles, incluido el propietario de las tablas (triggers `invoices_immutable_when_issued` e `invoice_lines_immutable_when_issued`).
 - Pruebas: `packages/database/test/invoicing.test.ts`.
+- Plantillas de factura (migración `20261127001000_invoice_templates`): `invoice_templates` e `invoice_template_lines` tienen las mismas cuatro políticas. Leerlas exige `invoices.read`; crearlas, editarlas o borrarlas, `invoices.draft` (en la aplicación). Pruebas: `packages/tenancy/test/templates.test.ts`.
