@@ -72,6 +72,10 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   const draftDownload = page.waitForEvent("download");
   await page.getByRole("link", { name: "Descargar borrador (PDF)" }).click();
   expect((await draftDownload).suggestedFilename()).toMatch(/^borrador-[0-9a-f]{8}\.pdf$/);
+  // Vista previa: cómo quedará la factura, sin marca de agua.
+  const previewDownload = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Vista previa (PDF)" }).click();
+  expect((await previewDownload).suggestedFilename()).toMatch(/^vista-previa-[0-9a-f]{8}.pdf$/);
   const clientEmail = uniqueEmail("cliente");
   const send = page.getByRole("form", { name: "Enviar el borrador al cliente" });
   await send.getByLabel("Email del cliente").fill(clientEmail);

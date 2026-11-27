@@ -42,6 +42,8 @@ export interface InvoicePdfData {
   readonly annulled: boolean;
   /** Borrador para enseñar al cliente: sin número ni validez fiscal; se avisa y lleva marca de agua. */
   readonly draft: boolean;
+  /** Vista previa de un borrador: como la factura real, sin marca de agua, con una nota legal al final. */
+  readonly preview?: boolean;
   /** PNG del QR (nivel M); null si la factura no tiene registro VERI*FACTU. */
   readonly verifactu: { readonly qrPng: Uint8Array } | null;
   /** Logo del emisor, arriba a la derecha junto al título (después del QR, que siempre va primero). */
@@ -70,6 +72,20 @@ const GRAY = rgb(0.35, 0.35, 0.35);
 const RED = rgb(0.7, 0.1, 0.1);
 const BLACK = rgb(0, 0, 0);
 const WATERMARK = rgb(0.85, 0.85, 0.85);
+/** Tinta de la cabecera de la tabla, separadores finos y acento (el violeta de la aplicación). */
+const INK = rgb(0.082, 0.082, 0.11);
+const WHITE = rgb(1, 1, 1);
+const HAIRLINE = rgb(0.88, 0.88, 0.91);
+const ACCENT = rgb(0.353, 0.247, 0.949);
+const ACCENT_SOFT = rgb(0.945, 0.933, 0.996);
+const TITLE = 16;
+const CELL_PADDING = 4;
+/** Las bandas y separadores de la tabla sobresalen un poco del texto, que nunca toca sus bordes. */
+const BLEED = 6;
+/** Sangría de la columna del IVA, para separarla de la del descuento (alineada a la derecha). */
+const TAX_INDENT = 10;
+const PREVIEW_NOTICE =
+  "Vista previa sin validez legal. Este documento es una simulación y no constituye una factura a efectos del Reglamento de facturación (Real Decreto 1619/2012): no ha sido expedido, carece de número de serie y de registro de facturación VERI*FACTU, y no produce efectos fiscales ni mercantiles. La factura definitiva se expedirá con su numeración correlativa, su fecha de expedición y su código QR tributario.";
 const DRAFT_NOTICE = "BORRADOR: documento sin validez fiscal. No es una factura: no tiene número ni registro VERI*FACTU.";
 
 type Align = "left" | "right" | "center";
@@ -191,6 +207,17 @@ class Layout {
     this.y -= height;
   }
 
+  /** Banda de color a todo el ancho de `height` puntos desde el cursor (sin moverlo); empieza página si no cabe. */
+  band(height: number, color: RGB, from = MARGIN, width = WIDTH): void {
+    this.room(height);
+    this.page.drawRectangle({ x: from, y: this.y - height, width, height, color });
+  }
+
+  /** Línea horizontal fina en el cursor. */
+  rule(color: RGB = HAIRLINE, thickness = 0.6, from = MARGIN, width = WIDTH): void {
+    this.page.drawLine({ start: { x: from, y: this.y }, end: { x: from + width, y: this.y }, thickness, color });
+  }
+
   /** Un texto a todo el ancho. */
   write(text: string, options: WriteOptions = {}): void {
     this.row([{ paragraphs: [text], x: MARGIN, width: options.width ?? WIDTH, align: options.align ?? "left", bold: options.bold ?? false }], options.size ?? BODY, options.color ?? BLACK);
@@ -253,10 +280,15 @@ const partyParagraphs = (party: PdfParty): string[] => [party.name, party.nif ==
 function drawParties(layout: Layout, data: InvoicePdfData): void {
   const half = (WIDTH - CELL_GAP * 2) / 2;
   const right = MARGIN + half + CELL_GAP * 2;
-  layout.row([
-    { paragraphs: ["Emisor"], x: MARGIN, width: half, bold: true },
-    { paragraphs: ["Destinatario"], x: right, width: half, bold: true },
-  ]);
+  layout.row(
+    [
+      { paragraphs: ["Emisor"], x: MARGIN, width: half, bold: true },
+      { paragraphs: ["Destinatario"], x: right, width: half, bold: true },
+    ],
+    SMALL,
+    GRAY,
+  );
+  layout.gap(2);
   layout.row([
     { paragraphs: partyParagraphs(data.issuer), x: MARGIN, width: half },
     { paragraphs: partyParagraphs(data.recipient), x: right, width: half },
@@ -276,18 +308,23 @@ function tableCells(texts: (column: (typeof COLUMNS)[number]) => string, bold: b
   let x = MARGIN;
   return COLUMNS.map((column) => {
     const width = column.share * WIDTH;
-    const cell = { paragraphs: [texts(column)], x, width: width - CELL_GAP, align: column.align, bold };
+    const indent = column.key === "tax" ? TAX_INDENT : 0;
+    const cell = { paragraphs: [texts(column)], x: x + indent, width: width - CELL_GAP - indent, align: column.align, bold };
     x += width;
     return cell;
   });
 }
 
 function drawLines(layout: Layout, lines: readonly PdfLine[]): void {
-  layout.row(tableCells((column) => column.title, true));
-  layout.gap(2);
+  layout.band(BODY * LEADING + CELL_PADDING * 2, INK, MARGIN - BLEED, WIDTH + BLEED * 2);
+  layout.gap(CELL_PADDING);
+  layout.row(tableCells((column) => column.title, true), BODY, WHITE);
+  layout.gap(CELL_PADDING);
   for (const line of lines) {
+    layout.gap(CELL_PADDING);
     layout.row(tableCells((column) => line[column.key], false));
-    layout.gap(2);
+    layout.gap(CELL_PADDING);
+    layout.rule(HAIRLINE, 0.6, MARGIN - BLEED, WIDTH + BLEED * 2);
   }
 }
 
@@ -295,6 +332,14 @@ function drawAmounts(layout: Layout, amounts: readonly PdfAmount[]): void {
   const labelX = MARGIN + WIDTH * 0.4;
   for (const amount of amounts) {
     const strong = amount.strong === true;
+    if (strong) {
+      // El total, sobre un fondo suave del acento y separado por una línea.
+      layout.gap(CELL_PADDING);
+      layout.rule(INK, 0.8, labelX - BLEED, WIDTH * 0.6 + BLEED * 2);
+      layout.gap(CELL_PADDING);
+      layout.band(STRONG * LEADING + CELL_PADDING * 2, ACCENT_SOFT, labelX - BLEED, WIDTH * 0.6 + BLEED * 2);
+      layout.gap(CELL_PADDING);
+    }
     layout.row(
       [
         { paragraphs: [amount.label], x: labelX, width: WIDTH * 0.4 - CELL_GAP, bold: strong },
@@ -302,6 +347,7 @@ function drawAmounts(layout: Layout, amounts: readonly PdfAmount[]): void {
       ],
       strong ? STRONG : BODY,
     );
+    if (strong) layout.gap(CELL_PADDING);
   }
 }
 
@@ -314,7 +360,7 @@ async function drawLogo(layout: Layout, document: PDFDocument, logo: InvoicePdfD
 function drawHeading(layout: Layout, data: InvoicePdfData, logo: { readonly width: number; readonly bottom: number } | null): void {
   // Con logo, los textos de la cabecera no pasan por debajo de él.
   const width = logo === null ? WIDTH : WIDTH - logo.width - 4 * MM;
-  if (data.draft) {
+  if (data.draft && data.preview !== true) {
     layout.write(DRAFT_NOTICE, { bold: true, color: RED, width });
     layout.gap(4);
   }
@@ -322,16 +368,20 @@ function drawHeading(layout: Layout, data: InvoicePdfData, logo: { readonly widt
     layout.write("ANULADA: factura expedida por error; consta su registro de anulación VERI*FACTU.", { bold: true, color: RED, width });
     layout.gap(4);
   }
-  layout.write(data.title, { bold: true, size: STRONG, width });
-  layout.write(`${data.draft ? "Fecha" : "Fecha de expedición"}: ${data.issueDate}`, { width });
+  layout.write(data.title, { bold: true, size: TITLE, width });
+  layout.gap(2);
+  layout.write(`${data.draft && data.preview !== true ? "Fecha" : "Fecha de expedición"}: ${data.issueDate}`, { width, color: GRAY });
   if (logo !== null) layout.below(logo.bottom);
-  layout.gap(4 * MM);
+  layout.gap(3 * MM);
+  layout.rule(ACCENT, 1.2);
+  layout.gap(5 * MM);
 }
 
 function drawPayment(layout: Layout, payment: readonly string[]): void {
   if (payment.length === 0) return;
   layout.gap(4 * MM);
-  layout.write("Forma de pago", { bold: true });
+  layout.write("Forma de pago", { bold: true, size: SMALL, color: GRAY });
+  layout.gap(1);
   for (const line of payment) layout.write(line);
 }
 
@@ -340,13 +390,19 @@ function drawClosing(layout: Layout, data: InvoicePdfData): void {
     layout.gap(4 * MM);
     layout.write(`Observaciones: ${data.notes}`);
   }
-  if (data.verifactu === null && !data.draft) {
+  if (data.verifactu === null && !data.draft && data.preview !== true) {
     layout.gap(4 * MM);
     layout.write("Factura emitida antes de VERI*FACTU: sin registro de facturación ni código QR.", { color: GRAY });
   }
   if (data.legal.length > 0) {
     layout.gap(4 * MM);
     for (const line of data.legal) layout.write(line, { size: SMALL, color: GRAY });
+  }
+  if (data.preview === true) {
+    layout.gap(6 * MM);
+    layout.rule();
+    layout.gap(2 * MM);
+    layout.write(PREVIEW_NOTICE, { size: 7, color: GRAY });
   }
 }
 
@@ -372,7 +428,7 @@ export async function renderInvoicePdf(data: InvoicePdfData): Promise<Uint8Array
   drawAmounts(layout, data.amounts);
   drawPayment(layout, data.payment);
   drawClosing(layout, data);
-  if (data.draft) layout.watermark("BORRADOR");
+  if (data.draft && data.preview !== true) layout.watermark("BORRADOR");
   layout.numberPages();
   return document.save();
 }

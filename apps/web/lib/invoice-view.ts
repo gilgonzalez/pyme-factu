@@ -1,5 +1,5 @@
 // Datos de presentación de una factura compartidos por su ficha web y su PDF.
-import { formatIban } from "@facturalibre/domain";
+import { capitalizeAddress, formatIban } from "@facturalibre/domain";
 
 export interface Party {
   readonly legalName: string;
@@ -12,7 +12,12 @@ export function partyFrom(snapshot: unknown): Party | null {
   if (typeof snapshot !== "object" || snapshot === null) return null;
   const data = snapshot as Record<string, unknown>;
   const text = (key: string): string | null => (typeof data[key] === "string" ? data[key] : null);
-  const address = [text("addressLine"), [text("postalCode"), text("city")].filter(Boolean).join(" "), text("province")].filter(Boolean).join(", ");
+  // Dirección, municipio y provincia con su capitalización («calle de la paz» → «Calle de la Paz»).
+  const place = (key: string): string | null => {
+    const value = text(key);
+    return value === null ? null : capitalizeAddress(value);
+  };
+  const address = [place("addressLine"), [text("postalCode"), place("city")].filter(Boolean).join(" "), place("province")].filter(Boolean).join(", ");
   return { legalName: text("legalName") ?? "", nif: text("nif"), address };
 }
 

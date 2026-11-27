@@ -35,9 +35,11 @@ export function documentTitle(invoice: Pick<InvoiceDetail, "kind" | "status" | "
   return invoice.status === "DRAFT" || invoice.number === null ? `Borrador de ${kind}` : `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ${invoice.number}`;
 }
 
-/** Nombre del fichero PDF: el número de la factura, o «borrador-» y el principio del id. */
-export const pdfFilename = (invoice: Pick<InvoiceDetail, "id" | "status" | "number">): string =>
-  invoice.status === "DRAFT" || invoice.number === null ? `borrador-${invoice.id.slice(-8)}.pdf` : `${invoice.number}.pdf`;
+/** Nombre del fichero PDF: el número de la factura, o «borrador-»/«vista-previa-» y el final del id. */
+export const pdfFilename = (invoice: Pick<InvoiceDetail, "id" | "status" | "number">, preview = false): string => {
+  if (invoice.status !== "DRAFT" && invoice.number !== null) return `${invoice.number}.pdf`;
+  return `${preview ? "vista-previa" : "borrador"}-${invoice.id.slice(-8)}.pdf`;
+};
 
 async function verifactuOf(invoice: InvoiceDetail): Promise<InvoicePdfData["verifactu"]> {
   if (invoice.status === "DRAFT") return null;
@@ -51,12 +53,14 @@ async function verifactuOf(invoice: InvoiceDetail): Promise<InvoicePdfData["veri
  * PDF de una factura emitida, con el QR tributario de su registro de alta (si no está anulada), o de un
  * borrador: con la fecha de hoy, sin número ni QR y marcado como «sin validez fiscal».
  */
-export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecord, logo: Logo | null): Promise<Uint8Array> {
+export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecord, logo: Logo | null, options: { readonly preview?: boolean } = {}): Promise<Uint8Array> {
+  // Vista previa (solo de un borrador): como quedará la factura, sin marca de agua y con la nota legal al final.
+  const preview = options.preview === true && invoice.status === "DRAFT";
   const issuer = partyFrom(invoice.issuerSnapshot) ?? { legalName: taxpayer.legalName, nif: taxpayer.nif, address: "" };
   const extras = issuerExtrasFrom(invoice.issuerSnapshot, invoice.dueDate);
   const recipient = partyFrom(invoice.customerSnapshot) ?? { legalName: invoice.customerName, nif: null, address: "" };
   return renderInvoicePdf({
-    title: documentTitle(invoice),
+    title: preview ? (invoice.kind === "RECTIFYING" ? "Factura rectificativa" : "Factura") : documentTitle(invoice),
     issueDate: spanishDate(invoice.issueDate ?? todayInSpain()),
     issuer: { ...pdfParty(issuer), details: extras.details },
     recipient: pdfParty(recipient),
@@ -76,6 +80,7 @@ export async function invoicePdf(invoice: InvoiceDetail, taxpayer: TaxpayerRecor
         : null,
     annulled: invoice.verifactu.anulacion !== null,
     draft: invoice.status === "DRAFT",
+    preview,
     verifactu: await verifactuOf(invoice),
     logo: logo === null ? null : { bytes: logo.bytes, kind: logo.mimeType === "image/png" ? "png" : "jpeg" },
     payment: extras.payment,

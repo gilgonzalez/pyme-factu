@@ -14,6 +14,11 @@ const QR = 35 * MM;
 const QUIET = 6 * MM;
 const LINE_HEIGHT = 9 * 1.35;
 const STRONG_HEIGHT = 11 * 1.35;
+const TITLE_HEIGHT = 16 * 1.35;
+const SMALL_HEIGHT = 8 * 1.35;
+/** Aire de las celdas de la tabla y del bloque del total. */
+const PAD = 4;
+const WHITE = "1 1 1";
 const BLACK = "0 0 0";
 const GRAY = "0.35 0.35 0.35";
 const RED = "0.7 0.1 0.1";
@@ -122,6 +127,18 @@ describe("contenido de la factura", () => {
     for (const content of pdf.contents) expect(content).toContain(`<${Buffer.from("BORRADOR", "latin1").toString("hex").toUpperCase()}> Tj`);
   });
 
+  it("la vista previa se ve como la factura real: sin marca de agua ni aviso rojo, con la nota legal al final", async () => {
+    const pdf = await render({ ...base(), title: "Factura", draft: true, preview: true, verifactu: null });
+    const all = pdf.texts.flat();
+    expect(all).toContain("Fecha de expedición: 24/11/2026");
+    expect(all.some((text) => text.startsWith("BORRADOR"))).toBe(false);
+    expect(all).not.toContain("Factura emitida antes de VERI*FACTU: sin registro de facturación ni código QR.");
+    for (const content of pdf.contents) expect(content).not.toContain(`<${Buffer.from("BORRADOR", "latin1").toString("hex").toUpperCase()}> Tj`);
+    const notice = (pdf.pages.at(-1)?.runs ?? []).filter((text) => text.size === 7);
+    expect(notice.map((text) => text.text).join(" ")).toMatch(/^Vista previa sin validez legal. .*no constituye una factura.*código QR tributario.$/);
+    for (const text of notice) expect(text.color).toBe(GRAY);
+  });
+
   it("una factura no lleva marca de agua de borrador", async () => {
     const pdf = await render(base());
     for (const content of pdf.contents) expect(content).not.toContain(`<${Buffer.from("BORRADOR", "latin1").toString("hex").toUpperCase()}> Tj`);
@@ -196,7 +213,7 @@ describe("QR tributario", () => {
     expect((qr?.y ?? 0) + QR).toBeCloseTo(PAGE.height - MARGIN - STRONG_HEIGHT - QUIET, 3);
     expect(mark.y + 11).toBeCloseTo((qr?.y ?? 0) - QUIET, 3);
     // Lo siguiente (el título) deja también 6 mm de blanco bajo «VERI*FACTU».
-    expect(run(pdf, "Factura F2026-0001").y + 11).toBeCloseTo(mark.y + 11 - STRONG_HEIGHT - QUIET, 3);
+    expect(run(pdf, "Factura F2026-0001").y + 16).toBeCloseTo(mark.y + 11 - STRONG_HEIGHT - QUIET, 3);
   });
 
   it("una factura sin registro (anterior a VERI*FACTU) no lleva QR y lo dice", async () => {
@@ -204,7 +221,7 @@ describe("QR tributario", () => {
     expect(pdf.pages[0]?.images).toHaveLength(0);
     expect(pdf.texts.flat()).not.toContain("QR tributario:");
     expect(run(pdf, "Factura emitida antes de VERI*FACTU: sin registro de facturación ni código QR.")).toMatchObject({ bold: false, color: GRAY, size: 9 });
-    expect(run(pdf, "Factura F2026-0001").y).toBeCloseTo(PAGE.height - MARGIN - 11, 3);
+    expect(run(pdf, "Factura F2026-0001").y).toBeCloseTo(PAGE.height - MARGIN - 16, 3);
   });
 });
 
@@ -223,13 +240,14 @@ describe("maquetación", () => {
     };
     const steps: [string, string, number][] = [
       ["ANULADA: factura expedida por error; consta su registro de anulación VERI*FACTU.", "Factura F2026-0001", LINE_HEIGHT + 4],
-      ["Factura F2026-0001", "Fecha de expedición: 24/11/2026", STRONG_HEIGHT],
-      ["Fecha de expedición: 24/11/2026", "Emisor", LINE_HEIGHT + 4 * MM],
-      ["Emisor", "Rectifica la factura F2026-0001 (R1). Motivo: Precio", 4 * LINE_HEIGHT + 4 * MM],
-      ["Rectifica la factura F2026-0001 (R1). Motivo: Precio", "Descripción", LINE_HEIGHT + 4 * MM],
-      ["Descripción", "Reparación de caldera", LINE_HEIGHT + 2],
-      ["Asesoramiento", "IVA 21 % sobre 90,00 €", LINE_HEIGHT + 2 + 3 * MM],
-      ["Total", "Observaciones: Pago por transferencia.", STRONG_HEIGHT + 4 * MM],
+      ["Factura F2026-0001", "Fecha de expedición: 24/11/2026", TITLE_HEIGHT + 2],
+      // Bajo la fecha: 3 mm, la línea de acento y 5 mm.
+      ["Fecha de expedición: 24/11/2026", "Emisor", LINE_HEIGHT + 3 * MM + 5 * MM],
+      ["Emisor", "Rectifica la factura F2026-0001 (R1). Motivo: Precio", SMALL_HEIGHT + 2 + 3 * LINE_HEIGHT + 4 * MM],
+      ["Rectifica la factura F2026-0001 (R1). Motivo: Precio", "Descripción", LINE_HEIGHT + 4 * MM + PAD],
+      ["Descripción", "Reparación de caldera", LINE_HEIGHT + 2 * PAD],
+      ["Asesoramiento", "IVA 21 % sobre 90,00 €", LINE_HEIGHT + PAD + 3 * MM],
+      ["Total", "Observaciones: Pago por transferencia.", STRONG_HEIGHT + PAD + 4 * MM],
       ["Observaciones: Pago por transferencia.", "Factura emitida antes de VERI*FACTU: sin registro de facturación ni código QR.", LINE_HEIGHT + 4 * MM],
     ];
     expect(top(steps[0]?.[0] ?? "")).toBeCloseTo(PAGE.height - MARGIN, 3);
@@ -259,14 +277,15 @@ describe("maquetación", () => {
     expect((pdf.pages[0]?.runs ?? []).filter((text) => text.x === MARGIN + WIDTH * 0.4)).toHaveLength(2);
   });
 
-  it("todo el texto queda dentro de los márgenes, en negro salvo los avisos", async () => {
+  it("todo el texto queda dentro de los márgenes: datos en negro, etiquetas en gris y cabecera de la tabla en blanco", async () => {
     const pdf = await render({ ...base(), notes: "Pago por transferencia." });
     for (const text of bodyRuns(pdf, 0)) {
       expect(text.x).toBeGreaterThanOrEqual(MARGIN - 0.01);
       expect(text.x + text.width).toBeLessThanOrEqual(PAGE.width - MARGIN + 0.01);
       expect(text.y).toBeGreaterThanOrEqual(BODY_LIMIT);
-      expect(text.color).toBe(BLACK);
+      expect([BLACK, GRAY, WHITE]).toContain(text.color);
     }
+    for (const text of ["Ana Ficticia Pérez", "Reparación de caldera", "90,00 €", "128,90 €"]) expect(run(pdf, text).color).toBe(BLACK);
     expect(run(pdf, "Observaciones: Pago por transferencia.")).toMatchObject({ x: MARGIN, bold: false, size: 9 });
   });
 
@@ -274,9 +293,9 @@ describe("maquetación", () => {
     const pdf = await render(base());
     const title = run(pdf, "Factura F2026-0001");
     const date = run(pdf, "Fecha de expedición: 24/11/2026");
-    expect(title).toMatchObject({ x: MARGIN, bold: true, size: 11 });
-    expect(date).toMatchObject({ x: MARGIN, bold: false, size: 9 });
-    expect(date.y + 9).toBeCloseTo(title.y + 11 - STRONG_HEIGHT, 3);
+    expect(title).toMatchObject({ x: MARGIN, bold: true, size: 16, color: BLACK });
+    expect(date).toMatchObject({ x: MARGIN, bold: false, size: 9, color: GRAY });
+    expect(date.y + 9).toBeCloseTo(title.y + 16 - TITLE_HEIGHT - 2, 3);
   });
 
   it("emisor a la izquierda y destinatario a la derecha, con sus datos línea a línea", async () => {
@@ -284,12 +303,12 @@ describe("maquetación", () => {
     const half = (WIDTH - 8) / 2;
     const issuerTitle = run(pdf, "Emisor");
     const recipientTitle = run(pdf, "Destinatario");
-    expect(issuerTitle).toMatchObject({ x: MARGIN, bold: true });
+    expect(issuerTitle).toMatchObject({ x: MARGIN, bold: true, size: 8, color: GRAY });
     expect(recipientTitle).toMatchObject({ x: MARGIN + half + 8, bold: true, y: issuerTitle.y });
     const issuer = ["Ana Ficticia Pérez", "NIF 12345678Z", "Calle Mayor 1, 28001 Madrid"].map((text) => run(pdf, text));
     issuer.forEach((text, index) => {
       expect(text).toMatchObject({ x: MARGIN, bold: false, size: 9 });
-      expect(text.y).toBeCloseTo(issuerTitle.y - LINE_HEIGHT * (index + 1), 3);
+      expect(text.y).toBeCloseTo(issuerTitle.y + 8 - SMALL_HEIGHT - 2 - 9 - LINE_HEIGHT * index, 3);
     });
     expect(run(pdf, "NIF B12345674")).toMatchObject({ x: MARGIN + half + 8, y: issuer[1]?.y });
     // El bloque ocupa lo que la parte más larga (3 líneas): lo siguiente empieza debajo.
@@ -297,20 +316,21 @@ describe("maquetación", () => {
     expect(header.y).toBeLessThan((issuer[2]?.y ?? 0) - LINE_HEIGHT);
   });
 
-  it("tabla de líneas: cabecera en negrita, importes alineados a la derecha de su columna", async () => {
+  it("tabla de líneas: cabecera en negrita y blanca (sobre la banda oscura), importes alineados a la derecha de su columna", async () => {
     const pdf = await render(base());
     const headers = ["Descripción", "Cantidad", "Precio", "Dto.", "IVA", "Base"].map((text) => run(pdf, text));
-    for (const header of headers) expect(header).toMatchObject({ bold: true, size: 9, y: headers[0]?.y });
+    for (const header of headers) expect(header).toMatchObject({ bold: true, size: 9, color: WHITE, y: headers[0]?.y });
     const cells = [LINE.description, LINE.quantity, LINE.unitPrice, LINE.discount, LINE.tax, LINE.base].map((text) => run(pdf, text));
     const rightAligned = [1, 2, 3, 5];
     cells.forEach((cell, index) => {
       expect(cell).toMatchObject({ bold: false, size: 9, y: cells[0]?.y });
       if (rightAligned.includes(index)) expect(cell.x + cell.width).toBeCloseTo(columnEnd(index), 3);
-      else expect(cell.x).toBeCloseTo(columnStart(index), 3);
+      // El IVA lleva 10 puntos de sangría para no pegarse al descuento.
+      else expect(cell.x).toBeCloseTo(columnStart(index) + (index === 4 ? 10 : 0), 3);
     });
-    expect(cells[0]?.y).toBeCloseTo((headers[0]?.y ?? 0) - LINE_HEIGHT - 2, 3);
-    // La segunda línea, 2 puntos por debajo de la primera.
-    expect(run(pdf, "Asesoramiento").y).toBeCloseTo((cells[0]?.y ?? 0) - LINE_HEIGHT - 2, 3);
+    expect(cells[0]?.y).toBeCloseTo((headers[0]?.y ?? 0) - LINE_HEIGHT - 2 * PAD, 3);
+    // Cada fila lleva aire arriba y abajo y un separador fino.
+    expect(run(pdf, "Asesoramiento").y).toBeCloseTo((cells[0]?.y ?? 0) - LINE_HEIGHT - 2 * PAD, 3);
   });
 
   it("una línea que ocupa varios renglones empuja a la siguiente", async () => {
@@ -319,7 +339,7 @@ describe("maquetación", () => {
     const pieces = (pdf.pages[0]?.runs ?? []).filter((candidate) => candidate.text.startsWith("palabra"));
     expect(pieces.length).toBeGreaterThan(1);
     pieces.forEach((piece, index) => { expect(piece.y).toBeCloseTo((pieces[0]?.y ?? 0) - index * LINE_HEIGHT, 3); });
-    expect(run(pdf, "Siguiente").y).toBeCloseTo((pieces[0]?.y ?? 0) - pieces.length * LINE_HEIGHT - 2, 3);
+    expect(run(pdf, "Siguiente").y).toBeCloseTo((pieces[0]?.y ?? 0) - pieces.length * LINE_HEIGHT - 2 * PAD, 3);
     expect(run(pdf, "90,00 €").y).toBe(pieces[0]?.y);
   });
 
@@ -334,7 +354,8 @@ describe("maquetación", () => {
     expect(run(pdf, "Total")).toMatchObject({ bold: true, size: 11, y: total.y });
     expect(total).toMatchObject({ bold: true, size: 11 });
     expect(total.x + total.width).toBeCloseTo(MARGIN + WIDTH, 3);
-    expect(total.y + 11).toBeCloseTo(label.y + 9 - LINE_HEIGHT, 3);
+    // El total, tras una línea y sobre su banda: 3 × 4 puntos de aire.
+    expect(total.y + 11).toBeCloseTo(label.y + 9 - LINE_HEIGHT - 3 * PAD, 3);
   });
 
   it("pie de cada página: «Página i de n», centrado, pequeño y en gris", async () => {
@@ -403,7 +424,7 @@ describe("datos de la empresa", () => {
       legal: ["Inscrita en el Registro Mercantil de Madrid, tomo 1, folio 2, hoja M-3", "Gracias por su confianza."],
     });
     const title = run(pdf, "Forma de pago");
-    expect(title).toMatchObject({ bold: true, size: 9 });
+    expect(title).toMatchObject({ bold: true, size: 8, color: GRAY });
     expect(title.y).toBeLessThan(run(pdf, "128,90 €").y);
     expect(run(pdf, "Transferencia a ES91 2100 0418 4502 0005 1332").y).toBeLessThan(title.y);
     expect(run(pdf, "Vencimiento: 24/12/2026").y).toBeLessThan(title.y);

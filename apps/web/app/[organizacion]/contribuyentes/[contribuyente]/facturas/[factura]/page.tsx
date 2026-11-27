@@ -2,7 +2,7 @@ import { formatAmount, formatDecimal, SCALE } from "@facturalibre/fiscal-core";
 import { getBillingSettings, getInvoice, type BillingRecordView, type InvoiceDetail } from "@facturalibre/tenancy";
 import { qrSvg, qrUrl } from "@facturalibre/verifactu";
 import type { Metadata } from "next";
-import { Download, Send } from "lucide-react";
+import { Download, Eye, Send } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -307,10 +307,18 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
               {draft ? "Borrador: todavía no tiene número ni validez fiscal." : `Expedida el ${spanishDate(invoice.issueDate ?? "")}. No se puede modificar.`}
             </p>
           </div>
-          <a href={`${path}/pdf`} download className={buttonVariants({ variant: draft ? "outline" : "default" })}>
-            <Download aria-hidden="true" />
-            {draft ? "Descargar borrador (PDF)" : "Descargar PDF"}
-          </a>
+          <div className="flex flex-wrap gap-2">
+            {draft ? (
+              <a href={`${path}/pdf?vista=previa`} download className={buttonVariants({ variant: "outline" })}>
+                <Eye aria-hidden="true" />
+                Vista previa (PDF)
+              </a>
+            ) : null}
+            <a href={`${path}/pdf`} download className={buttonVariants({ variant: draft ? "outline" : "default" })}>
+              <Download aria-hidden="true" />
+              {draft ? "Descargar borrador (PDF)" : "Descargar PDF"}
+            </a>
+          </div>
         </div>
       </div>
 
