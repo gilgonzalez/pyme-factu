@@ -11,6 +11,15 @@ export function getMailer(): Mailer {
   return holder.facturalibreMailer;
 }
 
+/** Cabeceras de la IP del cliente (AUTH_IP_HEADERS, separadas por comas); sin la variable, las de Better Auth. */
+function ipAddressHeaders(): { readonly ipAddressHeaders?: readonly string[] } {
+  const headers = (process.env["AUTH_IP_HEADERS"] ?? "")
+    .split(",")
+    .map((header) => header.trim().toLowerCase())
+    .filter((header) => header !== "");
+  return headers.length === 0 ? {} : { ipAddressHeaders: headers };
+}
+
 /**
  * Better Auth con el rol facturalibre_auth (solo identidad). El navegador habla con /api/auth/*,
  * que es donde se aplican el rate limiting persistente y la comprobación de Origin.
@@ -24,6 +33,8 @@ export function getAuth(): Auth {
     // En development se desactiva para no bloquear pruebas manuales repetidas; en test/production, activo.
     rateLimit: { enabled: process.env["FACTURALIBRE_ENV"] !== "development" },
     plugins: [nextCookies()],
+    // Detrás de un proxy que añade su IP a X-Forwarded-For (Railway), la cabecera de la IP real: AUTH_IP_HEADERS=x-real-ip.
+    ...ipAddressHeaders(),
   }).auth;
   return holder.facturalibreAuth;
 }

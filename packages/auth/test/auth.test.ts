@@ -186,6 +186,36 @@ describe("protecciones", () => {
     expect(stored.rows[0]?.n).toBeGreaterThan(0);
   });
 
+  it("detrás de un proxy (Railway) limita por la IP de la cabecera configurada, no en un cupo compartido", async () => {
+    const proxied = createAuth({
+      databaseUrl: urls.auth,
+      baseURL: BASE_URL,
+      secret: "secreto-de-pruebas-con-longitud-suficiente-32+",
+      mailer: inbox,
+      rateLimit: { enabled: true },
+      ipAddressHeaders: ["x-real-ip"],
+    });
+    try {
+      const signIn = (realIp: string) =>
+        proxied.auth.handler(
+          new Request(`${BASE_URL}/api/auth/sign-in/email`, {
+            method: "POST",
+            // El proxy añade su propia dirección a X-Forwarded-For: con varias IP, Better Auth no la usaría.
+            headers: { "content-type": "application/json", origin: BASE_URL, "x-real-ip": realIp, "x-forwarded-for": `${realIp}, 10.0.0.1` },
+            body: JSON.stringify({ email: newEmail(), password: PASSWORD }),
+          }),
+        );
+      const a = `198.51.100.${String(Math.floor(Math.random() * 250) + 1)}`;
+      const statuses: number[] = [];
+      for (let attempt = 0; attempt < 6; attempt += 1) statuses.push((await signIn(a)).status);
+      expect(statuses.at(-1)).toBe(429);
+      // Otra IP no hereda el bloqueo.
+      expect((await signIn("192.0.2.77")).status).not.toBe(429);
+    } finally {
+      await proxied.close();
+    }
+  });
+
   it("rechaza peticiones con un Origin no confiable (CSRF)", async () => {
     const response = await post("/sign-up/email", { name: "X", email: newEmail(), password: PASSWORD }, { origin: "https://atacante.example", "x-forwarded-for": "10.77.0.99" });
     expect(response.status).toBe(403);

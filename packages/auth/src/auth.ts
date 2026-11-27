@@ -17,6 +17,12 @@ export interface CreateAuthOptions {
   readonly rateLimit?: { readonly enabled: boolean };
   /** Plugins de integración del framework (p. ej. nextCookies en la web). */
   readonly plugins?: BetterAuthPlugin[];
+  /**
+   * Cabeceras de las que leer la IP del cliente para el rate limiting, en orden. Por defecto, X-Forwarded-For
+   * (solo si trae UNA IP). Detrás de un proxy que añade la suya (Railway) hay que usar la que el proxy fija y el
+   * cliente no puede falsificar (Railway: X-Real-IP). Sin IP fiable, todos comparten un único cupo.
+   */
+  readonly ipAddressHeaders?: readonly string[];
 }
 
 const MINUTE = 60;
@@ -31,7 +37,11 @@ function buildAuth(options: CreateAuthOptions, db: ReturnType<typeof createDatab
     database: prismaAdapter(db, { provider: "postgresql" }),
     // disableOriginCheck explícito: Better Auth lo desactiva por defecto con NODE_ENV=test, y queremos
     // que las pruebas ejerciten la misma protección CSRF (Origin) que producción.
-    advanced: { database: { generateId: "uuid" }, disableOriginCheck: false },
+    advanced: {
+      database: { generateId: "uuid" },
+      disableOriginCheck: false,
+      ...(options.ipAddressHeaders === undefined ? {} : { ipAddress: { ipAddressHeaders: [...options.ipAddressHeaders] } }),
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,

@@ -32,6 +32,8 @@ Variables compartidas del entorno (*Shared Variables*): `APP_DB_PASSWORD`, `AUTH
 | `AUTH_DATABASE_URL` | `postgresql://facturalibre_auth:${{shared.AUTH_DB_PASSWORD}}@${{Postgres.PGHOST}}:5432/${{Postgres.PGDATABASE}}` |
 | `APP_BASE_URL` | `https://<dominio>` |
 | `AUTH_SECRET` | ≥ 32 caracteres aleatorios |
+| `AUTH_IP_HEADERS` | `x-real-ip`: el proxy de Railway añade su IP a `X-Forwarded-For` y sin esto el rate limiting usaría un único cupo para todos |
+| ⚠️ Dominio | Si cambias el dominio del servicio, actualiza `APP_BASE_URL`: Better Auth rechaza (*Invalid origin*) las peticiones de cualquier otro origen |
 | `SMTP_URL` · `MAIL_FROM` | Servidor de correo real (con SPF, DKIM y DMARC en el dominio) |
 | `CERTIFICATE_KEK` | `${{shared.CERTIFICATE_KEK}}` |
 | `SIF_PRODUCER_NAME` · `SIF_PRODUCER_NIF` · `SIF_VERSION` · `SIF_DECLARATION_URL` | Ver la tabla de producción en [docker.md](docker.md) |
