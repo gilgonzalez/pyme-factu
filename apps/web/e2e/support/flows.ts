@@ -15,7 +15,7 @@ export async function signUpAndVerify(page: Page, name: string, email: string, s
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Contraseña").fill(PASSWORD);
   await page.getByRole("button", { name: "Crear cuenta" }).click();
-  await expect(page.getByRole("status")).toContainText("Revisa tu bandeja de entrada");
+  await expect(page.getByRole("status").filter({ hasText: "Revisa tu bandeja de entrada" })).toBeVisible();
   await page.goto(await linkFromEmail(email, /Confirma tu email/));
 }
 

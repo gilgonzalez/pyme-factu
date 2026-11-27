@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { Field } from "@/components/form";
+import { ResendVerification } from "@/components/resend-verification";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
 
 export function SignUpForm() {
@@ -26,9 +27,10 @@ export function SignUpForm() {
           success: (
             <>
               <strong>Revisa tu bandeja de entrada.</strong> Te hemos enviado un enlace a <strong>{email}</strong> para confirmar tu
-              cuenta. Si no lo ves en unos minutos, mira en la carpeta de spam.
+              cuenta. Si ya te habías registrado con este email y no lo confirmaste, pide otro enlace aquí abajo.
             </>
           ),
+          after: <ResendVerification email={email} callbackURL={returnPath} />,
         };
       }}
       footer={

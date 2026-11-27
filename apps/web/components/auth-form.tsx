@@ -5,7 +5,10 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { FormAlert } from "@/components/form";
 
-export type AuthFormOutcome = { readonly error: string } | { readonly success: ReactNode } | { readonly redirected: true };
+export type AuthFormOutcome =
+  | { readonly error: string; /** Algo que hacer además del aviso (p. ej. reenviar la confirmación). */ readonly action?: ReactNode }
+  | { readonly success: ReactNode; /** Debajo del aviso (p. ej. reenviar la confirmación). */ readonly after?: ReactNode }
+  | { readonly redirected: true };
 
 interface AuthFormProps {
   readonly submitLabel: string;
@@ -32,11 +35,23 @@ export function AuthForm({ submitLabel, pendingLabel, onSubmit, children, footer
     }
   }
 
-  if (outcome !== null && "success" in outcome) return <FormAlert tone="success">{outcome.success}</FormAlert>;
+  if (outcome !== null && "success" in outcome) {
+    return (
+      <div className="grid gap-4">
+        <FormAlert tone="success">{outcome.success}</FormAlert>
+        {outcome.after}
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4" noValidate={false}>
-      {outcome !== null && "error" in outcome ? <FormAlert tone="error">{outcome.error}</FormAlert> : null}
+      {outcome !== null && "error" in outcome ? (
+        <div className="grid gap-3">
+          <FormAlert tone="error">{outcome.error}</FormAlert>
+          {outcome.action}
+        </div>
+      ) : null}
       {children}
       <Button type="submit" size="lg" disabled={pending} aria-disabled={pending}>
         {pending ? pendingLabel : submitLabel}

@@ -34,6 +34,13 @@ export async function emailWithAttachments(to: string, subject: RegExp): Promise
   return { text: message.Text, attachments: message.Attachments.map((attachment) => attachment.FileName) };
 }
 
+/** Cuántos correos a `to` tienen un asunto que encaje. */
+export async function countEmails(to: string, subject: RegExp): Promise<number> {
+  const response = await fetch(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:"${to}"`)}`);
+  const body = (await response.json()) as { messages: MessageSummary[] };
+  return body.messages.filter((message) => subject.test(message.Subject)).length;
+}
+
 /** Sufijo único por ejecución y proyecto (escritorio y móvil corren en paralelo). */
 export const uniqueSuffix = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { Field } from "@/components/form";
+import { ResendVerification } from "@/components/resend-verification";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
 
 export function SignInForm() {
@@ -16,11 +17,15 @@ export function SignInForm() {
       submitLabel="Entrar"
       pendingLabel="Entrando…"
       onSubmit={async (data) => {
+        const email = String(data.get("email") ?? "").trim();
         const { error } = await authClient.signIn.email({
-          email: String(data.get("email") ?? "").trim(),
+          email,
           password: String(data.get("password") ?? ""),
           callbackURL: returnPath,
         });
+        if (error?.code === "EMAIL_NOT_VERIFIED") {
+          return { error: authErrorMessage(error.code, error.status), action: <ResendVerification email={email} callbackURL={returnPath} /> };
+        }
         if (error) return { error: authErrorMessage(error.code, error.status) };
         router.replace(returnPath);
         router.refresh();
