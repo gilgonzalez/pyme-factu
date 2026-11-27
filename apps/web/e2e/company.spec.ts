@@ -2,7 +2,7 @@
 // Datos ficticios; IBAN de ejemplo con control válido.
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { createOrganization, requireFullStack, signUpAndVerify } from "./support/flows";
+import { createOrganization, requireFullStack, signUpAndVerify, taxpayerSection } from "./support/flows";
 import { uniqueEmail, uniqueSuffix } from "./support/mailpit";
 
 requireFullStack();
@@ -20,8 +20,8 @@ test("la configuración de la empresa se usa en los borradores y facturas", asyn
   await newTaxpayer.getByLabel("Nombre y apellidos o razón social").fill("Fontanería Ficticia SL");
   await newTaxpayer.getByRole("button", { name: "Dar de alta" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Fontanería Ficticia SL" })).toBeVisible();
-  const sections = page.getByRole("navigation", { name: "Secciones del contribuyente" });
-  await expect(sections.getByRole("link", { name: "Empresa" })).toHaveAttribute("aria-current", "page");
+  await expect(await taxpayerSection(page, "Empresa")).toHaveAttribute("aria-current", "page");
+  await page.keyboard.press("Escape"); // en el móvil, cierra «Más»
 
   // Contacto y datos registrales.
   const details = page.getByRole("form", { name: "Datos del contribuyente" });
@@ -59,7 +59,7 @@ test("la configuración de la empresa se usa en los borradores y facturas", asyn
   await expect(page.getByRole("form", { name: "Cobro y facturas" }).getByLabel("IVA de las líneas nuevas")).toHaveValue("VAT:1000");
 
   // Un cliente con email.
-  await sections.getByRole("link", { name: "Clientes" }).click();
+  await (await taxpayerSection(page, "Clientes")).click();
   const customer = page.getByRole("form", { name: "Nuevo cliente" });
   await customer.getByLabel("Nombre y apellidos o razón social").fill("Cliente Ficticio SL");
   await customer.getByLabel("Email de facturación (opcional)").fill("compras@cliente.example");
@@ -67,7 +67,7 @@ test("la configuración de la empresa se usa en los borradores y facturas", asyn
   await expect(page.getByRole("list", { name: "Clientes" })).toContainText("Cliente Ficticio SL");
 
   // La factura nueva empieza con la retención y el IVA configurados.
-  await sections.getByRole("link", { name: "Borradores" }).click();
+  await (await taxpayerSection(page, "Borradores")).click();
   await page.getByRole("link", { name: "Nuevo borrador" }).click();
   await expect(page.getByLabel("Retención IRPF % (opcional)")).toHaveValue("15");
   const line = page.getByRole("group", { name: "Línea 1" });

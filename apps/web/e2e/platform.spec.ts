@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { createOrganization, newPage, requireFullStack, signUpAndVerify } from "./support/flows";
+import { createOrganization, newPage, requireFullStack, signUpAndVerify, taxpayerSection } from "./support/flows";
 import { uniqueEmail, uniqueSuffix } from "./support/mailpit";
 
 requireFullStack();
@@ -44,7 +44,7 @@ test("el administrador ve la plataforma, entra en soporte sin poder cambiar nada
   // Soporte: ve la organización, en solo lectura y con el aviso.
   await row.getByRole("button", { name: "Entrar en soporte" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Modo soporte" })).toContainText(organization, { timeout: 20_000 });
-  await page.getByRole("navigation", { name: "Secciones del contribuyente" }).getByRole("link", { name: "Empresa" }).click();
+  await (await taxpayerSection(page, "Empresa")).click();
   await expect(page.getByRole("heading", { level: 1, name: "Clienta Ficticia SL" })).toBeVisible();
   await expect(page.getByRole("form", { name: "Datos del contribuyente" })).toHaveCount(0);
   await page.getByRole("button", { name: "Salir del modo soporte" }).click();

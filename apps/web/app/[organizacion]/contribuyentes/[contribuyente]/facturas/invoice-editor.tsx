@@ -120,12 +120,18 @@ function LiveTotals({
   return (
     <section
       aria-labelledby="totales"
-      className="figures sticky bottom-[calc(3.6rem+env(safe-area-inset-bottom))] z-10 lg:bottom-0 -mx-5 -mb-5 grid gap-1 rounded-b-[14px] border-t bg-card/95 px-5 py-4 text-sm backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8"
+      className="figures sticky bottom-(--tabbar-h) z-10 -mx-5 -mb-5 grid gap-1 rounded-b-[14px] border-t bg-card/95 px-5 py-3 text-sm backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8 sm:py-4"
     >
       <h2 id="totales" className="sr-only">
         Totales
       </h2>
-      <div aria-live="polite" className="grid gap-1">
+      {/* En móvil, el desglose en una línea: la barra fija no debe comerse la pantalla. */}
+      <p aria-hidden="true" className="truncate text-xs text-muted-foreground sm:hidden">
+        Base {formatAmount(totals.taxableBase)} · Impuestos {formatAmount(totals.vatTotal + totals.surchargeTotal)}
+        {totals.withholdingAmount === 0n ? "" : ` · IRPF −${formatAmount(totals.withholdingAmount)}`}
+        {valid.length < lines.length ? " · líneas incompletas sin sumar" : ""}
+      </p>
+      <div aria-live="polite" className="grid gap-1 max-sm:sr-only">
         {totals.breakdown.map((entry) => (
           <p key={entry.key} className="flex justify-between gap-4 text-muted-foreground">
             <span>
@@ -140,8 +146,8 @@ function LiveTotals({
         {totals.withholdingAmount === 0n ? null : <p className="flex justify-between">Retención IRPF: −{formatAmount(totals.withholdingAmount)}</p>}
         {valid.length < lines.length ? <p className="text-muted-foreground">Las líneas incompletas no se suman hasta que estén bien.</p> : null}
       </div>
-      <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-        <p className="flex items-baseline gap-3 text-xl font-bold">
+      <div className="flex items-center justify-between gap-3 sm:mt-1 sm:flex-wrap">
+        <p className="flex items-baseline gap-2 text-lg font-bold whitespace-nowrap sm:gap-3 sm:text-xl">
           <span>Total</span>
           <span>{formatAmount(totals.total)}</span>
         </p>

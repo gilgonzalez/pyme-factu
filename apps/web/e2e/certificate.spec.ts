@@ -2,7 +2,7 @@
 // (nunca uno real); se guarda cifrado y nunca vuelve al navegador.
 import { fictitiousCertificate } from "@facturalibre/aeat-client/testing";
 import { expect, test } from "@playwright/test";
-import { createOrganization, requireFullStack, signUpAndVerify } from "./support/flows";
+import { createOrganization, requireFullStack, signUpAndVerify, taxpayerSection } from "./support/flows";
 import { uniqueEmail, uniqueSuffix } from "./support/mailpit";
 
 requireFullStack();
@@ -16,7 +16,7 @@ test("subir, sustituir y borrar el certificado; un fichero que no lo es se recha
   await taxpayer.getByLabel("Nombre y apellidos o razón social").fill("Ana Ficticia Pérez");
   await taxpayer.getByRole("button", { name: "Dar de alta" }).click();
 
-  await page.getByRole("navigation", { name: "Secciones del contribuyente" }).getByRole("link", { name: "Certificado" }).click();
+  await (await taxpayerSection(page, "Certificado")).click();
   await expect(page.getByRole("heading", { level: 1, name: "Certificado electrónico" })).toBeVisible();
   await expect(page.getByText("simulador local (entorno de desarrollo: nada llega a la AEAT)")).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Sin certificado" })).toBeVisible();

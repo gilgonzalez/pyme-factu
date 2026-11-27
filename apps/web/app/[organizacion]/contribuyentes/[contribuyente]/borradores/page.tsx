@@ -71,15 +71,19 @@ async function Drafts({ params }: { readonly params: PageProps<"/[organizacion]/
               </thead>
               <tbody>
                 {drafts.map((invoice) => (
-                  <tr key={invoice.id} className="border-t first:border-t-0 hover:bg-subtle">
-                    <td className="px-5 py-3">
-                      <Link href={`${path}/${invoice.id}`} className="font-medium hover:text-primary hover:underline hover:underline-offset-4">
+                  <tr key={invoice.id} className="relative border-t first:border-t-0 hover:bg-subtle active:bg-subtle">
+                    <td className="px-5 py-3.5">
+                      {/* Toda la fila abre el borrador (zona táctil amplia en el móvil); el PDF queda por encima. */}
+                      <Link
+                        href={`${path}/${invoice.id}`}
+                        className="font-medium after:absolute after:inset-0 hover:text-primary hover:underline hover:underline-offset-4"
+                      >
                         {invoice.customerName}
                       </Link>
                     </td>
                     <td className="hidden px-3 py-3 text-muted-foreground sm:table-cell">{invoice.kind === "RECTIFYING" ? "Rectificativa" : "Factura"}</td>
                     <td className="px-3 py-3 text-right font-medium whitespace-nowrap">{formatAmount(invoice.total)}</td>
-                    <td className="px-5 py-3 text-right">
+                    <td className="relative z-10 px-5 py-3 text-right">
                       <a
                         href={`${path}/${invoice.id}/pdf`}
                         download

@@ -1,8 +1,17 @@
 // Pasos de usuario reutilizados por los recorridos E2E completos.
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import { linkFromEmail } from "./mailpit";
 
 export const PASSWORD = "una-frase-de-prueba-larga";
+
+/** Enlace a una sección del contribuyente. En el móvil, las que no caben en la barra inferior están en «Más». */
+export async function taxpayerSection(page: Page, name: string): Promise<Locator> {
+  const sections = page.getByRole("navigation", { name: "Secciones del contribuyente" });
+  await sections.waitFor();
+  const link = sections.getByRole("link", { name, exact: true });
+  if (!(await link.isVisible())) await sections.getByRole("button", { name: "Más" }).click();
+  return link;
+}
 
 /** Los recorridos completos necesitan PostgreSQL migrado, Mailpit y APP_BASE_URL = baseURL (ver docs/deployment/docker.md). */
 export function requireFullStack(): void {

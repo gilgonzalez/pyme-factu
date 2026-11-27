@@ -266,6 +266,20 @@ form[aria-busy="true"] button[type="submit"]::before {
   animation: spin-busy 0.7s linear infinite;
 }
 
+/*
+ * Barra de pestañas del móvil (mobile-tab-bar.tsx): --tabbar-h es su alto, para lo que se apoya encima (el total
+ * del editor, el aviso de instalar). No se oculta al escribir: Chrome y Safari ya la dejan detrás del teclado, y
+ * si apareciera al perder el foco, movería el botón que se está tocando.
+ */
+:root {
+  --tabbar-h: 0px;
+}
+@media (width < 64rem) {
+  body:has(.mobile-tabbar) {
+    --tabbar-h: calc(3.5rem + 1px + env(safe-area-inset-bottom));
+  }
+}
+
 /* Tira de secciones desplazable en móvil: se difumina en los bordes para indicar que hay más. */
 @utility scroll-fade-x {
   mask-image: linear-gradient(90deg, transparent 0, #000 1rem, #000 calc(100% - 1.5rem), transparent 100%);

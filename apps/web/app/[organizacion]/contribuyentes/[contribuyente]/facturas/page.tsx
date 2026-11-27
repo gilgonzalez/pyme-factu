@@ -93,15 +93,20 @@ async function Invoices({ params }: { readonly params: PageProps<"/[organizacion
             </thead>
             <tbody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id} className="border-t first:border-t-0 hover:bg-subtle">
-                  <td className="px-5 py-3">
-                    <Link href={`${path}/${invoice.id}`} className="font-mono font-medium whitespace-nowrap hover:text-primary hover:underline hover:underline-offset-4">
+                <tr key={invoice.id} className="relative border-t first:border-t-0 hover:bg-subtle active:bg-subtle">
+                  <td className="px-5 py-3.5">
+                    {/* Toda la fila abre la factura (zona táctil amplia en el móvil). */}
+                    <Link
+                      href={`${path}/${invoice.id}`}
+                      className="font-mono font-medium whitespace-nowrap after:absolute after:inset-0 hover:text-primary hover:underline hover:underline-offset-4"
+                    >
                       {invoice.number}
                     </Link>
                     {invoice.kind === "RECTIFYING" ? <span className="ml-2 text-xs whitespace-nowrap text-muted-foreground">Rectificativa</span> : null}
                     <span className="block text-muted-foreground md:hidden">{invoice.customerName}</span>
-                    <span className="mt-1 block sm:hidden">
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 sm:hidden">
                       <InvoiceStatus state={invoiceState(invoice)} />
+                      <span className="text-xs text-muted-foreground">{formatDate(invoice.issueDate)}</span>
                     </span>
                   </td>
                   <td className="hidden px-3 py-3 md:table-cell">{invoice.customerName}</td>

@@ -3,7 +3,7 @@
 // serie, anulación y cadena de registros comprobada. Datos ficticios.
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { createOrganization, requireFullStack, signUpAndVerify } from "./support/flows";
+import { createOrganization, requireFullStack, signUpAndVerify, taxpayerSection } from "./support/flows";
 import { emailWithAttachments, uniqueEmail, uniqueSuffix } from "./support/mailpit";
 
 requireFullStack();
@@ -32,17 +32,16 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await signUpAndVerify(page, "Ana Ficticia", uniqueEmail("autonoma"));
   await createOrganization(page, `Fontanería Ficticia ${uniqueSuffix()}`);
   await createTaxpayer(page);
-  const sections = page.getByRole("navigation", { name: "Secciones del contribuyente" });
 
   // Cliente y producto.
-  await sections.getByRole("link", { name: "Clientes" }).click();
+  await (await taxpayerSection(page, "Clientes")).click();
   const customer = page.getByRole("form", { name: "Nuevo cliente" });
   await customer.getByLabel("NIF (opcional)").fill("B12345674");
   await customer.getByLabel("Nombre y apellidos o razón social").fill("Cliente Ficticio SL");
   await customer.getByRole("button", { name: "Guardar cliente" }).click();
   await expect(page.getByRole("list", { name: "Clientes" })).toContainText("Cliente Ficticio SL");
 
-  await sections.getByRole("link", { name: "Productos" }).click();
+  await (await taxpayerSection(page, "Productos")).click();
   await expect(page.getByRole("heading", { level: 1, name: "Productos y servicios" })).toBeVisible();
   const product = page.getByRole("form", { name: "Nuevo producto" });
   await product.getByLabel("Nombre").fill("Hora de trabajo");
@@ -51,9 +50,9 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await expect(page.getByRole("list", { name: "Productos" })).toContainText("Hora de trabajo");
 
   // Borrador: totales en vivo con el mismo cálculo que el servidor.
-  await sections.getByRole("link", { name: "Facturas" }).click();
+  await (await taxpayerSection(page, "Facturas")).click();
   await expect(page.getByRole("heading", { level: 1, name: "Facturas" })).toBeVisible();
-  await page.getByRole("link", { name: "Nueva factura" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Nueva factura" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Nueva factura" })).toBeVisible();
   await pick(page, "Cliente", "ficticio", /Cliente Ficticio SL/);
   const first = page.getByRole("group", { name: "Línea 1" });
@@ -87,10 +86,10 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   expect(sent.text).toContain("no tiene validez fiscal");
   expect(sent.attachments).toEqual([expect.stringMatching(/^borrador-[0-9a-f]{8}\.pdf$/)]);
 
-  await sections.getByRole("link", { name: "Borradores" }).click();
+  await (await taxpayerSection(page, "Borradores")).click();
   await expect(page.getByRole("heading", { level: 1, name: "Borradores" })).toBeVisible();
   await expect(page.getByRole("table", { name: /Borradores de/ })).toContainText("Cliente Ficticio SL");
-  await sections.getByRole("link", { name: "Facturas" }).click();
+  await (await taxpayerSection(page, "Facturas")).click();
   await expect(page.getByRole("heading", { level: 1, name: "Facturas" })).toBeVisible();
   await expect(page.getByText("Aún no hay facturas emitidas")).toBeVisible();
   await page.goto(draftUrl);
@@ -137,14 +136,14 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await expect(page.getByRole("heading", { level: 1, name: `Factura rectificativa R${YEAR}-0001` })).toBeVisible();
 
   // Listado: las dos facturas, con su número.
-  await sections.getByRole("link", { name: "Facturas" }).click();
+  await (await taxpayerSection(page, "Facturas")).click();
   const table = page.getByRole("table");
   await expect(table).toContainText(`F${YEAR}-0001`);
   await expect(table).toContainText(`R${YEAR}-0001`);
   await expect(table).toContainText("-163,96 €");
 
   // Una factura expedida por error se anula: registro de anulación, sin QR y sin poder rectificarla.
-  await page.getByRole("link", { name: "Nueva factura" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Nueva factura" }).click();
   await pick(page, "Cliente", "ficticio", /Cliente Ficticio SL/);
   const duplicate = page.getByRole("group", { name: "Línea 1" });
   await duplicate.getByLabel("Descripción").fill("Factura duplicada por error");
@@ -163,7 +162,7 @@ test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y 
   await expect(page.getByRole("form", { name: "Rectificar la factura" })).toHaveCount(0);
 
   // Cadena: alta F, alta R, alta F2 y su anulación, comprobadas.
-  await sections.getByRole("link", { name: "Registros VERI*FACTU" }).click();
+  await (await taxpayerSection(page, "Registros VERI*FACTU")).click();
   await expect(page.getByText("Cadena comprobada: las 4 huellas coinciden")).toBeVisible();
   const chain = page.getByRole("table");
   await expect(chain).toContainText("Alta (F1)");
@@ -175,7 +174,7 @@ test("en la factura se buscan clientes y productos, y se dan de alta sin salir d
   await signUpAndVerify(page, "Ana Ficticia", uniqueEmail("buscador"));
   await createOrganization(page, `Buscador Ficticio ${uniqueSuffix()}`);
   await createTaxpayer(page);
-  await page.getByRole("navigation", { name: "Secciones del contribuyente" }).getByRole("link", { name: "Borradores" }).click();
+  await (await taxpayerSection(page, "Borradores")).click();
   await page.getByRole("link", { name: "Nuevo borrador" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Nueva factura" })).toBeVisible();
 

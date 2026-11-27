@@ -22,7 +22,7 @@ async function NewInvoice({ params }: { readonly params: PageProps<"/[organizaci
   const withholding = settings.defaultWithholdingPercent === null ? "" : formatDecimal(BigInt(settings.defaultWithholdingPercent), SCALE.percent);
 
   return (
-    <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="borradores">
+    <TaxpayerFrame user={user} context={context} taxpayer={taxpayer} current="nueva">
       <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[1.75rem]">Nueva factura</h1>
       <InvoiceEditor
         action={saveDraftAction.bind(null, context.tenant.slug, taxpayer.id, null)}

@@ -8,6 +8,7 @@ import { exitSupportAction } from "@/app/plataforma/actions";
 import { ActionButton } from "@/components/action-button";
 import { AccountLinks, AppFooter, NavLink } from "@/components/app-header";
 import { Brand } from "@/components/brand";
+import { InstallAppBanner, InstallAppItem } from "@/components/install-app";
 import { NoTaxpayerSidebar, TaxpayerSidebar } from "@/components/taxpayer-sidebar";
 import { getDatabase } from "@/lib/server/db";
 import { pickWorkingTaxpayer, workingTaxpayerCookie } from "@/lib/working-taxpayer";
@@ -117,6 +118,7 @@ export async function TenantFrame({
 
           <div className="hidden border-t pt-4 lg:mt-auto lg:grid lg:gap-1">
             <AccountLinks userName={user.name} />
+            <InstallAppItem />
             <NavLink href="/acerca" current={false} icon={<Info />}>
               Acerca de
             </NavLink>
@@ -134,7 +136,10 @@ export async function TenantFrame({
             <ActionButton action={exitSupportAction} label="Salir del modo soporte" idle="Salir del modo soporte" busy="Saliendo…" variant="outline" />
           </div>
         ) : null}
-        <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-6 px-4 pt-5 pb-28 sm:px-8 lg:px-10 lg:py-10">{children}</main>
+        <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-6 px-4 pt-5 pb-28 sm:px-8 lg:px-10 lg:py-10">
+          <InstallAppBanner />
+          {children}
+        </main>
         <AppFooter className="lg:hidden" />
       </div>
     </div>

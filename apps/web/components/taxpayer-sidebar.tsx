@@ -1,12 +1,14 @@
 // Bloque del lateral con el contribuyente de trabajo y sus secciones (Borradores, Facturas, Clientes…). Va en
 // TODAS las pantallas de una organización, no solo dentro de un contribuyente: facturar está siempre a un clic.
 import type { Permission } from "@facturalibre/security";
-import { BookUser, Building2, FilePen, FileText, KeyRound, Package, ShieldCheck } from "lucide-react";
+import { BookUser, Building2, FilePen, FileText, KeyRound, Package, Plus, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NavLink } from "@/components/app-header";
+import { MobileTabBar, type TabItem } from "@/components/mobile-tab-bar";
 
-export type TaxpayerSection = "datos" | "borradores" | "facturas" | "clientes" | "productos" | "registros" | "certificado";
+/** «nueva»: el editor de una factura nueva (en escritorio cuenta como Borradores; en móvil tiene su pestaña). */
+export type TaxpayerSection = "datos" | "borradores" | "nueva" | "facturas" | "clientes" | "productos" | "registros" | "certificado";
 
 export interface SidebarTaxpayer {
   readonly id: string;
@@ -78,24 +80,21 @@ export function TaxpayerSidebar({
           </Link>
         </div>
       </div>
-      {/* En móvil, barra de pestañas fija abajo (respeta la zona segura del iPhone); en escritorio, en el lateral. */}
-      <nav
-        aria-label="Secciones del contribuyente"
-        className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t bg-card/95 px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgb(16_16_32/0.06)] backdrop-blur lg:static lg:z-auto lg:grid lg:gap-3 lg:overflow-visible lg:border-t-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
-      >
+      {/* Escritorio: en el lateral, agrupadas. Móvil: barra de pestañas fija abajo (mismo nombre accesible). */}
+      <nav aria-label="Secciones del contribuyente" className="grid gap-3 max-lg:hidden">
         {groups.map((group) => {
           const items = group.items.filter((item) => item.visible);
           if (items.length === 0) return null;
           const id = `grupo-${group.label.toLowerCase()}`;
           return (
-            <div key={group.label} role="group" aria-labelledby={id} className="flex shrink-0 lg:grid lg:gap-0.5">
-              <p id={id} className="sr-only lg:not-sr-only lg:px-2.5 lg:pb-0.5 lg:text-xs lg:font-medium lg:text-muted-foreground">
+            <div key={group.label} role="group" aria-labelledby={id} className="grid gap-0.5">
+              <p id={id} className="px-2.5 pb-0.5 text-xs font-medium text-muted-foreground">
                 {group.label}
               </p>
-              <ul className="flex lg:grid lg:gap-0.5">
+              <ul className="grid gap-0.5">
                 {items.map((item) => (
                   <li key={item.id}>
-                    <NavLink href={item.href} current={item.id === current} icon={item.icon} mobileTab>
+                    <NavLink href={item.href} current={item.id === (current === "nueva" ? "borradores" : current)} icon={item.icon}>
                       {item.label}
                     </NavLink>
                   </li>
@@ -105,8 +104,24 @@ export function TaxpayerSidebar({
           );
         })}
       </nav>
+      <MobileTabBar label="Secciones del contribuyente" items={mobileTabs(base, can, current)} />
     </div>
   );
+}
+
+/** Pestañas del móvil por orden de uso: las cuatro primeras se ven siempre; el resto, en «Más». */
+function mobileTabs(base: string, can: (permission: Permission) => boolean, current: TaxpayerSection | null): TabItem[] {
+  const all: (Omit<TabItem, "current"> & { readonly id: TaxpayerSection; readonly visible: boolean })[] = [
+    { id: "borradores", href: `${base}/borradores`, label: "Borradores", icon: <FilePen />, visible: can("invoices.read") },
+    { id: "facturas", href: `${base}/facturas`, label: "Facturas", icon: <FileText />, visible: can("invoices.read") },
+    { id: "nueva", href: `${base}/facturas/nueva`, label: "Nueva factura", shortLabel: "Nueva", icon: <Plus />, emphasis: true, visible: can("invoices.draft") },
+    { id: "clientes", href: `${base}/clientes`, label: "Clientes", icon: <BookUser />, visible: can("customers.read") },
+    { id: "productos", href: `${base}/productos`, label: "Productos", icon: <Package />, visible: can("products.read") },
+    { id: "registros", href: `${base}/registros`, label: "Registros VERI*FACTU", icon: <ShieldCheck />, visible: can("verifactu.read") },
+    { id: "certificado", href: `${base}/certificado`, label: "Certificado", icon: <KeyRound />, visible: can("certificates.manage") },
+    { id: "datos", href: base, label: "Empresa", icon: <Building2 />, visible: true },
+  ];
+  return all.flatMap(({ visible, ...item }) => (visible ? [{ ...item, current: item.id === current }] : []));
 }
 
 /** Sin contribuyentes todavía: el lateral invita a dar de alta el primero (o a pedir acceso). */
