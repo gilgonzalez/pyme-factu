@@ -57,11 +57,11 @@ export function TaxpayerSidebar({
     { label: "Ajustes", items: [{ id: "datos", href: base, label: "Empresa", icon: <Building2 />, visible: true }] },
   ];
   return (
-    <div className="grid gap-3 lg:border-t lg:pt-4">
-      <div className="mx-4 grid gap-1.5 lg:mx-0">
+    <div className="grid gap-3 pt-2 pb-2.5 lg:border-t lg:pt-4 lg:pb-0">
+      <div className="mx-3 grid gap-1.5 lg:mx-0">
         <p className="hidden px-2.5 text-xs font-medium text-muted-foreground lg:block">Facturando como</p>
-        <div aria-label="Contribuyente activo" className="flex items-center gap-2.5 rounded-xl border bg-card px-3 py-2 shadow-[0_1px_2px_rgb(16_16_32/0.04)]">
-          <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-foreground text-xs font-semibold text-background">
+        <div aria-label="Contribuyente activo" className="flex items-center gap-2.5 rounded-xl border bg-card px-2.5 py-1.5 shadow-[0_1px_2px_rgb(16_16_32/0.04)] lg:px-3 lg:py-2">
+          <span aria-hidden="true" className="grid size-6 shrink-0 lg:size-7 place-items-center rounded-full bg-foreground text-xs font-semibold text-background">
             {taxpayer.legalName.slice(0, 1).toUpperCase()}
           </span>
           <span className="grid min-w-0 flex-1 leading-tight">
@@ -78,20 +78,24 @@ export function TaxpayerSidebar({
           </Link>
         </div>
       </div>
-      <nav aria-label="Secciones del contribuyente" className="scroll-fade-x relative flex gap-1 overflow-x-auto px-4 lg:grid lg:gap-3 lg:overflow-visible lg:p-0">
+      {/* En móvil, barra de pestañas fija abajo (respeta la zona segura del iPhone); en escritorio, en el lateral. */}
+      <nav
+        aria-label="Secciones del contribuyente"
+        className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t bg-card/95 px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgb(16_16_32/0.06)] backdrop-blur lg:static lg:z-auto lg:grid lg:gap-3 lg:overflow-visible lg:border-t-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
+      >
         {groups.map((group) => {
           const items = group.items.filter((item) => item.visible);
           if (items.length === 0) return null;
           const id = `grupo-${group.label.toLowerCase()}`;
           return (
-            <div key={group.label} role="group" aria-labelledby={id} className="flex shrink-0 gap-1 lg:grid lg:gap-0.5">
+            <div key={group.label} role="group" aria-labelledby={id} className="flex shrink-0 lg:grid lg:gap-0.5">
               <p id={id} className="sr-only lg:not-sr-only lg:px-2.5 lg:pb-0.5 lg:text-xs lg:font-medium lg:text-muted-foreground">
                 {group.label}
               </p>
-              <ul className="flex gap-1 lg:grid lg:gap-0.5">
+              <ul className="flex lg:grid lg:gap-0.5">
                 {items.map((item) => (
                   <li key={item.id}>
-                    <NavLink href={item.href} current={item.id === current} icon={item.icon}>
+                    <NavLink href={item.href} current={item.id === current} icon={item.icon} mobileTab>
                       {item.label}
                     </NavLink>
                   </li>

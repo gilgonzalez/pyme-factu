@@ -11,11 +11,11 @@ export function BrandMark({ className = "" }: { readonly className?: string }) {
   );
 }
 
-export function Brand({ href = "/organizaciones" }: { readonly href?: string }) {
+export function Brand({ href = "/organizaciones", compactOnMobile = false }: { readonly href?: string; readonly compactOnMobile?: boolean }) {
   return (
     <Link href={href} className="flex shrink-0 items-center gap-2 text-[0.95rem] font-semibold tracking-[-0.01em]">
       <BrandMark />
-      FacturaLibre
+      <span className={compactOnMobile ? "max-lg:sr-only" : ""}>FacturaLibre</span>
     </Link>
   );
 }

@@ -72,22 +72,20 @@ export async function TenantFrame({
     <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[16.5rem_minmax(0,1fr)]">
       <div className="border-b bg-subtle lg:border-r lg:border-b-0">
         <header className="lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:gap-5 lg:overflow-y-auto lg:px-3 lg:py-5">
-          <div className="flex items-center justify-between gap-3 px-4 pt-3 lg:px-2.5 lg:pt-0">
-            <Brand />
-            <div className="lg:hidden">
-              <AccountLinks userName={user.name} compact />
+          {/* En móvil, una sola fila: logotipo, organización y cuenta (iconos). En escritorio, apilados. */}
+          <div className="flex items-center gap-2 px-3 pt-2.5 lg:grid lg:gap-5 lg:px-0 lg:pt-0">
+            <div className="shrink-0 lg:px-2.5">
+              <Brand compactOnMobile />
             </div>
-          </div>
-
-          <div className="mx-4 mt-3 flex items-center gap-2.5 rounded-xl border bg-card px-3 py-2 shadow-[0_1px_2px_rgb(16_16_32/0.04)] lg:mx-0 lg:mt-0">
-            <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-md bg-accent text-sm font-semibold text-accent-foreground">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border bg-card px-2.5 py-1.5 shadow-[0_1px_2px_rgb(16_16_32/0.04)] lg:gap-2.5 lg:px-3 lg:py-2">
+            <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-md bg-accent text-xs font-semibold text-accent-foreground lg:size-7 lg:text-sm">
               {context.tenant.name.slice(0, 1).toUpperCase()}
             </span>
             <span className="grid min-w-0 flex-1 leading-tight">
               <span className="truncate text-sm font-semibold" aria-label="Organización activa">
                 {context.tenant.name}
               </span>
-              <span className="text-xs text-muted-foreground">{ROLE_INFO[context.membership.role].label}</span>
+              <span className="text-[0.6875rem] text-muted-foreground lg:text-xs">{ROLE_INFO[context.membership.role].label}</span>
             </span>
             <Link
               href="/organizaciones"
@@ -96,8 +94,12 @@ export async function TenantFrame({
               Cambiar
             </Link>
           </div>
+            <div className="shrink-0 lg:hidden">
+              <AccountLinks userName={user.name} compact />
+            </div>
+          </div>
 
-          <nav aria-label="Secciones de la organización" className="scroll-fade-x overflow-x-auto px-4 pt-2 lg:overflow-visible lg:p-0">
+          <nav aria-label="Secciones de la organización" className="scroll-fade-x overflow-x-auto px-3 pt-1 lg:overflow-visible lg:p-0">
             <ul className="flex gap-1 lg:grid lg:gap-0.5">
               {links
                 .filter((link) => link.visible)
@@ -132,7 +134,7 @@ export async function TenantFrame({
             <ActionButton action={exitSupportAction} label="Salir del modo soporte" idle="Salir del modo soporte" busy="Saliendo…" variant="outline" />
           </div>
         ) : null}
-        <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-6 px-4 py-6 sm:px-8 lg:px-10 lg:py-10">{children}</main>
+        <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-6 px-4 pt-5 pb-28 sm:px-8 lg:px-10 lg:py-10">{children}</main>
         <AppFooter className="lg:hidden" />
       </div>
     </div>

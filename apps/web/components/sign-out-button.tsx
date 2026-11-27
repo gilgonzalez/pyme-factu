@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
@@ -19,7 +20,9 @@ export function SignOutButton() {
         router.refresh();
       }}
     >
-      {pending ? "Cerrando sesión…" : "Cerrar sesión"}
+      {/* En móvil, solo el icono; el texto sigue siendo el nombre accesible. */}
+      <LogOut aria-hidden="true" className="sm:hidden" />
+      <span className="max-sm:sr-only">{pending ? "Cerrando sesión…" : "Cerrar sesión"}</span>
     </Button>
   );
 }

@@ -2,18 +2,35 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { NavIcon } from "@/components/nav-pending";
+import { UserRound } from "lucide-react";
 import { SignOutButton } from "@/components/sign-out-button";
 
 /**
  * Enlace de navegación del lateral (o de la tira desplazable en móvil), con icono. La sección actual va en una
  * píldora blanca y, en escritorio, con una barra violeta en el borde del lateral.
  */
-export function NavLink({ href, current, icon, children }: { readonly href: string; readonly current: boolean; readonly icon: ReactNode; readonly children: ReactNode }) {
+/** Pestaña de la barra inferior en móvil: icono encima del texto, sin píldora; la actual, en violeta. */
+const MOBILE_TAB =
+  "max-lg:flex-col max-lg:gap-0.5 max-lg:px-2.5 max-lg:py-1.5 max-lg:text-[0.6875rem] max-lg:aria-[current=page]:bg-transparent max-lg:aria-[current=page]:text-primary max-lg:aria-[current=page]:shadow-none";
+
+export function NavLink({
+  href,
+  current,
+  icon,
+  mobileTab = false,
+  children,
+}: {
+  readonly href: string;
+  readonly current: boolean;
+  readonly icon: ReactNode;
+  readonly mobileTab?: boolean;
+  readonly children: ReactNode;
+}) {
   return (
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-black/[0.04] hover:text-foreground aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(16_16_32/0.06)] lg:aria-[current=page]:before:absolute lg:aria-[current=page]:before:inset-y-2 lg:aria-[current=page]:before:-left-3 lg:aria-[current=page]:before:w-[3px] lg:aria-[current=page]:before:rounded-r-full lg:aria-[current=page]:before:bg-primary aria-[current=page]:[&_svg]:text-primary"
+      className={`relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-black/[0.04] hover:text-foreground aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(16_16_32/0.06)] lg:aria-[current=page]:before:absolute lg:aria-[current=page]:before:inset-y-2 lg:aria-[current=page]:before:-left-3 lg:aria-[current=page]:before:w-[3px] lg:aria-[current=page]:before:rounded-r-full lg:aria-[current=page]:before:bg-primary aria-[current=page]:[&_svg]:text-primary ${mobileTab ? MOBILE_TAB : ""}`}
     >
       <NavIcon>{icon}</NavIcon>
       {children}
@@ -31,8 +48,9 @@ export function AccountLinks({ userName, compact = false }: { readonly userName:
         </span>
       )}
       <div className="flex items-center gap-1">
-        <Link href="/cuenta" className="rounded-lg px-2.5 py-1.5 font-medium text-muted-foreground hover:bg-black/[0.04] hover:text-foreground">
-          Mi cuenta
+        <Link href="/cuenta" className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-muted-foreground hover:bg-black/[0.04] hover:text-foreground">
+          <UserRound aria-hidden="true" className="size-4 sm:hidden" />
+          <span className="max-sm:sr-only">Mi cuenta</span>
         </Link>
         <SignOutButton />
       </div>

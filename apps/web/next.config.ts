@@ -16,6 +16,8 @@ const contentSecurityPolicy = [
   "img-src 'self' data:",
   "font-src 'self'",
   `connect-src 'self'${development ? " ws:" : ""}`,
+  "worker-src 'self'",
+  "manifest-src 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -48,7 +50,18 @@ const nextConfig: NextConfig = {
     },
   },
   headers() {
-    return Promise.resolve([{ source: "/:path*", headers: securityHeaders }]);
+    return Promise.resolve([
+      { source: "/:path*", headers: securityHeaders },
+      // El service worker no se cachea: cada visita comprueba si hay una versión nueva.
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ]);
   },
 };
 

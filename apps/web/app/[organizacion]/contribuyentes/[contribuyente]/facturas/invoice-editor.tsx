@@ -120,7 +120,7 @@ function LiveTotals({
   return (
     <section
       aria-labelledby="totales"
-      className="figures sticky bottom-0 z-10 -mx-5 -mb-5 grid gap-1 rounded-b-[14px] border-t bg-card/95 px-5 py-4 text-sm backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8"
+      className="figures sticky bottom-[calc(3.6rem+env(safe-area-inset-bottom))] z-10 lg:bottom-0 -mx-5 -mb-5 grid gap-1 rounded-b-[14px] border-t bg-card/95 px-5 py-4 text-sm backdrop-blur sm:-mx-8 sm:-mb-8 sm:px-8"
     >
       <h2 id="totales" className="sr-only">
         Totales
