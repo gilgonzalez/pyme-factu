@@ -9,6 +9,7 @@ import { ActionButton } from "@/components/action-button";
 import { AccountLinks, AppFooter, NavLink } from "@/components/app-header";
 import { Brand } from "@/components/brand";
 import { InstallAppBanner, InstallAppItem } from "@/components/install-app";
+import { SessionKeepAlive } from "@/components/session-keep-alive";
 import { NoTaxpayerSidebar, TaxpayerSidebar } from "@/components/taxpayer-sidebar";
 import { getDatabase } from "@/lib/server/db";
 import { pickWorkingTaxpayer, workingTaxpayerCookie } from "@/lib/working-taxpayer";
@@ -138,6 +139,7 @@ export async function TenantFrame({
         ) : null}
         <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-6 px-4 pt-5 pb-28 sm:px-8 lg:px-10 lg:py-10">
           <InstallAppBanner />
+          <SessionKeepAlive />
           {children}
         </main>
         <AppFooter className="lg:hidden" />

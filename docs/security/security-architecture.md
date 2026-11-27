@@ -12,7 +12,7 @@
 | Cliente de BD marcado `server-only` | ✅ (el build falla si se importa desde código de cliente) |
 | Validación de entradas no confiables (slug, UUID) en el borde | ✅ |
 | Autenticación (email + contraseña 12–128, hash scrypt), verificación de email obligatoria, recuperación con token de 1 h que cierra todas las sesiones | ✅ probado (`packages/auth`, E2E) — [ADR-006](../decisions/ADR-006-authentication.md) |
-| Sesiones: cookie `HttpOnly`, `SameSite=Lax` (`Secure` con HTTPS), 7 días, renovación diaria; operaciones sensibles exigen sesión iniciada hace ≤ 10 min | ✅ probado |
+| Sesiones: cookie `HttpOnly`, `SameSite=Lax` (`Secure` con HTTPS), 30 días desde el último uso, renovación como mucho diaria (por `/api/auth/get-session`, que consulta `SessionKeepAlive`: al renderizar en el servidor Next no deja escribir la cookie); operaciones sensibles exigen sesión iniciada hace ≤ 10 min | ✅ probado |
 | CSRF: comprobación de `Origin` en `/api/auth/*` (forzada también en pruebas) y en Server Actions (Next.js) | ✅ probado (403 con Origin ajeno) |
 | Rate limiting persistente en PostgreSQL (`rate_limits`, rol auth): login 5/15 min, registro 10/h, recuperación 3/15 min por IP. Desactivado solo con `FACTURALIBRE_ENV=development` | ✅ probado (429) |
 | Redirecciones abiertas (`?volver=`): solo rutas internas (`safeReturnPath`) | ✅ probado (unitario + E2E) |

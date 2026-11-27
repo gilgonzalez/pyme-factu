@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { InstallAppBanner } from "@/components/install-app";
+import { SessionKeepAlive } from "@/components/session-keep-alive";
 import { NavIcon } from "@/components/nav-pending";
 import { UserRound } from "lucide-react";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -67,6 +68,7 @@ export function AppHeader({ userName }: { readonly userName: string }) {
         </div>
       </div>
       <InstallAppBanner />
+      <SessionKeepAlive />
     </header>
   );
 }

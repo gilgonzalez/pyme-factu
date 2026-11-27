@@ -44,8 +44,11 @@ function post(path: string, body: unknown, headers: Record<string, string> = {})
 const get = (url: string): Promise<Response> => auth.handler(new Request(url, { headers: { origin: BASE_URL } }));
 const newEmail = (): string => `persona-${randomUUID().slice(0, 8)}@example.test`;
 
+let signUps = 0;
 async function signUpAndVerify(email: string): Promise<void> {
-  await post("/sign-up/email", { name: "Persona Ficticia", email, password: PASSWORD });
+  // Cada alta desde una IP ficticia distinta: el límite de altas por IP (10/h) no es lo que se prueba aquí.
+  signUps += 1;
+  await post("/sign-up/email", { name: "Persona Ficticia", email, password: PASSWORD }, { "x-forwarded-for": `10.88.0.${String(signUps)}` });
   await get(inbox.lastLink(email));
 }
 
@@ -141,6 +144,39 @@ describe("registro y verificación de email", () => {
     );
     expect(row.rows[0]?.password).toBeTruthy();
     expect(row.rows[0]?.password).not.toContain(PASSWORD);
+  });
+});
+
+describe("sesión que se mantiene", () => {
+  const THIRTY_DAYS = 30 * 24 * 60 * 60;
+  const maxAge = (setCookie: string): number => Number(/session_token=[^;]+;[^,]*?Max-Age=(\d+)/i.exec(setCookie)?.[1] ?? "0");
+
+  it("al entrar, la cookie dura 30 días (no hace falta volver a escribir la contraseña cada semana)", async () => {
+    const email = newEmail();
+    await signUpAndVerify(email);
+    const response = await post("/sign-in/email", { email, password: PASSWORD }, { "x-forwarded-for": "10.88.1.1" });
+    expect(maxAge(response.headers.get("set-cookie") ?? "")).toBe(THIRTY_DAYS);
+  });
+
+  it("usarla al día siguiente renueva la cookie y la sesión otros 30 días", async () => {
+    const email = newEmail();
+    await signUpAndVerify(email);
+    const signIn = await post("/sign-in/email", { email, password: PASSWORD }, { "x-forwarded-for": "10.88.1.2" });
+    const sessionCookie = (signIn.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+    // Como si hubiera pasado un día desde el último uso.
+    await owner.query(
+      "UPDATE sessions SET expires_at = now() + interval '29 days' WHERE user_id = (SELECT id FROM users WHERE email = $1)",
+      [email],
+    );
+
+    const session = await auth.handler(new Request(`${BASE_URL}/api/auth/get-session`, { headers: { cookie: sessionCookie } }));
+    expect(session.status).toBe(200);
+    expect(maxAge(session.headers.get("set-cookie") ?? "")).toBe(THIRTY_DAYS);
+    const row = await owner.query<{ days: number }>(
+      "SELECT round(extract(epoch FROM max(expires_at) - now()) / 86400) AS days FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = $1)",
+      [email],
+    );
+    expect(Number(row.rows[0]?.days)).toBe(30);
   });
 });
 

@@ -60,7 +60,9 @@ function buildAuth(options: CreateAuthOptions, db: ReturnType<typeof createDatab
       sendVerificationEmail: ({ user, url }) => options.mailer.send(accountEmail("verify-email", user, url)),
     },
     session: {
-      expiresIn: 7 * DAY,
+      // 30 días desde el último uso (se renueva como mucho una vez al día): quien usa la aplicación no vuelve a
+      // escribir la contraseña. La renovación llega a la cookie por /api/auth/get-session (SessionKeepAlive en web).
+      expiresIn: 30 * DAY,
       updateAge: DAY,
       /** Operaciones sensibles (p. ej. transferir la propiedad) exigen una sesión más reciente. */
       freshAge: 10 * MINUTE,
