@@ -4,7 +4,7 @@
 import { calculateInvoice, formatAmount, parseDecimal, parseInvoiceLine, SCALE, type ParsedLine } from "@facturalibre/fiscal-core";
 import { X } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ActionForm, type FormAction } from "@/components/action-form";
 import { EntityPicker } from "@/components/entity-picker";
 import { Modal } from "@/components/modal";
@@ -55,6 +55,8 @@ export interface InvoiceEditorProps {
   readonly createCustomer?: ((data: FormData) => Promise<CreatedResult<EditorCustomer>>) | undefined;
   readonly createProduct?: ((data: FormData) => Promise<CreatedResult<EditorProduct>>) | undefined;
   readonly rectification?: { readonly number: string; readonly reason: string };
+  /** Editor de una PLANTILLA: con nombre identificativo, cliente opcional y sin aviso de borrador. */
+  readonly template?: { readonly name: string };
 }
 
 const EMPTY_LINE: EditorLine = {
@@ -191,7 +193,7 @@ type Creating = {
   readonly query: string;
 } | null;
 
-export function InvoiceEditor({
+function EditorForm({
   action,
   customers: listedCustomers,
   products: listedProducts,
@@ -201,6 +203,7 @@ export function InvoiceEditor({
   createCustomer,
   createProduct,
   rectification,
+  template,
 }: InvoiceEditorProps) {
   const emptyLine: EditorLine = {
     ...EMPTY_LINE,
@@ -217,13 +220,32 @@ export function InvoiceEditor({
   const surcharge = customers.find((customer) => customer.id === customerId)?.equivalenceSurcharge ?? false;
 
   return (
-    <ActionForm action={action} className="surface grid" label="Factura">
+    <ActionForm action={action} className="surface grid" label={template === undefined ? "Factura" : "Plantilla"}>
       {({ pending, errors }) => (
         <>
-          <p className="rounded-t-[14px] border-b border-warning-ink/20 bg-warning-soft px-5 py-2 text-sm font-semibold text-warning-ink sm:px-8">
-            Borrador: no tiene número ni validez fiscal hasta que lo emitas.
-          </p>
+          {template === undefined ? (
+            <p className="rounded-t-[14px] border-b border-warning-ink/20 bg-warning-soft px-5 py-2 text-sm font-semibold text-warning-ink sm:px-8">
+              Borrador: no tiene número ni validez fiscal hasta que lo emitas.
+            </p>
+          ) : (
+            <p className="rounded-t-[14px] border-b border-primary/15 bg-accent px-5 py-2 text-sm font-medium text-accent-foreground sm:px-8">
+              Plantilla: al usarla se prepara una factura nueva con estos datos. Lo que cambies en esa factura no toca la plantilla.
+            </p>
+          )}
           <div className="grid gap-7 p-5 sm:p-8">
+            {template === undefined ? null : (
+              <div className="max-w-xl">
+                <Field
+                  name="name"
+                  label="Nombre de la plantilla"
+                  hint="Para reconocerla al facturar, p. ej. «Mantenimiento mensual» o «Clases — Academia Sol»."
+                  maxLength={80}
+                  required
+                  defaultValue={template.name}
+                  error={errors["name"]}
+                />
+              </div>
+            )}
             {rectification === undefined ? null : (
               <FormAlert tone="success">
                 Rectificativa de la factura <strong>{rectification.number}</strong>. Motivo: {rectification.reason}. Las cantidades en negativo anulan lo
@@ -247,9 +269,9 @@ export function InvoiceEditor({
                 {errors["customerId"] === undefined ? null : <p className="text-sm text-destructive">{errors["customerId"]}</p>}
               </div>
             ) : (
-              <div className="max-w-xl">
+              <div className="grid max-w-xl gap-1.5">
                 <EntityPicker
-                  label="Cliente"
+                  label={template === undefined ? "Cliente" : "Cliente (opcional)"}
                   items={customers}
                   itemKey={(customer) => customer.id}
                   itemLabel={(customer) => customer.legalName}
@@ -268,6 +290,12 @@ export function InvoiceEditor({
                         },
                       })}
                 />
+                {/* En una plantilla el cliente es opcional: se puede dejar para elegirlo al facturar. */}
+                {template === undefined || customerId === "" ? null : (
+                  <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={() => setCustomerId("")}>
+                    Quitar cliente (se elige al facturar)
+                  </Button>
+                )}
               </div>
             )}
 
@@ -434,7 +462,7 @@ export function InvoiceEditor({
 
             <LiveTotals lines={lines} surcharge={surcharge} withholding={withholding}>
               <Button type="submit" size="lg" disabled={pending}>
-                {pending ? "Guardando…" : "Guardar borrador"}
+                {pending ? "Guardando…" : template === undefined ? "Guardar borrador" : "Guardar plantilla"}
               </Button>
             </LiveTotals>
           </div>
@@ -442,4 +470,16 @@ export function InvoiceEditor({
       )}
     </ActionForm>
   );
+}
+
+/**
+ * Next conserva ocultas las pantallas ya visitadas, con su estado: al volver a «Nueva factura» o «Nueva plantilla»
+ * aparecería lo escrito la vez anterior (o lo ya guardado). Al ocultarse la pantalla (limpieza del efecto) el
+ * editor se renueva, así que vuelve con los datos de partida. Un refresco del servidor (p. ej. tras dar de alta un
+ * cliente desde el buscador) no lo oculta, y no se pierde nada.
+ */
+export function InvoiceEditor(props: InvoiceEditorProps) {
+  const [generation, setGeneration] = useState(0);
+  useEffect(() => () => setGeneration((current) => current + 1), []);
+  return <EditorForm key={generation} {...props} />;
 }

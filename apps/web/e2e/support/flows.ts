@@ -62,3 +62,20 @@ export async function acceptAsNewUser(page: Page, invitationUrl: string, name: s
   await expect(page.getByText(/^Te han invitado a /)).toBeVisible();
   await page.getByRole("button", { name: "Aceptar y entrar" }).click();
 }
+
+/** Da de alta el contribuyente ficticio con el que se factura en los recorridos. */
+export async function createTaxpayer(page: Page): Promise<void> {
+  await page.getByRole("link", { name: "Contribuyentes", exact: true }).click();
+  const form = page.getByRole("form", { name: "Nuevo contribuyente" });
+  await form.getByLabel("NIF").fill("12345678Z");
+  await form.getByLabel("Nombre y apellidos o razón social").fill("Ana Ficticia Pérez");
+  await form.getByRole("button", { name: "Dar de alta" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Ana Ficticia Pérez" })).toBeVisible();
+}
+
+/** Busca en un campo con buscador y elige la opción que coincida. */
+export async function pick(page: Page, field: string, search: string, option: RegExp): Promise<void> {
+  const combobox = page.getByRole("combobox", { name: field, exact: true });
+  await combobox.fill(search);
+  await page.getByRole("listbox", { name: field }).getByRole("option", { name: option }).click();
+}

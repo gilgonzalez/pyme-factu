@@ -1,14 +1,14 @@
 // Bloque del lateral con el contribuyente de trabajo y sus secciones (Borradores, Facturas, Clientes…). Va en
 // TODAS las pantallas de una organización, no solo dentro de un contribuyente: facturar está siempre a un clic.
 import type { Permission } from "@facturalibre/security";
-import { BookUser, Building2, FilePen, FileText, KeyRound, Package, Plus, ShieldCheck } from "lucide-react";
+import { BookUser, Building2, FilePen, FileText, KeyRound, LayoutTemplate, Package, Plus, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NavLink } from "@/components/app-header";
 import { MobileTabBar, type TabItem } from "@/components/mobile-tab-bar";
 
 /** «nueva»: el editor de una factura nueva (en escritorio cuenta como Borradores; en móvil tiene su pestaña). */
-export type TaxpayerSection = "datos" | "borradores" | "nueva" | "facturas" | "clientes" | "productos" | "registros" | "certificado";
+export type TaxpayerSection = "datos" | "borradores" | "nueva" | "facturas" | "plantillas" | "clientes" | "productos" | "registros" | "certificado";
 
 export interface SidebarTaxpayer {
   readonly id: string;
@@ -40,6 +40,7 @@ export function TaxpayerSidebar({
       items: [
         { id: "borradores", href: `${base}/borradores`, label: "Borradores", icon: <FilePen />, visible: can("invoices.read") },
         { id: "facturas", href: `${base}/facturas`, label: "Facturas", icon: <FileText />, visible: can("invoices.read") },
+        { id: "plantillas", href: `${base}/plantillas`, label: "Plantillas", icon: <LayoutTemplate />, visible: can("invoices.read") },
       ],
     },
     {
@@ -116,6 +117,7 @@ function mobileTabs(base: string, can: (permission: Permission) => boolean, curr
     { id: "facturas", href: `${base}/facturas`, label: "Facturas", icon: <FileText />, visible: can("invoices.read") },
     { id: "nueva", href: `${base}/facturas/nueva`, label: "Nueva factura", shortLabel: "Nueva", icon: <Plus />, emphasis: true, visible: can("invoices.draft") },
     { id: "clientes", href: `${base}/clientes`, label: "Clientes", icon: <BookUser />, visible: can("customers.read") },
+    { id: "plantillas", href: `${base}/plantillas`, label: "Plantillas", icon: <LayoutTemplate />, visible: can("invoices.read") },
     { id: "productos", href: `${base}/productos`, label: "Productos", icon: <Package />, visible: can("products.read") },
     { id: "registros", href: `${base}/registros`, label: "Registros VERI*FACTU", icon: <ShieldCheck />, visible: can("verifactu.read") },
     { id: "certificado", href: `${base}/certificado`, label: "Certificado", icon: <KeyRound />, visible: can("certificates.manage") },

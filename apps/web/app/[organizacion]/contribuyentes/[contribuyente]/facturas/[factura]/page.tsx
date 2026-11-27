@@ -2,7 +2,7 @@ import { formatAmount, formatDecimal, SCALE } from "@facturalibre/fiscal-core";
 import { getBillingSettings, getInvoice, type BillingRecordView, type InvoiceDetail } from "@facturalibre/tenancy";
 import { qrSvg, qrUrl } from "@facturalibre/verifactu";
 import type { Metadata } from "next";
-import { Download, Eye, Send } from "lucide-react";
+import { Download, Eye, LayoutTemplate, Send } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -318,6 +318,13 @@ async function Invoice({ params, searchParams }: { readonly params: Props["param
               <Download aria-hidden="true" />
               {draft ? "Descargar borrador (PDF)" : "Descargar PDF"}
             </a>
+            {/* Para las facturas que se repiten: la próxima vez se empieza desde la plantilla. */}
+            {can("invoices.draft") && invoice.kind === "STANDARD" ? (
+              <Link href={`/${slug}/contribuyentes/${taxpayer.id}/plantillas/nueva?desde=${invoice.id}`} className={buttonVariants({ variant: "outline" })}>
+                <LayoutTemplate aria-hidden="true" />
+                Guardar como plantilla
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>

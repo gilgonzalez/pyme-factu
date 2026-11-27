@@ -2,29 +2,13 @@
 // emisión con número correlativo y registro VERI*FACTU (QR tributario), inmutabilidad, rectificativa en su propia
 // serie, anulación y cadena de registros comprobada. Datos ficticios.
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
-import { createOrganization, requireFullStack, signUpAndVerify, taxpayerSection } from "./support/flows";
+import { expect, test } from "@playwright/test";
+import { createOrganization, createTaxpayer, pick, requireFullStack, signUpAndVerify, taxpayerSection } from "./support/flows";
 import { emailWithAttachments, uniqueEmail, uniqueSuffix } from "./support/mailpit";
 
 requireFullStack();
 
 const YEAR = new Date().toLocaleString("en-CA", { timeZone: "Europe/Madrid", year: "numeric" });
-
-async function createTaxpayer(page: Page): Promise<void> {
-  await page.getByRole("link", { name: "Contribuyentes", exact: true }).click();
-  const form = page.getByRole("form", { name: "Nuevo contribuyente" });
-  await form.getByLabel("NIF").fill("12345678Z");
-  await form.getByLabel("Nombre y apellidos o razón social").fill("Ana Ficticia Pérez");
-  await form.getByRole("button", { name: "Dar de alta" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Ana Ficticia Pérez" })).toBeVisible();
-}
-
-/** Busca en un campo con buscador y elige la opción que coincida. */
-async function pick(page: Page, field: string, search: string, option: RegExp): Promise<void> {
-  const combobox = page.getByRole("combobox", { name: field, exact: true });
-  await combobox.fill(search);
-  await page.getByRole("listbox", { name: field }).getByRole("option", { name: option }).click();
-}
 
 test("cliente, producto, borrador, emisión con QR, rectificativa, anulación y cadena", async ({ page }) => {
   // Recorrido largo (tres emisiones, una anulación y la cadena): más tiempo que el predeterminado de 30 s.

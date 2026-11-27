@@ -1,4 +1,3 @@
-import { formatDecimal, SCALE } from "@facturalibre/fiscal-core";
 import { getBillingSettings, getInvoice } from "@facturalibre/tenancy";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -8,7 +7,7 @@ import { TaxpayerFrame } from "@/components/taxpayer-frame";
 import { getDatabase } from "@/lib/server/db";
 import { requireTaxpayer } from "@/lib/server/session";
 import { saveDraftAction } from "../../actions";
-import { editorData, invoicesPath } from "../../editor-data";
+import { editorData, editorInitial, invoicesPath } from "../../editor-data";
 import { InvoiceEditor } from "../../invoice-editor";
 
 export const metadata: Metadata = { title: "Editar factura" };
@@ -38,18 +37,7 @@ async function EditInvoice({ params }: { readonly params: Params }) {
         createProduct={context.permissions.has("products.write") ? createProductFromEditorAction.bind(null, context.tenant.slug, taxpayer.id) : undefined}
         defaultTax={settings.defaultTaxKey ?? undefined}
         newCustomerHref={`/${context.tenant.slug}/contribuyentes/${taxpayer.id}/clientes`}
-        initial={{
-          customerId: invoice.customerId,
-          withholdingPercent: invoice.withholdingPercent === 0n ? "" : formatDecimal(invoice.withholdingPercent, SCALE.percent),
-          notes: invoice.notes ?? "",
-          lines: invoice.lines.map((line) => ({
-            description: line.description,
-            quantity: formatDecimal(line.quantity, SCALE.quantity),
-            unitPrice: formatDecimal(line.unitPrice, SCALE.unitPrice),
-            discountPercent: line.discountPercent === 0n ? "" : formatDecimal(line.discountPercent, SCALE.percent),
-            tax: line.taxKey,
-          })),
-        }}
+        initial={editorInitial(invoice)}
         {...(invoice.kind === "RECTIFYING" ? { rectification: { number: invoice.rectifiesNumber ?? "", reason: invoice.rectificationReason ?? "" } } : {})}
       />
     </TaxpayerFrame>
