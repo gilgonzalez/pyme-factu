@@ -1,5 +1,5 @@
 import "server-only";
-import { createAuth, createSmtpMailer, type Auth, type Mailer } from "@facturalibre/auth";
+import { createAuth, createResendMailer, createSmtpMailer, type Auth, type Mailer } from "@facturalibre/auth";
 import { requireEnv } from "@facturalibre/database";
 import { nextCookies } from "better-auth/next-js";
 
@@ -7,7 +7,10 @@ import { nextCookies } from "better-auth/next-js";
 const holder = globalThis as typeof globalThis & { facturalibreAuth?: Auth; facturalibreMailer?: Mailer };
 
 export function getMailer(): Mailer {
-  holder.facturalibreMailer ??= createSmtpMailer(requireEnv("SMTP_URL"), requireEnv("MAIL_FROM"));
+  // Con RESEND_API_KEY, por la API HTTPS de Resend (Railway bloquea el SMTP saliente); si no, por SMTP.
+  const resendKey = process.env["RESEND_API_KEY"]?.trim() ?? "";
+  holder.facturalibreMailer ??=
+    resendKey === "" ? createSmtpMailer(requireEnv("SMTP_URL"), requireEnv("MAIL_FROM")) : createResendMailer(resendKey, requireEnv("MAIL_FROM"));
   return holder.facturalibreMailer;
 }
 

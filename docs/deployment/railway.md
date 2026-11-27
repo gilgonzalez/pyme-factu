@@ -34,7 +34,7 @@ Variables compartidas del entorno (*Shared Variables*): `APP_DB_PASSWORD`, `AUTH
 | `AUTH_SECRET` | ≥ 32 caracteres aleatorios |
 | `AUTH_IP_HEADERS` | `x-real-ip`: el proxy de Railway añade su IP a `X-Forwarded-For` y sin esto el rate limiting usaría un único cupo para todos |
 | ⚠️ Dominio | Si cambias el dominio del servicio, actualiza `APP_BASE_URL`: Better Auth rechaza (*Invalid origin*) las peticiones de cualquier otro origen |
-| `SMTP_URL` · `MAIL_FROM` | Servidor de correo real (con SPF, DKIM y DMARC en el dominio) |
+| `RESEND_API_KEY` · `MAIL_FROM` | Correo por la **API HTTPS** de Resend: Railway bloquea el SMTP saliente (salvo en el plan Pro) y con `SMTP_URL` el envío agota el tiempo de conexión. Dominio del remitente verificado en Resend (SPF, DKIM y DMARC) |
 | `CERTIFICATE_KEK` | `${{shared.CERTIFICATE_KEK}}` |
 | `SIF_PRODUCER_NAME` · `SIF_PRODUCER_NIF` · `SIF_VERSION` · `SIF_DECLARATION_URL` | Ver la tabla de producción en [docker.md](docker.md) |
 
