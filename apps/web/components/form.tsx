@@ -43,7 +43,7 @@ export const FIELD_WIDTHS: Readonly<Record<FieldWidth, string>> = {
 interface FieldProps extends Omit<ComponentProps<"input">, "id" | "name" | "width"> {
   readonly name: string;
   readonly label: string;
-  readonly hint?: string;
+  readonly hint?: string | undefined;
   readonly error?: string | undefined;
   readonly width?: FieldWidth;
 }
@@ -99,10 +99,22 @@ export function Field({ name, label, hint, error, width = "full", className, ...
         className={`field-cell-input ${className ?? ""}`}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={describedBy(id, hint, error)}
+        // En el móvil, la tecla Intro del teclado pasa al campo siguiente («Siguiente»).
+        enterKeyHint="next"
+        // Emails: teclado con @, sin mayúscula inicial ni corrector (el móvil los estropea).
+        {...(input.type === "email" ? { inputMode: "email" as const, autoCapitalize: "none", spellCheck: false } : {})}
         {...input}
       />
     </FieldCell>
   );
+}
+
+/**
+ * Botones de envío de un formulario. En el móvil, el principal ocupa todo el ancho, es alto (fácil de tocar) y,
+ * con `sticky`, queda fijo abajo mientras se rellena un formulario largo: siempre a mano, sin buscarlo.
+ */
+export function FormActions({ sticky = false, children }: { readonly sticky?: boolean; readonly children: ReactNode }) {
+  return <div className={`form-actions ${sticky ? "form-actions-sticky" : ""}`}>{children}</div>;
 }
 
 /** Texto largo (observaciones, mensajes…) con la etiqueta dentro. */

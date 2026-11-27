@@ -3,7 +3,7 @@
 import { useId, type ReactNode } from "react";
 import { ActionButton } from "@/components/action-button";
 import { ActionForm, type FormAction } from "@/components/action-form";
-import { Field, FieldGroup, FieldRow, TextAreaField } from "@/components/form";
+import { Field, FieldGroup, FieldRow, FormActions, TextAreaField } from "@/components/form";
 import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -133,11 +133,11 @@ export function BillingSettingsForm({ action, values }: { readonly action: FormA
               </FieldGroup>
             </Group>
 
-            <div className="flex justify-end">
+            <FormActions sticky>
               <Button type="submit" size="lg" disabled={pending}>
                 {pending ? "Guardando…" : "Guardar configuración"}
               </Button>
-            </div>
+            </FormActions>
           </>
         );
       }}

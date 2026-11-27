@@ -15,7 +15,10 @@ test("alta de un contribuyente y acceso de solo lectura para un empleado con alc
   const form = page.getByRole("form", { name: "Nuevo contribuyente" });
   await form.getByLabel("NIF").fill("B12345675");
   await form.getByLabel("Nombre y apellidos o razón social").fill("Fontanería Ficticia SL");
+  // Lo opcional está plegado: se abre para escribir el código postal (la provincia se rellena sola).
+  await form.getByRole("button", { name: "Añadir contacto, dirección y datos registrales" }).click();
   await form.getByLabel("Código postal (opcional)").fill("28001");
+  await expect(form.getByLabel("Provincia (opcional)")).toHaveValue("Madrid");
   await form.getByRole("button", { name: "Dar de alta" }).click();
   await expect(form.getByText("El NIF no es válido: revisa el último carácter (control).")).toBeVisible();
   // Lo ya escrito se conserva tras el error.

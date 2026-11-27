@@ -1,6 +1,6 @@
 "use client";
 import { ActionForm, type FormAction } from "@/components/action-form";
-import { Field, FieldGroup, FieldRow } from "@/components/form";
+import { Field, FieldGroup, FieldRow, FormActions } from "@/components/form";
 import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { TAX_OPTIONS } from "@/lib/invoicing";
@@ -24,11 +24,11 @@ export function ProductForm({ action, defaultName = "", stacked = false }: { rea
               </FieldRow>
             ) : null}
           </FieldGroup>
-          <div className={stacked ? "flex justify-end" : ""}>
+          <FormActions>
             <Button type="submit" size="lg" disabled={pending}>
               {pending ? "Guardando…" : stacked ? "Guardar y añadir a la factura" : "Guardar"}
             </Button>
-          </div>
+          </FormActions>
         </>
       )}
     </ActionForm>

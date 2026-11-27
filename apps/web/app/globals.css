@@ -312,6 +312,17 @@ form[aria-busy="true"] button[type="submit"]::before {
   .field-cell:hover {
     border-color: #c6c6d0;
   }
+  /* Toda la celda es zona táctil: tocar en cualquier punto (etiqueta, pista, márgenes) lleva al campo. El control
+     queda por encima para colocar el cursor o elegir una opción con normalidad. */
+  .field-cell:has(> .field-cell-input) > label::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+  .field-cell > .field-cell-input {
+    position: relative;
+    z-index: 1;
+  }
   .field-cell:focus-within {
     border-color: var(--ring);
     box-shadow: 0 0 0 4px rgb(90 63 242 / 0.1);
@@ -390,5 +401,50 @@ form[aria-busy="true"] button[type="submit"]::before {
     resize: none;
     field-sizing: content;
     max-height: 16rem;
+  }
+}
+
+/*
+ * Formularios en el móvil: botones de envío altos y a todo el ancho (FormActions), fijos abajo en los formularios
+ * largos (.form-actions-sticky, sobre la barra de pestañas) y casillas de verificación fáciles de tocar.
+ */
+@layer components {
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  @media (width < 40rem) {
+    .form-actions {
+      display: grid;
+      justify-content: stretch;
+    }
+    /* min-height (no height): la altura de las utilidades del botón (h-10) ganaría a esta capa. */
+    .form-actions > button,
+    .form-actions > a {
+      width: 100%;
+      min-height: 3rem;
+      font-size: 1rem;
+    }
+    .form-actions-sticky {
+      position: sticky;
+      bottom: calc(var(--tabbar-h) + 0.5rem);
+      z-index: 10;
+      margin-inline: -0.5rem;
+      padding: 0.5rem;
+      border-radius: 16px;
+      background-color: color-mix(in oklab, var(--background) 88%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    form button[type="submit"] {
+      min-height: 2.75rem;
+    }
+    form input[type="checkbox"] {
+      width: 1.25rem;
+      height: 1.25rem;
+      flex: none;
+      accent-color: var(--primary);
+    }
   }
 }

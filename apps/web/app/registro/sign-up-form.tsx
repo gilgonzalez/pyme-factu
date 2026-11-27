@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { Field } from "@/components/form";
+import { PasswordField } from "@/components/form-extras";
 import { ResendVerification } from "@/components/resend-verification";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
 
@@ -44,10 +45,10 @@ export function SignUpForm() {
     >
       <Field name="name" label="Nombre y apellidos" autoComplete="name" required maxLength={120} />
       <Field name="email" label="Email" type="email" autoComplete="email" required maxLength={254} />
-      <Field
+      <PasswordField
         name="password"
         label="Contraseña"
-        type="password"
+        enterKeyHint="go"
         autoComplete="new-password"
         required
         minLength={8}

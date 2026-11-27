@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { Field } from "@/components/form";
+import { PasswordField } from "@/components/form-extras";
 import { ResendVerification } from "@/components/resend-verification";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
 
@@ -46,7 +47,7 @@ export function SignInForm() {
       }
     >
       <Field name="email" label="Email" type="email" autoComplete="email" required maxLength={254} />
-      <Field name="password" label="Contraseña" type="password" autoComplete="current-password" required maxLength={128} />
+      <PasswordField name="password" label="Contraseña" enterKeyHint="go" autoComplete="current-password" required maxLength={128} />
     </AuthForm>
   );
 }

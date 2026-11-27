@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
-import { Field, FormAlert } from "@/components/form";
+import { FormAlert } from "@/components/form";
+import { PasswordField } from "@/components/form-extras";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
 
 export function ResetPasswordForm() {
@@ -41,10 +42,10 @@ export function ResetPasswordForm() {
         };
       }}
     >
-      <Field
+      <PasswordField
         name="password"
         label="Contraseña nueva"
-        type="password"
+        enterKeyHint="go"
         autoComplete="new-password"
         required
         minLength={8}

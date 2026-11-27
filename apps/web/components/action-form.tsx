@@ -3,7 +3,7 @@
 // formulario (role="status"/"alert") y desactiva el envío mientras está en curso.
 // React vacía el formulario al terminar la acción: si hay errores, los valores enviados vuelven
 // como `values` para usarlos de defaultValue y que la persona no tenga que reescribirlo todo.
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, type ReactNode } from "react";
 import { FormAlert } from "@/components/form";
 
 export type ActionResult = { readonly ok: boolean; readonly message: string; readonly errors?: Readonly<Record<string, string>> } | null;
@@ -36,8 +36,17 @@ export function ActionForm({ action, children, className, label }: ActionFormPro
     const next = await action(previous.result, data);
     return { result: next, values: next?.ok === false ? textValues(data) : {} };
   }, INITIAL);
+  const form = useRef<HTMLFormElement>(null);
+  // Tras un intento con errores, al primer campo marcado: en el móvil el error suele quedar fuera de la pantalla.
+  useEffect(() => {
+    if (result?.ok !== false) return;
+    const invalid = form.current?.querySelector<HTMLElement>("[aria-invalid='true']");
+    if (invalid === null || invalid === undefined) return;
+    invalid.scrollIntoView({ block: "center", behavior: "smooth" });
+    invalid.focus({ preventScroll: true });
+  }, [result]);
   return (
-    <form action={formAction} className={className} aria-label={label} aria-busy={pending}>
+    <form ref={form} action={formAction} className={className} aria-label={label} aria-busy={pending}>
       {children({ pending, errors: result?.errors ?? {}, values })}
       {result === null || result.message === "" ? null : (
         <div className="basis-full">

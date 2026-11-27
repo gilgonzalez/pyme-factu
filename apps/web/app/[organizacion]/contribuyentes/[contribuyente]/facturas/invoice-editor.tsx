@@ -4,9 +4,10 @@
 import { calculateInvoice, formatAmount, parseDecimal, parseInvoiceLine, SCALE, type ParsedLine } from "@facturalibre/fiscal-core";
 import { X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type FocusEvent, type ReactNode } from "react";
 import { ActionForm, type FormAction } from "@/components/action-form";
 import { EntityPicker } from "@/components/entity-picker";
+import { MoreFields } from "@/components/form-extras";
 import { Modal } from "@/components/modal";
 import { PartyForm } from "@/components/party-form";
 import { Field, FieldCell, FieldGroup, FieldRow, FormAlert, TextAreaField } from "@/components/form";
@@ -59,6 +60,7 @@ export interface InvoiceEditorProps {
   readonly template?: { readonly name: string };
 }
 
+/** Al tocar un número se selecciona entero: se escribe encima (la cantidad empieza en 1) sin borrar antes. */const selectAll = (event: FocusEvent<HTMLInputElement>): void => event.currentTarget.select();
 const EMPTY_LINE: EditorLine = {
   description: "",
   quantity: "1",
@@ -215,6 +217,13 @@ function EditorForm({
   const [createdCustomers, setCreatedCustomers] = useState<EditorCustomer[]>([]);
   const [createdProducts, setCreatedProducts] = useState<EditorProduct[]>([]);
   const [creatingNew, setCreatingNew] = useState<Creating>(null);
+  const [detailOpen, setDetailOpen] = useState<ReadonlySet<number>>(new Set());
+  const toggleDetail = (key: number) =>
+    setDetailOpen((current) => {
+      const next = new Set(current);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
   const customers = withCreated(listedCustomers, createdCustomers);
   const products = withCreated(listedProducts, createdProducts);
   const surcharge = customers.find((customer) => customer.id === customerId)?.equivalenceSurcharge ?? false;
@@ -306,6 +315,10 @@ function EditorForm({
                 {lines.map((line, index) => {
                   const name = (field: string) => `lines.${String(index)}.${field}`;
                   const taxId = `impuesto-${String(line.key)}`;
+                  // En el móvil, IVA y descuento plegados tras «Cambiar» (casi nunca cambian); abiertos si tienen error.
+                  const detailError = errors[name("discountPercent")] ?? errors[name("tax")];
+                  const showDetail = detailOpen.has(line.key) || detailError !== undefined;
+                  const detailSummary = `${taxLabel(line.tax)}${line.discountPercent.trim() === "" || line.discountPercent.trim() === "0" ? "" : ` · dto. ${line.discountPercent} %`}`;
                   return (
                     <div
                       key={line.key}
@@ -325,6 +338,7 @@ function EditorForm({
                         name={name("quantity")}
                         label="Cantidad"
                         inputMode="decimal"
+                        onFocus={selectAll}
                         value={line.quantity}
                         onChange={(event) => update(line.key, { quantity: event.target.value })}
                         error={errors[name("quantity")]}
@@ -334,15 +348,18 @@ function EditorForm({
                         label="Precio (€)"
                         inputMode="decimal"
                         placeholder="0,00"
+                        onFocus={selectAll}
                         value={line.unitPrice}
                         onChange={(event) => update(line.key, { unitPrice: event.target.value })}
                         error={errors[name("unitPrice")]}
                       />
+                      <div className={showDetail ? "contents" : "contents max-lg:hidden"}>
                       <Field
                         name={name("discountPercent")}
                         label="Dto. %"
                         inputMode="decimal"
                         placeholder="0"
+                        onFocus={selectAll}
                         value={line.discountPercent}
                         onChange={(event) => update(line.key, { discountPercent: event.target.value })}
                         error={errors[name("discountPercent")]}
@@ -362,7 +379,18 @@ function EditorForm({
                           ))}
                         </select>
                       </FieldCell>
-                      <div className="col-span-2 grid place-items-center bg-card p-1 sm:col-span-4 lg:col-span-1">
+                      </div>
+                      <div className="col-span-2 flex items-center justify-between gap-2 bg-card py-1 pr-1 pl-3.5 sm:col-span-4 lg:col-span-1 lg:justify-center lg:p-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleDetail(line.key)}
+                          aria-expanded={showDetail}
+                          aria-label={`${showDetail ? "Ocultar" : "Cambiar"} el impuesto o el descuento de la línea ${String(index + 1)}`}
+                          className="flex min-h-11 min-w-0 items-center gap-2 text-left text-sm lg:hidden"
+                        >
+                          <span className="truncate text-muted-foreground">{detailSummary}</span>
+                          <span className="font-semibold text-primary">{showDetail ? "Listo" : "Cambiar"}</span>
+                        </button>
                         <Button
                           type="button"
                           variant="ghost"
@@ -409,21 +437,29 @@ function EditorForm({
               </div>
             </fieldset>
 
-            <FieldGroup>
-              <FieldRow columns="sm:grid-cols-[14rem_minmax(0,1fr)]">
-                <Field
-                  name="withholdingPercent"
-                  label="Retención IRPF % (opcional)"
-                  hint="Si facturas como profesional a una empresa o autónomo."
-                  inputMode="decimal"
-                  placeholder="p. ej. 15"
-                  value={withholding}
-                  onChange={(event) => setWithholding(event.target.value)}
-                  error={errors["withholdingPercent"]}
-                />
-                <TextAreaField name="notes" label="Observaciones (opcional)" maxLength={1000} rows={2} defaultValue={initial.notes} />
-              </FieldRow>
-            </FieldGroup>
+            {/* Casi nunca hacen falta: plegados salvo que ya tengan algo (p. ej. la retención por defecto de la empresa). */}
+            <MoreFields
+              label="retención IRPF u observaciones"
+              defaultOpen={initial.withholdingPercent !== "" || initial.notes !== ""}
+              forceOpen={errors["withholdingPercent"] !== undefined || errors["notes"] !== undefined}
+            >
+              <FieldGroup>
+                <FieldRow columns="sm:grid-cols-[14rem_minmax(0,1fr)]">
+                  <Field
+                    name="withholdingPercent"
+                    label="Retención IRPF % (opcional)"
+                    hint="Si facturas como profesional a una empresa o autónomo."
+                    inputMode="decimal"
+                    placeholder="p. ej. 15"
+                    onFocus={selectAll}
+                    value={withholding}
+                    onChange={(event) => setWithholding(event.target.value)}
+                    error={errors["withholdingPercent"]}
+                  />
+                  <TextAreaField name="notes" label="Observaciones (opcional)" maxLength={1000} rows={2} defaultValue={initial.notes} error={errors["notes"]} />
+                </FieldRow>
+              </FieldGroup>
+            </MoreFields>
 
             {creatingNew?.kind === "customer" && createCustomer !== undefined ? (
               <Modal title="Nuevo cliente" description="Se guarda en tus clientes y queda elegido en esta factura." onClose={() => setCreatingNew(null)}>
